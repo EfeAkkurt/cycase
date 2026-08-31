@@ -1,0 +1,3801 @@
+@import './tokens.css';
+
+/**
+ * CYCASE dashboard design system.
+ *
+ * The contract every metric here holds to: the concentric gray tray (12px outer
+ * / 4px inset / 8px inner), 32px controls with 12px padding and 8px gaps, 20px
+ * pill chips, the 13px/18px body with -0.31px tracking, and the 400/500 weight
+ * lock. Class names are kept stable so the DOM, the ids the tool log points at,
+ * and the E2E suite do not move when the visual contract does.
+ *
+ * Two rules exist because they are what stop a system drifting: **no weight
+ * above 500**, and **no uppercase transforms**.
+ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 700;
+  src: url('/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 700;
+  src: url('/fonts/jetbrains-mono-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+/* ------------------------------------------------------------------ *
+ * Base
+ * ------------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--type-font-sans);
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  letter-spacing: var(--tracking-normal);
+  font-kerning: normal;
+  font-feature-settings: 'kern' 1;
+  font-variant-numeric: tabular-nums;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+ul,
+ol,
+dl,
+dd {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+svg {
+  display: block;
+  stroke-width: var(--icon-stroke);
+}
+
+/* ------------------------------------------------------------------ *
+ * Focus and accessibility
+ * ------------------------------------------------------------------ */
+
+:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px var(--panel),
+    0 0 0 2px var(--brand);
+  border-radius: var(--radius-sm);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-4);
+  top: -100px;
+  z-index: var(--z-tooltip);
+  height: var(--control-height-sm);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  background: var(--btn-cta-bg);
+  color: var(--btn-cta-fg);
+  border-radius: var(--radius-md);
+  font-size: var(--type-sm-size);
+  font-weight: var(--fw-medium);
+  transition: top var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.skip-link:focus {
+  top: var(--space-4);
+}
+
+/* ------------------------------------------------------------------ *
+ * Type helpers
+ * ------------------------------------------------------------------ */
+
+.mono {
+  font-family: var(--type-font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings: 'tnum' 1;
+  font-size: var(--type-xs-size);
+}
+
+.prose {
+  max-width: 72ch;
+  color: var(--text-secondary);
+}
+
+/*
+ * The type scale, as classes.
+ *
+ * These replace ~60 `style={{ fontSize: 'var(--type-xs-size)' }}` attributes
+ * scattered through the dashboard, the investigation tools and the rail. An
+ * inline font size is not a scale — it is a number that happens to agree with
+ * one today, and every one of them had to be found by hand to change anything.
+ *
+ * Each step carries its own leading, which is the part the inline sizes were
+ * silently dropping: a 12px label was inheriting the 18px body leading, so the
+ * same "12px text" was 16px tall in `.eyebrow` and 18px tall everywhere it was
+ * set inline.
+ */
+.text-xs {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+}
+
+.text-sm {
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+}
+
+.text-md {
+  font-size: var(--type-md-size);
+  line-height: var(--type-md-lh);
+}
+
+.text-lg {
+  font-size: var(--type-lg-size);
+  line-height: var(--type-lg-lh);
+}
+
+.text-xl {
+  font-size: var(--type-xl-size);
+  line-height: var(--type-xl-lh);
+}
+
+.text-2xl {
+  font-size: var(--type-2xl-size);
+  line-height: var(--type-2xl-lh);
+}
+
+.text-kpi {
+  font-size: var(--type-kpi-size);
+  line-height: var(--type-kpi-lh);
+}
+
+.muted {
+  color: var(--text-tertiary);
+}
+
+/* KPI label — 12px medium secondary. No uppercase anywhere. */
+.eyebrow {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+/*
+ * Text tone. After `.muted` and `.prose` on purpose — these are equal-
+ * specificity single-class rules, so a `prose tone-good` only reads as good
+ * because it is declared here rather than above them.
+ *
+ * Measured against the raised tray: success 7.24, warning 6.44, error 5.64.
+ * These are the *lifted* foregrounds, not the fill colours of the same name —
+ * a colour that works as a 20px chip does not automatically clear AA as 13px
+ * text on a near-black surface.
+ */
+.tone-good {
+  color: var(--status-success);
+}
+
+.tone-warn {
+  color: var(--status-warning);
+}
+
+.tone-bad {
+  color: var(--status-error);
+}
+
+/* Layout atoms, so a one-off `style` attribute stops being the only way to
+   say "this cell takes the slack" or "this token can break mid-word". */
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ *
+ * Gray tray panel — the core surface
+ *
+ * Concentric radius: outer = inner + frame inset. The band carries the title,
+ * the inner surface carries the content.
+ * ------------------------------------------------------------------ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-tray-outer);
+  border: 1px solid var(--tray-border);
+  background: var(--tray-bg);
+  padding: var(--tray-frame-inset);
+  overflow: hidden;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.panel__head {
+  display: flex;
+  min-height: var(--gray-tray-header-h);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Panel title — 14px medium secondary, sentence case. */
+.panel__title {
+  font-size: var(--type-md-size);
+  line-height: var(--type-md-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel__body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  border-radius: var(--radius-tray-inner);
+  border: 1px solid var(--tray-border);
+  background: var(--tray-cell-bg);
+  padding: var(--space-4);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.panel__body--flush {
+  padding: 0;
+}
+
+.panel--critical {
+  border-color: var(--badge-error-border);
+}
+
+.panel--critical .panel__body {
+  border-color: var(--badge-error-border);
+}
+
+.panel--compact {
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-md);
+}
+
+.panel--compact .panel__head {
+  min-height: 22px;
+  padding: 2px var(--space-2);
+}
+
+.panel--compact .panel__title {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+}
+
+.panel--compact .panel__body {
+  padding: var(--space-2);
+  gap: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+/* ------------------------------------------------------------------ *
+ * Buttons
+ * 32h · 13px · 500 · px-12 · gap-8 · radius 8
+ * ------------------------------------------------------------------ */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  height: var(--btn-h-cta);
+  min-height: var(--btn-h-cta);
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  font-weight: var(--fw-medium);
+  border: 1px solid transparent;
+  border-radius: var(--btn-radius);
+  background-clip: padding-box;
+  user-select: none;
+  overflow: hidden;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    border-color var(--motion-duration-fast) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Primary CTA — solid brand with the inset sheen. */
+.btn--primary {
+  background: var(--btn-cta-bg);
+  color: var(--btn-cta-fg);
+  box-shadow: var(--btn-cta-shadow);
+}
+
+.btn--primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--btn-sheen-top);
+  pointer-events: none;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--btn-cta-bg-hover);
+  box-shadow: var(--btn-cta-shadow-hover);
+}
+
+/* Secondary — outlined surface. */
+.btn--default,
+.btn--secondary {
+  border-color: var(--dd-border);
+  background: var(--dd-bg);
+  color: var(--dd-fg);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn--default:hover:not(:disabled),
+.btn--secondary:hover:not(:disabled) {
+  background: var(--dd-bg-hover);
+  border-color: var(--dd-border-hover);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--btn-ghost-bg-hover);
+  color: var(--text-primary);
+}
+
+.btn--danger {
+  background: var(--badge-error-bg);
+  border-color: var(--badge-error-border);
+  color: var(--badge-error-fg);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: rgb(232 105 92 / 0.2);
+}
+
+.btn--sm {
+  height: var(--btn-h-cta);
+  min-height: var(--btn-h-cta);
+  padding: 0 var(--space-2);
+  font-size: var(--type-xs-size);
+}
+
+.btn--block {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/*
+ * Multi-line buttons (a decision option, a rail shortcut with a rationale)
+ * cannot hold the 32px lock, so they take the comfortable row height instead
+ * and stack their content.
+ */
+.btn--block:has(.btn__reason),
+.btn--block.btn--stacked {
+  height: auto;
+  min-height: var(--control-height-lg);
+  padding: var(--space-2) var(--space-3);
+  align-items: flex-start;
+}
+
+.btn__reason {
+  display: block;
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-regular);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  white-space: normal;
+}
+
+.btn > span {
+  position: relative;
+  z-index: var(--z-raised);
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Chips
+ * 20h · pill · 12px · 500 · px-6 · gap-4
+ * ------------------------------------------------------------------ */
+
+.badge {
+  display: inline-flex;
+  width: fit-content;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--badge-gap);
+  height: var(--badge-h-md);
+  padding: 0 var(--badge-px-md);
+  border: 1px solid var(--badge-neutral-border);
+  border-radius: var(--badge-radius);
+  background: var(--badge-neutral-bg);
+  background-clip: padding-box;
+  color: var(--badge-neutral-fg);
+  font-size: var(--badge-font-size);
+  font-weight: var(--badge-font-weight);
+  letter-spacing: var(--badge-letter-spacing);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  transition:
+    color var(--motion-duration-fast) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.badge--critical {
+  border-color: var(--badge-error-border);
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
+}
+
+.badge--warning {
+  border-color: var(--badge-warning-border);
+  background: var(--badge-warning-bg);
+  color: var(--badge-warning-fg);
+}
+
+.badge--success {
+  border-color: var(--badge-success-border);
+  background: var(--badge-success-bg);
+  color: var(--badge-success-fg);
+}
+
+.badge--accent {
+  border-color: var(--badge-accent-border);
+  background: var(--badge-accent-bg);
+  color: var(--badge-accent-fg);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--text-tertiary);
+  flex: none;
+}
+
+.dot--critical {
+  background: var(--status-error);
+}
+.dot--warning {
+  background: var(--status-warning);
+}
+.dot--success {
+  background: var(--status-success);
+}
+.dot--accent {
+  background: var(--brand-primary);
+}
+
+.pulse {
+  animation: pulse 1.8s var(--motion-easing-standard) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Key / value grid
+ * ------------------------------------------------------------------ */
+
+.kv {
+  display: grid;
+  grid-template-columns: minmax(140px, 32%) 1fr;
+  gap: 0 var(--space-4);
+  align-items: baseline;
+}
+
+.kv__row {
+  display: contents;
+}
+
+.kv__key,
+.kv__value {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: var(--row-height-compact);
+}
+
+.kv__key {
+  font-size: var(--type-sm-size);
+  color: var(--text-tertiary);
+}
+
+.kv__value {
+  font-family: var(--type-font-mono);
+  font-size: var(--type-xs-size);
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.kv__value--bad {
+  color: var(--status-error);
+}
+.kv__value--warn {
+  color: var(--status-warning);
+}
+.kv__value--good {
+  color: var(--status-success);
+}
+
+.kv__row--decisive .kv__key::before {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 12px;
+  margin-right: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--brand-primary);
+  vertical-align: -2px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Operations console shell
+ * ------------------------------------------------------------------ *
+ *
+ * Structure taken from the inset-workspace pattern: a dark ground, a sidebar
+ * standing on it, and a workspace card set into it — inset top and bottom,
+ * flush right, so the left corners are round and the right ones are not.
+ *
+ * The surface ladder is the reason the ground is the *lighter* of the two.
+ * This system's trays are already `--carbon-sunken` over a `--carbon` page; a
+ * card lifted to `--carbon-sunken` would be exactly the colour of every panel
+ * sitting on it and the whole "gray tray" pattern would disappear. So the card
+ * keeps the page's own `--carbon`, and the ground it is inset into is the step
+ * above it. Same four values, no new colour, ladder intact:
+ *
+ *   ground #141413 → card #0b0b0a → tray #141413 → cell #171716
+ *
+ * The frame does not scroll. `main` and the rail scroll independently inside
+ * it, which is what keeps the required step, the destination heading and the
+ * global actions in the same place for the whole session.
+ * ------------------------------------------------------------------ */
+
+/*
+ * `height`, not `min-height`.
+ *
+ * A column flex container with an auto main size sizes its items from their
+ * content no matter what their `flex-basis` says — `min-height: 100%` gives the
+ * box a floor, never a *definite* height to distribute. The office never
+ * noticed, because its content is shorter than the viewport and the floor was
+ * doing the work. The console is two thousand pixels tall, so the shell grew to
+ * fit it and the fixed frame silently became a scrolling page.
+ *
+ * `#root`, `body` and `html` are all `height: 100%`, so this is definite, and
+ * every scene inside already declares `flex: 1; min-height: 0` against it.
+ */
+.shell {
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.console {
+  /*
+   * `position: relative` is load-bearing, and not for stacking.
+   *
+   * `.sr-only` is the standard visually-hidden pattern: `position: absolute`
+   * with a 1px box and `clip`. Absolute with no positioned ancestor resolves
+   * its containing block to the *initial* one -- the document -- and an
+   * element whose containing block is the document is not clipped by any
+   * `overflow: hidden` in between. So a single screen-reader table caption
+   * sitting 2,457px down the case escaped the console frame, the card, and the
+   * scroller, and extended `<html>` to 2,458px. `<body>` stayed at one
+   * viewport, `#main` scrolled correctly, and the whole page scrolled anyway
+   * with the header and the sidebar sliding off the top.
+   *
+   * Naming a containing block here is what keeps that inside the frame. It
+   * costs nothing visually: these boxes are 1px and clipped either way.
+   */
+  position: relative;
+  /*
+   * `flex-basis: 0`, not `auto`, and this is the whole trick.
+   *
+   * `.shell` is `min-height: 100%` with an auto height. With `flex-basis: auto`
+   * the console's base size is its *content* — two thousand pixels of case —
+   * so the shell grew to fit it, there was never any free space to shrink into,
+   * and the frame quietly became a normal scrolling page with the header and
+   * the sidebar scrolling off the top. With a zero basis the container's auto
+   * height resolves to nothing, `min-height: 100%` supplies the height, and the
+   * console grows back into exactly one viewport.
+   *
+   * Not `100dvh`: during the office crossfade this subtree renders inside
+   * `.stage--layer`, and a viewport unit there is a second source of truth for
+   * a height the fixed layer already has.
+   */
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  background: var(--surface-shell);
+}
+
+.console__sidebar,
+.sidebar {
+  flex: none;
+  width: var(--sidebar-w);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  gap: var(--space-4);
+}
+
+/*
+ * The rail. Width only — deliberately not animated: `width` is a layout
+ * property, and transitioning it puts a full layout + paint on every frame of
+ * the collapse. The state change is instantaneous and the colour transitions
+ * on the rows carry the feedback instead.
+ */
+.console--nav-collapsed .sidebar {
+  width: var(--sidebar-w-rail);
+  padding-inline: var(--space-2);
+  align-items: center;
+}
+
+.console--nav-collapsed .sidebar__label {
+  display: none;
+}
+
+.sidebar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm);
+  flex: none;
+}
+
+.console--nav-collapsed .sidebar__head {
+  justify-content: center;
+}
+
+.sidebar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--type-md-size);
+  line-height: var(--type-md-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.console--nav-collapsed .sidebar__brand {
+  display: none;
+}
+
+.sidebar__brand-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.sidebar__toggle:hover {
+  background: var(--tray-cell-hover);
+  color: var(--text-primary);
+}
+
+.sidebar__toggle:active {
+  background: var(--panel-2);
+}
+
+.sidebar__group-title {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ---------------- workspace card ---------------- */
+
+.console__workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-block: var(--shell-inset);
+}
+
+.console__card {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-default);
+  border-right: 0;
+  border-start-start-radius: var(--radius-content-frame);
+  border-end-start-radius: var(--radius-content-frame);
+}
+
+/* The debrief has no columns left to navigate; the frame closes on both sides. */
+.console--flat .console__workspace {
+  padding-inline: var(--shell-inset);
+}
+
+.console--flat .console__card {
+  border-right: 1px solid var(--border-default);
+  border-radius: var(--radius-content-frame);
+}
+
+.console__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail-w);
+  align-items: stretch;
+}
+
+.console--rail-collapsed .console__body {
+  grid-template-columns: minmax(0, 1fr) var(--rail-w-collapsed);
+}
+
+/* The debrief has no rail, so it must not reserve a column for one. */
+.console--flat .console__body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workspace {
+  /* The scroller is a containing block too, so a visually-hidden box inside
+   * the case scrolls with the case instead of escaping to the document. See
+   * the note on `.console`. */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--page-section-gap);
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-4) var(--space-5);
+  scrollbar-gutter: stable;
+}
+
+/*
+ * The column scrolls; the blocks inside it do not shrink.
+ *
+ * This is the same rule the rail carries, and it is load-bearing for the same
+ * reason: `main` now has a definite height, so its flex children are shrinkable,
+ * and a `.panel` sets `overflow: hidden` — which resolves its automatic minimum
+ * size to zero. The debrief's outcome panel obligingly compressed to 34px with
+ * all of its text still inside it, clipped. Nothing here may shrink; the column
+ * scrolls instead.
+ */
+.workspace > * {
+  flex: none;
+}
+
+.workspace--centred {
+  max-width: 1100px;
+  margin-inline: auto;
+  width: 100%;
+  padding: var(--space-6);
+}
+
+/*
+ * The active destination's own content.
+ *
+ * Named because it is measured: `tests/e2e/shell.spec.ts` asserts this box
+ * starts well above the fold at 1280×720 and 1440×900. Everything above it in
+ * the column — the header band and the required step — has a height budget,
+ * and this id is how that budget is checked rather than eyeballed.
+ */
+.workspace__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--page-section-gap);
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Topbar — the destination and the three session controls
+ * ------------------------------------------------------------------ */
+
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--shell-topbar-h);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.topbar__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.topbar__h1 {
+  font-size: var(--type-lg-size);
+  line-height: var(--type-lg-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.topbar__h1:focus-visible {
+  outline-offset: 4px;
+}
+
+.topbar__context {
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+@media (max-width: 1023px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+  .topbar__h1 {
+    white-space: normal;
+  }
+}
+
+/* KPI cell — 12px medium secondary label over a 14px value.
+   Still used by the debrief's score block. */
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.stat__label {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-tertiary);
+}
+
+.stat__value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-md-size);
+  line-height: var(--type-md-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ *
+ * Navigation
+ * ------------------------------------------------------------------ */
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: none;
+}
+
+.nav__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--sidebar-item-h);
+  min-height: var(--sidebar-item-h);
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  width: 100%;
+  font-size: var(--type-sm-size);
+  font-weight: var(--fw-medium);
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.console--nav-collapsed .nav__item {
+  width: var(--sidebar-item-h);
+  justify-content: center;
+  padding-inline: 0;
+  gap: 0;
+}
+
+.nav__item:hover:not(:disabled) {
+  background: var(--tray-cell-hover);
+  color: var(--text-primary);
+}
+
+.nav__item:active:not(:disabled) {
+  background: var(--panel-2);
+}
+
+.nav__item[aria-current='page'] {
+  background: var(--badge-accent-bg);
+  border-color: var(--badge-accent-border);
+  color: var(--text-primary);
+}
+
+/*
+ * The selected state, said in something other than a 12% tint.
+ *
+ * An amber wash over near-black separates about 1.3:1 from the row beside it,
+ * which is well under the 3:1 a state indicator owes. The marker is the amber
+ * itself — 7.8:1 against the sidebar — so the state survives a tint nobody can
+ * see, and survives the collapsed rail where the label is gone as well.
+ */
+.nav__item[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: var(--radius-full);
+  background: var(--brand-primary);
+}
+
+.console--nav-collapsed .nav__item[aria-current='page']::before {
+  left: 0;
+}
+
+.nav__item:disabled {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.nav__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav__count {
+  margin-left: auto;
+  font-family: var(--type-font-mono);
+  font-size: var(--type-xs-size);
+  color: var(--text-tertiary);
+}
+
+/* Tertiary text measures 4.49:1 on the amber-tinted selected row — a hair
+ * under AA for 12px. The selected row promotes its count to secondary. */
+.nav__item[aria-current='page'] .nav__count {
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Incident status group
+ * ------------------------------------------------------------------ */
+
+.sidebar__status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: none;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.status__row,
+.status__footer,
+.sidebar__status .stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--space-5);
+  min-width: 0;
+}
+
+/*
+ * The one row whose value is a chip rather than a number. A 240px column
+ * cannot hold "WebMCP is not available in this browser" beside its label, so
+ * the chip is allowed to take the next line at full width and ellipsise there
+ * — which is a wrap, not a truncation of the label.
+ */
+.sidebar__status .stat {
+  flex-wrap: wrap;
+  flex-direction: row;
+  gap: var(--space-1) var(--space-2);
+}
+
+/*
+ * Chips shrink here. `.badge` is `flex-shrink: 0` everywhere else, which is
+ * right on a wide row and wrong in a 240px column — it made the chip overrun
+ * the sidebar instead of ellipsising inside it. The height lock is untouched,
+ * so the 20px density contract still holds, and CSS truncation removes nothing
+ * from the accessibility tree: the full string is still announced, and the
+ * rail's own agent panel prints it in full.
+ */
+.sidebar__status .badge {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.status__footer {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.status__label,
+.sidebar__status .stat__label {
+  flex: none;
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  color: var(--text-tertiary);
+}
+
+.status__value,
+.sidebar__status .stat__value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.status__value--mono .status__text {
+  font-family: var(--type-font-mono);
+  font-feature-settings: 'tnum' 1;
+}
+
+.status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status__suffix,
+.status__detail {
+  flex: none;
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-regular);
+  color: var(--text-tertiary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Detail rail
+ * ------------------------------------------------------------------ */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-4) var(--space-4) var(--space-4) 0;
+  scrollbar-gutter: stable;
+}
+
+/*
+ * The rail scrolls; the trays inside it do not shrink. Without this the flex
+ * container squeezes each panel and `overflow: hidden` on the tray silently
+ * clips the last line of every one of them.
+ */
+.rail > * {
+  flex: none;
+}
+
+.rail--collapsed {
+  padding-left: 0;
+  align-items: center;
+}
+
+.rail__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height-lg);
+  padding: 0 var(--space-3);
+  background: var(--tray-bg);
+  border: 1px solid var(--tray-border);
+  border-radius: var(--radius-tray-outer);
+  color: var(--text-secondary);
+  font-size: var(--type-md-size);
+  font-weight: var(--fw-medium);
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.rail__toggle:hover {
+  background: var(--tray-cell-hover);
+  color: var(--text-primary);
+}
+
+.rail__toggle:active {
+  background: var(--panel-2);
+}
+
+.rail--collapsed .rail__toggle {
+  writing-mode: vertical-rl;
+  min-height: 180px;
+  width: auto;
+  justify-content: center;
+  padding: var(--space-3) 0;
+}
+
+@media (max-width: 1279px) {
+  .rail {
+    padding: 0 var(--space-4) var(--space-4);
+    overflow: visible;
+  }
+  .rail--collapsed .rail__toggle {
+    writing-mode: horizontal-tb;
+    min-height: var(--control-height-lg);
+    width: 100%;
+    padding: 0 var(--space-3);
+  }
+}
+
+/*
+ * 1024–1279: the rail no longer earns a column, so it stops being one and
+ * becomes the last block of a single scrolling region. The frame itself is
+ * kept — the header and the sidebar stay put — because that is the whole value
+ * of the shell and it still fits at 1024.
+ *
+ * The breakpoint is 1279 and not 1280 on purpose: 1280×720 is one of the two
+ * sizes the above-the-fold measurement runs at, and it must measure the
+ * three-column console, not the fallback.
+ */
+@media (max-width: 1279px) {
+  .console__body,
+  .console--rail-collapsed .console__body {
+    display: block;
+    overflow-y: auto;
+  }
+  .workspace,
+  .rail {
+    overflow: visible;
+    min-height: auto;
+  }
+}
+
+@media (max-width: 1023px) {
+  /*
+   * Below the 3D floor the console stops being a fixed frame and becomes a
+   * normal scrolling page: a 240px sidebar plus a card plus gutters does not
+   * fit, and a frame that cannot fit is a frame that scrolls sideways.
+   */
+  .console,
+  .console--nav-collapsed {
+    display: block;
+    overflow: visible;
+  }
+  .sidebar,
+  .console--nav-collapsed .sidebar {
+    width: auto;
+    align-items: stretch;
+    overflow: visible;
+    padding: var(--space-3) var(--space-4);
+  }
+  /* The collapse trades width for status, and at this width there is no width
+     to trade — the control would be a switch with nothing behind it. */
+  .sidebar__toggle {
+    display: none;
+  }
+  .console--nav-collapsed .sidebar__label {
+    display: revert;
+  }
+  .nav {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .nav__item,
+  .console--nav-collapsed .nav__item {
+    width: auto;
+    white-space: nowrap;
+    padding-inline: var(--space-3);
+    gap: var(--space-2);
+    justify-content: flex-start;
+  }
+  .status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-1) var(--space-5);
+  }
+  .console__workspace {
+    padding-block: 0;
+  }
+  .console--flat .console__workspace {
+    padding-inline: 0;
+  }
+  .console__body,
+  .console--rail-collapsed .console__body {
+    overflow: visible;
+  }
+  .console__card,
+  .console--flat .console__card {
+    border: 0;
+    border-radius: 0;
+  }
+  .workspace,
+  .workspace--centred {
+    overflow: visible;
+    padding: var(--space-4);
+  }
+  .rail {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Assistant block, inside the rail
+ * ------------------------------------------------------------------ */
+
+/**
+ * The rail's guidance panel.
+ *
+ * There is no avatar here on purpose. A bordered portrait beside this text
+ * would claim a speaker, and the text is derived from case state rather than
+ * spoken by anyone. Only the state line remains, because it is the one part
+ * that never implied a persona.
+ */
+.guidance__state {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-tertiary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Evidence
+ * ------------------------------------------------------------------ */
+
+.evidence {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 1023px) {
+  .evidence {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.evidence__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--row-height-comfortable);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: inherit;
+  text-align: left;
+  transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.evidence__item:hover:not(:disabled) {
+  background: var(--tray-cell-hover);
+}
+
+.evidence__item[aria-current='true'] {
+  background: var(--tray-cell-selected);
+  box-shadow: inset 2px 0 0 var(--brand-primary);
+}
+
+.evidence__item:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.evidence__item-title {
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.evidence__item-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--type-xs-size);
+  color: var(--text-tertiary);
+}
+
+.evidence__item-note {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  color: var(--text-tertiary);
+}
+
+.untrusted {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  border: 1px solid var(--badge-warning-border);
+  background: var(--badge-warning-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  color: var(--badge-warning-fg);
+}
+
+.untrusted__text {
+  font-size: var(--type-sm-size);
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Underline tabs
+ * ------------------------------------------------------------------ */
+
+.tabs {
+  display: flex;
+  /* Five investigation tools live in a panel header that also holds a title.
+     Wrapping keeps the strip inside the panel at 900px instead of widening the
+     page, which the responsive gate measures. */
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tabs__tab {
+  position: relative;
+  min-height: var(--control-height-sm);
+  padding: 0 0 var(--space-2);
+  background: transparent;
+  border: 0;
+  color: var(--text-tertiary);
+  font-size: var(--type-sm-size);
+  font-weight: var(--fw-medium);
+}
+
+.tabs__tab:hover {
+  color: var(--text-secondary);
+}
+
+.tabs__tab[aria-selected='true'] {
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px 0 var(--brand-primary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Checklist
+ * ------------------------------------------------------------------ */
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+}
+
+.checklist__item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+  min-height: var(--row-height-comfortable);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.checklist__item:last-child {
+  border-bottom: 0;
+}
+
+.checklist__item--resolved {
+  color: var(--text-tertiary);
+}
+
+.checklist__item--resolved svg {
+  color: var(--status-success);
+}
+
+.checklist__item--open svg {
+  color: var(--status-error);
+}
+
+.checklist__title {
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.checklist__consequence {
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  color: var(--text-tertiary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Decision
+ * ------------------------------------------------------------------ */
+
+.decision__prompt {
+  font-size: var(--type-md-size);
+  line-height: var(--type-md-lh);
+  color: var(--text-primary);
+  max-width: 72ch;
+}
+
+.decision__options {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.decision__outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--badge-success-border);
+  background: var(--badge-success-bg);
+  padding: var(--space-3);
+}
+
+.decision__outcome--wrong {
+  border-color: var(--badge-warning-border);
+  background: var(--badge-warning-bg);
+}
+
+.decision__blocked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--text-tertiary);
+  font-size: var(--type-sm-size);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-3);
+}
+
+/* ------------------------------------------------------------------ *
+ * Timeline and log
+ * ------------------------------------------------------------------ */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline__row {
+  display: grid;
+  grid-template-columns: 76px 12px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  min-height: var(--row-height-comfortable);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.timeline__time {
+  font-family: var(--type-font-mono);
+  font-size: var(--type-xs-size);
+  color: var(--text-tertiary);
+}
+
+.timeline__marker {
+  display: grid;
+  place-items: center;
+  padding-top: 6px;
+}
+
+.timeline__label {
+  font-size: var(--type-sm-size);
+  color: var(--text-primary);
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+.log__row {
+  display: grid;
+  grid-template-columns: 68px 8px 44px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: baseline;
+  min-height: var(--row-height-compact);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--type-xs-size);
+}
+
+.log__row:last-child {
+  border-bottom: 0;
+}
+
+.log__row--fresh {
+  background: var(--tray-cell-hover);
+}
+
+.log__time {
+  font-family: var(--type-font-mono);
+  color: var(--text-tertiary);
+}
+
+.log__origin {
+  font-family: var(--type-font-mono);
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log__text {
+  color: var(--text-secondary);
+  line-height: var(--type-xs-lh);
+}
+
+/* ------------------------------------------------------------------ *
+ * Tables — TNDataTable metrics
+ * ------------------------------------------------------------------ */
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-sm-size);
+}
+
+.table th {
+  text-align: left;
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-tertiary);
+  padding: var(--space-2) var(--space-3);
+  height: var(--row-height-compact);
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+  color: var(--text-secondary);
+}
+
+.table tbody th {
+  padding: var(--space-3);
+  height: auto;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--type-sm-size);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.table tbody tr:hover td,
+.table tbody tr:hover th {
+  background: var(--tray-cell-hover);
+}
+
+.table tr:last-child td,
+.table tr:last-child th {
+  border-bottom: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Activity feed
+ * ------------------------------------------------------------------ */
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+.feed__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: var(--type-xs-size);
+  min-height: var(--row-height-compact);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.feed__row:last-child {
+  border-bottom: 0;
+}
+
+.feed__row--error .feed__tool {
+  color: var(--status-error);
+}
+
+.feed__tool {
+  font-family: var(--type-font-mono);
+  color: var(--text-secondary);
+}
+
+.feed__origin {
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ *
+ * Dialog
+ * ------------------------------------------------------------------ */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(var(--color-paper-rgb), 0.76);
+}
+
+.dialog {
+  width: min(560px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dialog__title {
+  font-size: var(--type-xl-size);
+  line-height: var(--type-xl-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.dialog__actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+/* ------------------------------------------------------------------ *
+ * Charts
+ * ------------------------------------------------------------------ */
+
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--type-xs-size);
+  color: var(--text-tertiary);
+}
+
+.chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---- the live edge of the event stream ---- */
+
+/*
+ * A stream that appends every thirty simulated seconds looks broken for
+ * twenty-nine of them. These are the marks that say otherwise, and every one of
+ * them is driven by the incident clock rather than a wall clock — so the whole
+ * thing genuinely stops when the operator pauses the feed, rather than merely
+ * being hidden while something keeps running underneath.
+ */
+
+.stream-live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  font-size: var(--type-xs-size);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.stream-live__label {
+  letter-spacing: 0.01em;
+}
+
+.stream-live__readout {
+  color: var(--text-tertiary);
+  /* Digits that change once a second must not reflow the line around them. */
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The landing motion.
+ *
+ * Keyed on the bucket index in React, so this replays exactly when a sample
+ * lands: never on a re-render, never on a resize, and never while paused,
+ * because a paused clock cannot cross a bucket boundary. It is transient by
+ * construction — it ends at rest, at the same size and opacity it would have
+ * had if nothing had moved, so it reads as feedback rather than as decoration.
+ *
+ * `transform` and `opacity` only: no layout property is touched, so it composites
+ * on the GPU and cannot cost the office a frame.
+ */
+.stream-live__mark {
+  display: inline-flex;
+  animation: stream-land var(--motion-duration-slow) var(--motion-easing-emphasized) both;
+}
+
+@keyframes stream-land {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/*
+ * The same beat on the chart's own edge marker, one notch quieter: the mark is
+ * the data, so it reveals rather than pops.
+ */
+.chart__edge {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: stream-edge-land var(--motion-duration-slow) var(--motion-easing-emphasized) both;
+}
+
+@keyframes stream-edge-land {
+  0% {
+    transform: scaleY(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/*
+ * Reduced motion: the marks are already at rest on the first frame. The
+ * duration tokens collapse to 1 ms under the same query, but the transform in
+ * the first keyframe would still be sampled, so the animations are removed
+ * outright rather than shortened.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .stream-live__mark,
+  .chart__edge {
+    animation: none;
+  }
+}
+
+/* Hand-rolled surfaces: the office sparkline and the topology graph. */
+
+.chart--spark {
+  height: 56px;
+}
+
+.chart--graph {
+  overflow: visible;
+}
+
+/* ------------------------------------------------------------------ *
+ * shadcn/ui chart container, ported
+ *
+ * Upstream ships these rules as Tailwind arbitrary variants inside one long
+ * class string. There is no Tailwind here, so they live as real selectors —
+ * same targets, same job: paint over the colours Recharts hardcodes in its
+ * own defaults before they reach the screen.
+ *
+ * That is not cosmetic. `recharts/es6/cartesian/Line.js` defaults `stroke` to
+ * `#3182bd` and `CartesianGrid` defaults to `#ccc`; the first is a blue, which
+ * `tests/e2e/palette.spec.ts` fails the build over. Every series sets its own
+ * colour from a token, and these rules cover the furniture that does not.
+ * ------------------------------------------------------------------ */
+
+.viz {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  letter-spacing: var(--tracking-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.viz .recharts-surface,
+.viz .recharts-layer,
+.viz .recharts-sector {
+  outline: none;
+}
+
+/* Gridlines: one hairline, ink at 12%, and nothing else. */
+.viz .recharts-cartesian-grid line {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+.viz .recharts-cartesian-axis-line,
+.viz .recharts-cartesian-axis-tick-line {
+  stroke: var(--chart-axis);
+}
+
+/*
+ * Recharts writes `fill="#666"` straight onto the tick `<text>`, and the class
+ * that carries it is `recharts-cartesian-axis-tick-value` — the
+ * `…-axis-tick` groups hold only the tick lines. A rule aimed at the group
+ * therefore silently misses and leaves the raw grey in place, which is how an
+ * off-token colour gets onto a screen nobody is looking closely at.
+ */
+.viz .recharts-cartesian-axis-tick-value {
+  fill: var(--chart-axis-label);
+  font-size: var(--chart-tick-size);
+  font-weight: var(--fw-regular);
+}
+
+/* A clock reading is a numeric readout, so the time axis takes the mono face. */
+.viz--stream .recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value,
+.viz--severity .recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value {
+  font-family: var(--type-font-mono);
+  font-feature-settings: 'tnum' 1;
+}
+
+/* The hover cursor marks the column. It does not light it up. */
+.viz .recharts-rectangle.recharts-tooltip-cursor {
+  fill: var(--chart-cursor-fill);
+}
+
+.viz .recharts-curve.recharts-tooltip-cursor {
+  stroke: var(--chart-cursor-stroke);
+}
+
+.viz .recharts-reference-line line {
+  stroke: var(--chart-grid);
+}
+
+.viz .recharts-dot {
+  stroke: var(--panel);
+}
+
+.viz .recharts-active-dot .recharts-dot {
+  stroke: var(--panel);
+  stroke-width: 1;
+}
+
+.viz__value-label {
+  fill: var(--text-secondary);
+  font-size: var(--type-xs-size);
+  font-weight: var(--fw-regular);
+}
+
+.viz__value-label--mono {
+  fill: var(--text-primary);
+  font-family: var(--type-font-mono);
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ---- tooltip ---- */
+
+.viz__tooltip {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 148px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--chart-tooltip-border);
+  border-radius: var(--radius-md);
+  background: var(--chart-tooltip-bg);
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  color: var(--text-primary);
+}
+
+.viz__tooltip-label {
+  font-weight: var(--fw-medium);
+  font-family: var(--type-font-mono);
+  font-feature-settings: 'tnum' 1;
+  color: var(--text-primary);
+}
+
+.viz__tooltip-items {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.viz__tooltip-row {
+  display: flex;
+  width: 100%;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.viz__tooltip-row--dot {
+  align-items: center;
+}
+
+.viz__indicator {
+  flex: 0 0 auto;
+  border-radius: 2px;
+  background: var(--viz-indicator-color);
+  border-color: var(--viz-indicator-color);
+}
+
+.viz__indicator--dot {
+  width: 8px;
+  height: 8px;
+}
+
+.viz__indicator--line {
+  width: 3px;
+}
+
+.viz__indicator--dashed {
+  width: 0;
+  background: transparent;
+  border-left: 2px dashed var(--viz-indicator-color);
+}
+
+.viz__tooltip-pair {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  line-height: 1;
+}
+
+.viz__tooltip-pair--nested {
+  align-items: flex-end;
+}
+
+.viz__tooltip-names {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.viz__tooltip-name {
+  color: var(--text-secondary);
+}
+
+.viz__tooltip-value {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.viz__tooltip-unit {
+  color: var(--text-tertiary);
+  font-weight: var(--fw-regular);
+}
+
+/* ---- legend ---- */
+
+.viz__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--type-xs-size);
+  color: var(--text-tertiary);
+}
+
+.viz__legend--bottom {
+  padding-top: var(--space-2);
+}
+
+.viz__legend--top {
+  padding-bottom: var(--space-2);
+}
+
+.viz__legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.viz__swatch {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+}
+
+/* ---- figure furniture and loading state ---- */
+
+.viz-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.viz-figure__caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.viz__skeleton {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--ink-25);
+}
+
+/* ------------------------------------------------------------------ *
+ * Scenes
+ * ------------------------------------------------------------------ */
+
+.scene {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--space-12);
+  text-align: center;
+}
+
+.scene__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  max-width: 58ch;
+}
+
+.scene__title {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.18em;
+  color: var(--text-primary);
+}
+
+.scene__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: var(--type-lg-size);
+  line-height: var(--type-lg-lh);
+  color: var(--text-secondary);
+  min-height: 6rem;
+}
+
+.scene__line--clock {
+  font-family: var(--type-font-mono);
+  color: var(--brand-on-dark);
+  letter-spacing: 0.1em;
+}
+
+.fade-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--bg);
+  pointer-events: none;
+}
+
+.fade-layer--in {
+  animation: fade-in var(--motion-duration-slow) var(--motion-easing-standard) forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Dialogue panel
+ * ------------------------------------------------------------------ */
+
+.dialogue {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: var(--space-4) var(--content-padding-x);
+  background: var(--bg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.dialogue__inner {
+  max-width: 76ch;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/*
+ * Speaker and line as one block, because they are announced as one block.
+ *
+ * The gap matches `.dialogue__inner`'s, so moving the two into a wrapper leaves
+ * the spacing exactly where it was — this is an accessibility grouping, not a
+ * layout change.
+ */
+.dialogue__caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dialogue__speaker {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-2);
+  font-size: var(--type-xs-size);
+  font-weight: var(--fw-medium);
+  color: var(--brand-on-dark);
+}
+
+.dialogue__text {
+  font-size: var(--type-lg-size);
+  line-height: var(--type-lg-lh);
+  color: var(--text-primary);
+}
+
+.dialogue__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+}
+
+/* ------------------------------------------------------------------ *
+ * Office
+ * ------------------------------------------------------------------ */
+
+.office {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.office__chrome {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--content-padding-x);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg);
+  position: relative;
+  z-index: var(--z-raised);
+  min-height: var(--control-height-lg);
+}
+
+.office__title {
+  font-size: var(--type-md-size);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.settings {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.settings__volume {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height-sm);
+}
+
+.settings__volume input[type='range'] {
+  width: 88px;
+  accent-color: var(--brand-primary);
+}
+
+.settings__volume input[type='range']:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.office3d {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--carbon);
+}
+
+/*
+ * React Three Fiber sets its own layout styles on the element it measures and
+ * only creates the WebGL root once that element reports a non-zero size, so
+ * this wrapper stays a plain positioned box.
+ */
+.office3d__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.office3d__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.office3d__screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: auto;
+  will-change: transform;
+}
+
+.office3d__surface {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.office3d__surface .panel {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: var(--bg);
+  padding: 0;
+}
+
+.office3d__surface .panel__body {
+  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: var(--bg);
+}
+
+.monitors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-4);
+  align-items: stretch;
+  flex: 1;
+  align-content: center;
+}
+
+.monitors > * {
+  display: flex;
+  min-width: 0;
+}
+
+.monitors .panel {
+  flex: 1;
+}
+
+/*
+ * Unacknowledged-alarm treatment (audit P0.2): a restrained border pulse on
+ * the centre surface only — never the whole viewport. Reduced motion holds a
+ * static red border instead of animating it.
+ */
+.office3d__surface--alarm {
+  box-shadow: inset 0 0 0 2px var(--status-error-fill);
+  /*
+   * The alarming panel is lit, not just outlined. Both the text and the panel
+   * behind it are scaled by the same factor, so the contrast ratio moves in the
+   * text's favour rather than against it — the +0.05 term in the WCAG formula
+   * weighs more heavily on the darker of the pair.
+   */
+  filter: brightness(1.16);
+  animation: alarm-border 1.6s var(--motion-easing-standard) infinite;
+}
+
+/*
+ * The other two monitors while the alarm is unacknowledged.
+ *
+ * A step back, not a blackout: still readable, still keyboard reachable, and
+ * restored the instant the alarm is acknowledged. This is what makes the centre
+ * monitor the brightest thing in its own frame rather than one of three equally
+ * bright panels with a red edge.
+ */
+.office3d__surface--deferred {
+  filter: brightness(0.62) saturate(0.85);
+  transition: filter var(--motion-duration-slow, 320ms) var(--motion-easing-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .office3d__surface--deferred {
+    transition: none;
+  }
+}
+
+@keyframes alarm-border {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 2px rgb(226 96 78 / 0.9);
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px rgb(226 96 78 / 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .office3d__surface--alarm {
+    animation: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .monitors {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.eyelid {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: var(--z-overlay);
+  background: var(--carbon);
+  pointer-events: none;
+}
+
+.eyelid--top {
+  top: 0;
+  animation: eyelid 1600ms var(--motion-easing-standard) forwards;
+}
+
+.eyelid--bottom {
+  bottom: 0;
+  animation: eyelid 1600ms var(--motion-easing-standard) forwards;
+}
+
+@keyframes eyelid {
+  0% {
+    height: 50%;
+  }
+  22% {
+    height: 34%;
+  }
+  38% {
+    height: 44%;
+  }
+  70% {
+    height: 8%;
+  }
+  100% {
+    height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eyelid {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Layout helpers
+ * ------------------------------------------------------------------ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.stack--tight {
+  gap: var(--space-1);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+/* ------------------------------------------------------------------ *
+ * Page header — TNPageHeader parity
+ *
+ * 20px / 26px at weight 500. The design system locks weights to 400 and 500,
+ * so a page title is distinguished by scale, never by boldness.
+ * ------------------------------------------------------------------ */
+
+.page-title {
+  font-size: var(--type-2xl-size);
+  line-height: var(--type-2xl-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-normal);
+}
+
+.page-title .mono {
+  margin-left: var(--space-3);
+  font-size: var(--type-sm-size);
+  color: var(--text-tertiary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Seated head-look (audit P0.1)
+ *
+ * The canvas host carries the head-look input, so it is focusable and needs a
+ * focus ring of its own: the global `:focus-visible` ring is drawn *outside*
+ * the border box and `.office3d` clips it away, which would leave a keyboard
+ * user with no idea where focus is.
+ * ------------------------------------------------------------------ */
+
+.office3d__canvas {
+  touch-action: none;
+  cursor: grab;
+}
+
+.office3d__canvas:active {
+  cursor: grabbing;
+}
+
+.office3d__canvas:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--brand);
+  border-radius: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * The three monitors as three tools — redesign §5
+ *
+ * A monitor is a column: the tools it shows, and under them the control that
+ * opens the matching destination in the response console.
+ *
+ * The left screen carries two panels, because §5 asks that surface for both the
+ * live anomaly trend and the top matching events. That is what the sizing rules
+ * below are for: the projected surface is a fixed 520x306 box, and left to their
+ * content the event rows would grow and push the trend off the top of the glass.
+ * The last panel takes the height that is left and clips inside itself instead,
+ * so the trend is always visible and the rows always start from the newest one.
+ * ------------------------------------------------------------------ */
+
+.monitor-surface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.monitor-surface__tools {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/*
+ * `.office3d__surface .panel` stretches a panel to the full height of the
+ * screen, which is right for a surface holding one panel and wrong for two
+ * stacked: both would ask for the whole screen and the second would hang off
+ * the bottom of the glass. Equal specificity to that rule, and later in the
+ * file, so this is the one that lands.
+ */
+.monitor-surface__tools > .panel {
+  height: auto;
+  min-height: 0;
+}
+
+.monitor-surface__tools > .panel:last-child {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.office3d__surface.monitor-surface,
+.office3d__surface .monitor-surface__tools {
+  gap: 2px;
+}
+
+/*
+ * The control that opens the tool.
+ *
+ * Full width and quiet: it is an affordance the player has to be able to find
+ * from the seat, and it is not competing with the interface above it. The focus
+ * ring is drawn inside for the same reason `.office3d__canvas` draws its own —
+ * the global `:focus-visible` ring sits outside the border box, and `.office3d`
+ * has `overflow: hidden`, so on the projected screens an outside ring is
+ * clipped away entirely and a keyboard player is left guessing where focus is.
+ */
+.monitor-open {
+  flex: 0 0 auto;
+}
+
+.office3d__surface .monitor-open:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
+/*
+ * Hovering anywhere on the screen lights the control, because the whole surface
+ * is clickable and only this part of it can say so. `.btn--ghost` is
+ * transparent with no border of its own, so the cue is the same background it
+ * uses for its own hover rather than an outline that would not appear.
+ */
+.monitor-surface:hover .monitor-open {
+  background: var(--btn-ghost-bg-hover);
+  color: var(--text-primary);
+}
+
+/*
+ * Row rhythm at monitor distance.
+ *
+ * `--space-2` between tool rows is right in the console, where a tool has a
+ * page to itself. On the 520x306 glass it costs more height than the rows do:
+ * the left screen has to fit the anomaly trend, five SIEM rows and the open
+ * control, and at the console's spacing the last rows fall off the bottom. This
+ * tightens the space between rows, never the type size — legibility from the
+ * seat is the whole point of compact mode.
+ */
+.office3d__surface .tool-rows {
+  gap: 3px;
+}
+
+/*
+ * The rest of the height budget for the left screen, arithmetic rather than
+ * taste. The surface is 306 px (`three/layout.ts`), and at console spacing the
+ * two panels and the open control come to about 316: the trend panel is roughly
+ * 122, the SIEM panel 158 once five 16 px rows and the matched-count line are
+ * in, the gaps 4, and a `--control-height-sm` button 32. The two rules below
+ * take back about 24 px between them, which is what puts the matched-count line
+ * back on the glass instead of behind the clip.
+ *
+ * `:not(:only-child)` keeps the body padding to the stacked screen: the centre
+ * and right monitors hold one panel each and have the room, so their density is
+ * left exactly where it was. The shorter control is every screen's, because a
+ * console-sized button is the wrong scale on all three at seat distance.
+ */
+.office3d__surface .monitor-surface__tools > .panel:not(:only-child) .panel__body {
+  padding: var(--space-1);
+}
+
+.office3d__surface .monitor-open {
+  height: 24px;
+  min-height: 24px;
+}
+
+.office3d__controls {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 2;
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ------------------------------------------------------------------ *
+ * Opening, wake reveal and crossfade — audit contract P0.5
+ *
+ * Appended as one block so the intro work merges cleanly alongside the
+ * concurrent office and dashboard passes.
+ * ------------------------------------------------------------------ */
+
+/*
+ * Scene stages.
+ *
+ * `display: contents` in every steady scene: the office and the dashboard stay
+ * direct flex children of `.shell`, exactly as they were before the stage
+ * wrappers existed. Only the crossfade promotes them to stacked layers, and it
+ * hands them the same box `.shell` gave them so the WebGL canvas never resizes
+ * mid-transition.
+ */
+.stage {
+  display: contents;
+}
+
+.stage--layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlay) - 10);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.stage--muted {
+  visibility: hidden;
+}
+
+/*
+ * The cover. Near-black, above both stages, and never able to take a click:
+ * the dashboard underneath is live the moment the machine advances.
+ */
+.transition-cover {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--carbon);
+  pointer-events: none;
+}
+
+/* ---------------- opening typewriter ---------------- */
+
+.intro__lines {
+  position: relative;
+  align-items: center;
+}
+
+.intro__typewriter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/*
+ * The typed copy is drawn from a pseudo-element, so it lives outside
+ * `textContent`. That keeps the decorative layer from reading as a second
+ * occurrence of a sentence the accessible transcript already carries, and it
+ * costs one attribute write per glyph instead of a React render.
+ */
+.intro__glyphs {
+  min-height: var(--type-lg-lh);
+  white-space: pre-wrap;
+}
+
+.intro__glyphs::before {
+  content: attr(data-typed);
+}
+
+/* The caret marks the line under the hand — never a finished or unstarted one. */
+.intro__glyphs[data-state='typing']::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 0.95em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--text-tertiary);
+}
+
+.intro__glyphs--clock {
+  font-family: var(--type-font-mono);
+  color: var(--brand-on-dark);
+  letter-spacing: 0.1em;
+}
+
+/* ---------------- wake reveal ---------------- */
+
+.wake {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  pointer-events: none;
+}
+
+/*
+ * Each lid is a fixed half-viewport block scaled from its own edge. `scaleY`
+ * keeps the whole reveal on the compositor, and `getBoundingClientRect()` still
+ * reports the real covered height — which is what the reveal test measures.
+ *
+ * The inner edge is feathered rather than cut. `background` is painted once and
+ * carried by the compositor along with the transform, so the softness costs a
+ * gradient at paint time and nothing per frame — and the redesign's "no hard
+ * symmetrical wipe" is as much about the terminator as about the timing. The
+ * feather never reaches full transparency: at the moment the lids meet, the
+ * strip where they touch is still 55% covered before the exposure veil over it.
+ */
+.wake__lid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: var(--carbon);
+  will-change: transform;
+}
+
+.wake__lid--top {
+  top: 0;
+  transform-origin: top center;
+  background: linear-gradient(
+    to bottom,
+    var(--carbon) 0%,
+    var(--carbon) 95%,
+    rgba(var(--color-paper-rgb), 0.45) 100%
+  );
+}
+
+.wake__lid--bottom {
+  bottom: 0;
+  transform-origin: bottom center;
+  background: linear-gradient(
+    to top,
+    var(--carbon) 0%,
+    var(--carbon) 95%,
+    rgba(var(--color-paper-rgb), 0.45) 100%
+  );
+}
+
+/*
+ * Exposure, not blur. A warm-neutral darkening can only move a pixel further
+ * from cool, so the palette gate stays a measurement of the room rather than of
+ * this overlay; a blur would smear whatever is already there.
+ */
+.wake__settle {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 46%,
+    rgba(var(--color-paper-rgb), 0.55) 0%,
+    rgba(var(--color-paper-rgb), 0.82) 58%,
+    var(--carbon) 100%
+  );
+  will-change: opacity;
+}
+
+/*
+ * The focus haze — the second half of "soft exposure/focus recovery".
+ *
+ * A warm low-contrast lift rather than a blur: it flattens the picture for a
+ * moment and then leaves, which is what an eye finding focus does to a room,
+ * and it costs one composited layer instead of a full-frame backdrop filter
+ * over a live WebGL canvas. Every stop carries red well ahead of blue, so it
+ * can only ever move the frame away from the palette gate's threshold.
+ */
+.wake__focus {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    rgba(122, 106, 88, 0.5) 0%,
+    rgba(96, 82, 68, 0.28) 55%,
+    rgba(58, 47, 38, 0) 100%
+  );
+  will-change: opacity;
+}
+
+/*
+ * The reduced-motion path: one short fade, and nothing else.
+ *
+ * A separate element from `.wake` rather than a variant of it, because "the lid
+ * reveal never mounts under reduced motion" is an assertion in
+ * `tests/e2e/intro.spec.ts` and it is still true.
+ */
+.wake-fade {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--carbon);
+  pointer-events: none;
+  will-change: opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Belt and braces: the lid reveal is never mounted under reduced motion. */
+  .wake {
+    display: none;
+  }
+}
+/* ------------------------------------------------------------------ *
+ * Next required step — the guided path (audit contract P0.6)
+ * ------------------------------------------------------------------ *
+ * One band, first in the workspace on every route, and the only thing on the
+ * page allowed to look like an instruction. Dominance comes from the amber
+ * edge, the concentric tray inset and the type step — never from colour alone,
+ * and never from red, which stays reserved for threats.
+ *
+ * It is a *band* rather than a card: the title and the primary control share
+ * one row, the reason is one line under them, and nothing is padded to fill
+ * space. The budget is what the layout owes the destination underneath it —
+ * `#destination-content` has to start above the fold at 1280×720, and this is
+ * the block that decides whether it does.
+ * ------------------------------------------------------------------ */
+
+.guide {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-tray-outer);
+  border: 1px solid var(--brand-primary-border);
+  background: var(--brand-primary-soft);
+  padding: var(--tray-frame-inset);
+  min-width: 0;
+  flex: none;
+}
+
+.guide__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-radius: var(--radius-tray-inner);
+  border: 1px solid var(--brand-primary-border);
+  background: var(--tray-cell-bg);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  min-width: 0;
+}
+
+.guide__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.guide__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  color: var(--brand-on-dark);
+}
+
+.guide__progress {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  color: var(--text-tertiary);
+}
+
+/*
+ * Title and primary control on one row. `align-items: center` and a non-
+ * shrinking button, so a two-line title on a narrow column pushes the row
+ * taller rather than squeezing the CTA into an ellipsis.
+ */
+.guide__lead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.guide__title {
+  font-size: var(--type-lg-size);
+  line-height: var(--type-lg-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  margin: 0;
+  min-width: 0;
+}
+
+.guide__cta {
+  flex: none;
+}
+
+.guide__prompt {
+  font-size: var(--type-md-size);
+  line-height: var(--type-md-lh);
+  color: var(--text-primary);
+  max-width: 68ch;
+}
+
+.guide__decision,
+.guide__operation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.guide__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.guide__hint {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  color: var(--text-tertiary);
+}
+
+.guide__parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide__part {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  color: var(--text-secondary);
+}
+
+.guide__part--done {
+  color: var(--status-success);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-200);
+}
+
+/*
+ * Never disclosed. The impact of a destructive operation has to be readable
+ * before the button is pressed, not after — hiding it behind a summary to save
+ * 60px would be the dark pattern the contract forbids by name.
+ *
+ * The red edge is the boundary, not a fill: red is reserved for threat, and a
+ * tinted block behind three sentences of consequence reads as an error the
+ * player has already caused rather than one they are about to choose.
+ */
+.guide__impact-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
+  min-width: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--badge-error-border);
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  color: var(--text-secondary);
+  list-style: disc;
+}
+
+.guide__head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.guide__why {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2);
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  color: var(--text-secondary);
+  max-width: 92ch;
+}
+
+.guide__why-label {
+  color: var(--text-tertiary);
+}
+
+/* The label and the sentence share a line; without this they run together. */
+.guide__why-label::after {
+  content: ':';
+}
+
+.guide__failure {
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  color: var(--status-error);
+}
+
+/* ------------------------------------------------------------------ *
+ * What just happened — the receipt for the step already taken
+ * ------------------------------------------------------------------ *
+ * Last in the column, after the destination it describes. It is feedback, not
+ * instruction, and it is the one block on the page allowed below the fold —
+ * unconditionally rendered, never behind a disclosure.
+ * ------------------------------------------------------------------ */
+
+.outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-radius: var(--radius-tray-outer);
+  border: 1px solid var(--tray-border);
+  background: var(--tray-bg);
+  padding: var(--space-4);
+  min-width: 0;
+  flex: none;
+}
+
+.outcome__title {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.outcome__step {
+  font-size: var(--type-md-size);
+  line-height: var(--type-md-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.outcome__grid {
+  display: grid;
+  grid-template-columns: minmax(96px, max-content) 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.outcome__grid dt {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  color: var(--text-tertiary);
+}
+
+.outcome__grid dd {
+  margin: 0;
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.outcome__changed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  list-style: disc;
+}
+
+@media (max-width: 767px) {
+  .guide__lead {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .outcome__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+}
+
+/* Optional evidence, closed by default so it cannot compete. */
+.explore {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.explore__summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm);
+  border-radius: var(--radius-md);
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.explore__summary::-webkit-details-marker {
+  display: none;
+}
+
+.explore__summary::before {
+  content: '+';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+}
+
+.explore[open] > .explore__summary::before {
+  content: '–';
+}
+
+.explore__summary:hover {
+  color: var(--text-primary);
+}
+
+.explore__summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* The incident clock says out loud that it runs faster than the player does. */
+.clock__multiplier {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--brand-primary-border);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+}
+
+/* ------------------------------------------------------------------ *
+ * Narration controls (src/audio/VoiceSettings.tsx)
+ *
+ * Sits beside mute and volume in the office chrome. Same 32px control
+ * height and 6px radius as every other small control, weights locked to
+ * 400/500, no uppercase — the note is the only 12px text on the bar and
+ * it earns that by being an explanation rather than a label.
+ * ------------------------------------------------------------------ */
+
+.voice-settings {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.voice-settings__toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  font-weight: var(--fw-regular);
+  cursor: pointer;
+}
+
+.voice-settings__toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.voice-settings__toggle[aria-pressed='true'] {
+  color: var(--text-primary);
+  border-color: var(--brand-primary);
+}
+
+.voice-settings__field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.voice-settings__label {
+  font-size: var(--type-sm-size);
+  color: var(--text-tertiary);
+}
+
+.voice-settings__select {
+  max-width: 220px;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--type-sm-size);
+}
+
+/*
+ * Advanced settings — the operating system's voice list.
+ *
+ * A closed `<details>`, so the primary chrome carries one narration control and
+ * the dozens of system voices are one deliberate click away. The open body is
+ * taken out of flow: expanded inline it would grow the 44px control row and
+ * push the office controls off the right edge, which is the layout failure the
+ * note above this block already records.
+ */
+.voice-settings__advanced {
+  position: relative;
+}
+
+.voice-settings__summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.voice-settings__summary:hover {
+  color: var(--text-primary);
+}
+
+/* The focus ring belongs on the summary itself; it is the interactive part. */
+.voice-settings__summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.voice-settings__advanced-body {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  /* The project's own dropdown layer, not an invented number. */
+  z-index: var(--z-dropdown);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+}
+
+/*
+ * Available to assistive technology, invisible in the chrome.
+ *
+ * The honest note about browser voice quality belongs beside the caption a
+ * player is actually reading, and the narration panel prints it there. Laid out
+ * in the top bar it took two lines of a 44px row and squeezed the office
+ * controls off the right edge, which made the settings less usable rather than
+ * more honest. It stays as the select's accessible description.
+ */
+.voice-settings__note {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus is the global `:focus-visible` ring; these controls do not override it. */
+
+/* ------------------------------------------------------------------ *
+ * Narration channel — the line Codex authors, as the player sees it
+ *
+ * One presentation, two mount points (office dialogue, dashboard rail). The
+ * message is always a text node; nothing here interpolates markup, and the
+ * caption is never hidden by the voice controls, because browser speech can be
+ * absent, muted or simply poor and the words still have to arrive.
+ * ------------------------------------------------------------------ */
+
+.narration {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--brand-primary-border);
+  border-left-width: 2px;
+  border-radius: var(--radius-md);
+  background: var(--brand-primary-soft);
+}
+
+.narration--compact {
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-1);
+}
+
+.narration__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/*
+ * Source label above the sentence it labels, not beside the tone badge.
+ *
+ * The two live in one `aria-atomic` block so the announcement carries both, and
+ * stacking them is what that grouping looks like on screen: a player reads the
+ * label and the line as one unit, the same unit a screen reader is handed.
+ */
+.narration__caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.narration__speaker {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-1);
+  font-size: var(--type-sm-size);
+  font-weight: var(--fw-medium);
+  color: var(--brand-on-dark);
+}
+
+.narration__status {
+  font-size: var(--type-xs-size);
+  color: var(--text-tertiary);
+}
+
+.narration__text {
+  font-size: var(--type-md-size);
+  line-height: var(--type-md-lh);
+  color: var(--text-primary);
+  /* A generated line can be any length; it wraps rather than being clipped. */
+  overflow-wrap: anywhere;
+  /*
+   * Bounded here rather than on the dialogue: a 500-character line must not be
+   * able to push the office layout past the viewport, and capping the panel
+   * leaves the fixed copy and the action buttons where they were.
+   */
+  max-height: 22vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.narration--compact .narration__text {
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+}
+
+.narration__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.narration__note {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  color: var(--text-tertiary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Investigation tools
+ *
+ * The shell for the five vendor-neutral tools inside the Investigate
+ * destination. Nothing here introduces a colour: the tables, badges and key/
+ * value lists are the ones the console already uses, and only the query bar,
+ * the aggregation bars and the compact monitor rows are new.
+ * ------------------------------------------------------------------ */
+
+/* Exactly `.nav__count`'s pairing, deliberately. A filled chip here would put
+   tertiary text on a lighter ground than anywhere else in the product, and
+   tertiary is already measured at 4.49:1 against a tinted row — a hair under AA
+   at 12px. Same role, same proven colours, no new contrast to argue about. */
+.tabs__badge {
+  margin-left: var(--space-2);
+  font-family: var(--type-font-mono);
+  font-size: var(--type-xs-size);
+  font-weight: var(--fw-regular);
+  color: var(--text-tertiary);
+}
+
+.tabs__tab[aria-selected='true'] .tabs__badge {
+  color: var(--text-secondary);
+}
+
+.tool-query {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-end;
+}
+
+.tool-query__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.tool-query__field--narrow {
+  flex: 0 1 180px;
+}
+
+.tool-query__input {
+  /* `appearance: none` is load-bearing, not cosmetic: a user-agent search field
+     paints its own decorations, and the palette gate measures every pixel of
+     the frame. The same goes for the caret and the selection highlight. */
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+  accent-color: var(--brand-primary);
+  caret-color: var(--brand-primary);
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+  border: var(--border-1) solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font-size: var(--type-sm-size);
+  width: 100%;
+}
+
+.tool-query__input::-webkit-search-cancel-button,
+.tool-query__input::-webkit-search-decoration {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.tool-query__input:focus-visible {
+  outline: var(--border-2) solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.tool-tag {
+  padding: 1px 6px;
+  border: var(--border-1) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--type-xs-size);
+}
+
+.source-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: var(--type-sm-size);
+}
+
+/* Aggregation — a count with a proportional bar behind it, never a chart. */
+.agg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.agg__row {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(90px, 1.4fr);
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.agg__key {
+  font-size: var(--type-xs-size);
+  color: var(--text-secondary);
+}
+
+.agg__value {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--type-xs-size);
+  color: var(--text-primary);
+}
+
+.agg__bar {
+  display: block;
+  height: 6px;
+  min-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-neutral);
+  border: var(--border-1) solid var(--border-subtle);
+}
+
+/* Compact tool rows — the monitor form. A few lines, legible at distance. */
+.tool-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tool-rows__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tool-rows__time {
+  flex: 0 0 auto;
+  font-size: var(--type-xs-size);
+  color: var(--text-secondary);
+}
+
+.tool-rows__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--type-xs-size);
+}
+
+/* ------------------------------------------------------------------ *
+ * Console bar — the controls that belong to the console, not to a tool
+ * ------------------------------------------------------------------ *
+ *
+ * A hairline rule and a slightly sunken ground rather than a card: this is a
+ * status strip above the tool, and giving it a border on four sides would make
+ * it read as a second panel competing with the one it sits inside.
+ */
+
+.console-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-1) solid var(--border-subtle);
+}
+
+.console-bar__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.console-bar__status {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--type-sm-size);
+  color: var(--text-secondary);
+}
+
+/*
+ * The ingest indicator.
+ *
+ * It pulses, because a feed that is running looks different from one that has
+ * stopped, and it returns to rest at the end of every cycle — a permanent
+ * exaggeration stops reading as feedback. Opacity only: no layout property is
+ * animated, so this cannot cost a frame anywhere.
+ */
+.console-bar__dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--status-success);
+  animation: console-ingest 2.4s var(--motion-easing-standard) infinite;
+}
+
+/*
+ * The trough is 0.6, not 0. Blended against the panel, 0.6 of the success
+ * colour still clears 3:1 as a graphic; anything dimmer would dip below the
+ * contrast floor at the bottom of every cycle even though the dot is only
+ * decoration beside a sentence that already says everything.
+ */
+@keyframes console-ingest {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console-bar__dot {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.console-bar__focus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.console-bar__focus-value {
+  font-size: var(--type-sm-size);
+  color: var(--text-primary);
+}
+
+.console-bar__idle {
+  margin: 0;
+}
+
+/*
+ * The row the console is following.
+ *
+ * A left rule and a faint wash, never colour alone — every focused row also
+ * carries a "Followed" badge, so the state survives a monochrome display and a
+ * screen reader alike. Concentric with the table cell it sits in.
+ */
+.row--focused > th,
+.row--focused > td {
+  background: var(--row-followed-bg);
+}
+
+.row--focused > th:first-child {
+  box-shadow: inset 3px 0 0 0 var(--brand-primary);
+}
+
+/* Query notes — what the parser did with what was typed. */
+.query-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.query-notes__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--type-sm-size);
+  color: var(--text-secondary);
+}

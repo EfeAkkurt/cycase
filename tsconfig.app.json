@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] },
+    "types": ["vite/client"]
+  },
+  "include": ["src", "shared", "tests"],
+  // The backend suite compiles under tsconfig.server.json, which has Node types
+  // and no DOM lib. Including it here would type-check server code against the
+  // browser project and fail on `process`, `Buffer` and `node:crypto`.
+  "exclude": [
+    "tests/backend/unit/security.test.ts",
+    "tests/backend/unit/apiSchemas.test.ts",
+    "tests/backend/unit/replayVerifier.test.ts",
+    "tests/backend/unit/signature.test.ts",
+    "tests/backend/unit/scenarioPlan.test.ts",
+    "tests/backend/unit/postgresRepository.test.ts",
+    "tests/backend/unit/tokens.test.ts",
+    "tests/backend/integration/security.test.ts",
+    "tests/backend/integration/runs.test.ts",
+    "tests/backend/load/performance.test.ts",
+    "tests/backend/helpers/server.ts"
+  ]
+}

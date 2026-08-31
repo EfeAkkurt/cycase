@@ -1,0 +1,219 @@
+{
+  "source": "https://polyhaven.com",
+  "license": "CC0 1.0",
+  "models": [
+    {
+      "id": "metal_office_desk",
+      "role": "Desk",
+      "authors": [
+        "Ulan Cabanilla"
+      ],
+      "page": "https://polyhaven.com/a/metal_office_desk",
+      "file": "public/models/metal_office_desk.glb",
+      "bytes": 297976
+    },
+    {
+      "id": "modern_arm_chair_01",
+      "role": "Operator chair",
+      "authors": [
+        "Vibrant Nordic"
+      ],
+      "page": "https://polyhaven.com/a/modern_arm_chair_01",
+      "file": "public/models/modern_arm_chair_01.glb",
+      "bytes": 429320
+    },
+    {
+      "id": "drawer_cabinet",
+      "role": "Cabinet behind the desk",
+      "authors": [
+        "Ulan Cabanilla"
+      ],
+      "page": "https://polyhaven.com/a/drawer_cabinet",
+      "file": "public/models/drawer_cabinet.glb",
+      "bytes": 602820
+    },
+    {
+      "id": "worn_metal_rack",
+      "role": "Equipment rack",
+      "authors": [
+        "Luca B"
+      ],
+      "page": "https://polyhaven.com/a/worn_metal_rack",
+      "file": "public/models/worn_metal_rack.glb",
+      "bytes": 246096
+    },
+    {
+      "id": "desk_lamp_arm_01",
+      "role": "Desk lamp — the warm practical",
+      "authors": [
+        "Yann Kervran",
+        "Kuutti Siitonen"
+      ],
+      "page": "https://polyhaven.com/a/desk_lamp_arm_01",
+      "file": "public/models/desk_lamp_arm_01.glb",
+      "bytes": 628460
+    },
+    {
+      "id": "office_notepads",
+      "role": "Desk clutter",
+      "authors": [
+        "Ulan Cabanilla"
+      ],
+      "page": "https://polyhaven.com/a/office_notepads",
+      "file": "public/models/office_notepads.glb",
+      "bytes": 34540
+    },
+    {
+      "id": "stationery_supplies",
+      "role": "Desk clutter",
+      "authors": [
+        "Mateusz Sadek"
+      ],
+      "page": "https://polyhaven.com/a/stationery_supplies",
+      "file": "public/models/stationery_supplies.glb",
+      "bytes": 163244
+    },
+    {
+      "id": "plastic_thermos",
+      "role": "Desk clutter",
+      "authors": [
+        "PierreB3D"
+      ],
+      "page": "https://polyhaven.com/a/plastic_thermos",
+      "file": "public/models/plastic_thermos.glb",
+      "bytes": 160688
+    },
+    {
+      "id": "potted_plant_01",
+      "role": "Background plant",
+      "authors": [
+        "Rico Cilliers"
+      ],
+      "page": "https://polyhaven.com/a/potted_plant_01",
+      "file": "public/models/potted_plant_01.glb",
+      "bytes": 211480
+    },
+    {
+      "id": "metal_trash_can",
+      "role": "Floor clutter",
+      "authors": [
+        "GurJas Studios"
+      ],
+      "page": "https://polyhaven.com/a/metal_trash_can",
+      "file": "public/models/metal_trash_can.glb",
+      "bytes": 349804
+    }
+  ],
+  "characters": [
+    {
+      "id": "colleague_suit_female",
+      "role": "Scripted colleague (VERA)",
+      "pack": "Quaternius — Ultimate Animated Character Pack",
+      "page": "https://quaternius.com/packs/ultimatedanimatedcharacter.html",
+      "author": "Quaternius",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "driveFileId": "1f0AZRaRmoxdn64Khz6of_6wLHBzMc8AE",
+      "sourceName": "Suit_Female.gltf",
+      "sourceSha256": "37cbe38d428f57aff788be0f585fb9892b6115cc014c494cb19ec65c621e1f07",
+      "clips": [
+        "Idle",
+        "Walk"
+      ],
+      "materials": [
+        "Skin",
+        "Black",
+        "Belt",
+        "Shirt",
+        "Details",
+        "Face",
+        "Hair"
+      ],
+      "file": "public/models/colleague_suit_female.glb",
+      "bytes": 503188,
+      "note": "Position quantization is deliberately skipped for skinned models: glTF ignores a skinned mesh node transform, so the compensating scale is dropped and the mesh renders in raw quantized space."
+    }
+  ],
+  "textures": [
+    {
+      "id": "concrete_floor_02",
+      "role": "Floor",
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "page": "https://polyhaven.com/a/concrete_floor_02",
+      "maps": [
+        {
+          "map": "diff",
+          "file": "public/textures/concrete_floor_02_diff.webp",
+          "bytes": 77284
+        },
+        {
+          "map": "nor",
+          "file": "public/textures/concrete_floor_02_nor.webp",
+          "bytes": 42054
+        },
+        {
+          "map": "arm",
+          "file": "public/textures/concrete_floor_02_arm.webp",
+          "bytes": 35950
+        }
+      ]
+    },
+    {
+      "id": "painted_plaster_wall",
+      "role": "Walls",
+      "authors": [
+        "Amal Kumar"
+      ],
+      "page": "https://polyhaven.com/a/painted_plaster_wall",
+      "maps": [
+        {
+          "map": "diff",
+          "file": "public/textures/painted_plaster_wall_diff.webp",
+          "bytes": 8796
+        },
+        {
+          "map": "nor",
+          "file": "public/textures/painted_plaster_wall_nor.webp",
+          "bytes": 40976
+        },
+        {
+          "map": "arm",
+          "file": "public/textures/painted_plaster_wall_arm.webp",
+          "bytes": 6364
+        }
+      ]
+    },
+    {
+      "id": "metal_plate",
+      "role": "Monitor shells and keyboard",
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "page": "https://polyhaven.com/a/metal_plate",
+      "maps": [
+        {
+          "map": "diff",
+          "file": "public/textures/metal_plate_diff.webp",
+          "bytes": 23038
+        },
+        {
+          "map": "nor",
+          "file": "public/textures/metal_plate_nor.webp",
+          "bytes": 57168
+        },
+        {
+          "map": "arm",
+          "file": "public/textures/metal_plate_arm.webp",
+          "bytes": 97386
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "modelBytes": 3627616,
+    "textureBytes": 389016,
+    "totalBytes": 4016632
+  }
+}

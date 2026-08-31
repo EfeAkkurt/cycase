@@ -1,0 +1,63 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback. WebMCP registration happens on the top-level page, so every route
+# must serve the real application shell rather than a 404 page.
+#
+# `force` is deliberately left at its default of false, so a file that actually
+# exists in `dist/` is served instead of the shell. That is what keeps
+# /build-info.json readable rather than answering with index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+# The build-identity file (emitted by vite.config.ts) is the answer to "which build is
+# actually live right now", so it must never be cached. A CDN holding it for even a
+# minute would report the previous build after a rollback — the precise question it
+# exists to answer, given the wrong answer.
+[[headers]]
+  for = "/build-info.json"
+  [headers.values]
+    Cache-Control = "no-store, must-revalidate"
+    Content-Type = "application/json; charset=utf-8"
+
+# Content-hashed by Vite, so immutable is safe and correct.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/models/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "model/gltf-binary"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "font/woff2"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=()"
+    # No 'unsafe-eval' and no external origins: the app self-hosts every font,
+    # model, texture and sound, and makes no third-party request at runtime.
+    # 'unsafe-inline' is required for style only, because React sets the
+    # monitor homography through inline transforms.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"

@@ -1,0 +1,494 @@
+/**
+ * CYCASE design tokens.
+ *
+ * CYCASE runs dark only, so every value is resolved here at `:root` rather than
+ * sitting behind a theme class.
+ *
+ * Supersedes the warm ramp in `docs/VISUAL_RESET.md` §"Non-negotiable
+ * Direction" — see that document's amendment for why.
+ *
+ * `tests/unit/tokens.test.ts` pins the values below, so drift is a failing test
+ * rather than a slow divergence.
+ */
+
+:root {
+  /* ================================================================
+   * Colour — the dark carbon theme.
+   *
+   * Warm neutral near-black with bone text.
+   *
+   * Colour and structure are deliberately separate layers: a re-skin is this
+   * one block rather than a rewrite.
+   * ================================================================ */
+
+  /* Physical anchors. The semantic tokens point at these; these never move. */
+  --carbon: #0b0b0a;
+  --carbon-raised: #171716;
+  --carbon-sunken: #141413;
+  --carbon-panel: #16161a;
+  --bone: #f2f0ed;
+
+  --color-ink: var(--bone);
+  --color-ink-rgb: 242, 240, 237;
+  --color-paper: var(--carbon);
+  --color-paper-rgb: 11, 11, 10;
+
+  --gray-medium: #2a2926;
+  --gray-dark: #8f8b87;
+  --plate: #201f1c;
+  --plate-soft: #1a1a18;
+  --sheen: #2c2c30;
+
+  /*
+   * Relative alpha scale. `ink` is whatever contrasts with the page, so every
+   * hairline, divider and tint derives from one triplet.
+   */
+  --ink-25: rgba(var(--color-ink-rgb), 0.03);
+  --ink-50: rgba(var(--color-ink-rgb), 0.06);
+  --ink-100: rgba(var(--color-ink-rgb), 0.12);
+  --ink-200: rgba(var(--color-ink-rgb), 0.2);
+  --ink-300: rgba(var(--color-ink-rgb), 0.3);
+
+  /* Surfaces */
+  --canvas-bg: var(--carbon);
+  --canvas-muted: var(--carbon-sunken);
+  --canvas-border: var(--gray-medium);
+  --canvas-card-border: var(--canvas-border);
+
+  --tray-bg: var(--carbon-sunken);
+  --tray-border: var(--gray-medium);
+  --tray-cell-bg: var(--carbon-raised);
+  --tray-cell-hover: var(--plate);
+  --tray-cell-selected: rgb(200 162 106 / 0.12);
+  --tray-header-bg: var(--tray-bg);
+  --tray-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  --bg: var(--canvas-bg);
+  --panel: var(--tray-cell-bg);
+  --panel-2: var(--tray-cell-hover);
+  --background: var(--canvas-bg);
+  --foreground: var(--text-primary);
+  --border: var(--canvas-border);
+
+  --surface-subtle: var(--plate-soft);
+  --surface-muted: var(--plate);
+
+  /* Text — measured on the raised surface: 15.8 / 6.7 / 5.3 */
+  --text-primary: var(--bone);
+  --text-secondary: rgba(var(--color-ink-rgb), 0.62);
+  --text-tertiary: var(--gray-dark);
+  --text-disabled: rgba(var(--color-ink-rgb), 0.3);
+  --text-inverse: var(--carbon);
+  --text-on-accent: #ffffff;
+  --text-on-brand: #ffffff;
+
+  /* Borders */
+  --border-subtle: var(--ink-50);
+  --border-default: var(--gray-medium);
+  --border-strong: #3a3835;
+  --border-focus: rgb(200 162 106 / 0.55);
+  --edge-control: rgba(255, 255, 255, 0.14);
+
+  /*
+   * Accent — amber, per the audit contract (P0.4): the neutral direction
+   * reserves red for threats and lets links/focus use bone/amber. An earlier
+   * blue accent was removed.
+   *
+   * Measured: amber on the page 8.3:1; carbon text on the amber fill 8.3:1;
+   * amber text on its own 12% chip 6.2:1.
+   */
+  --accent-top: #d4b078;
+  --brand-primary: #c8a26a;
+  --brand-primary-hover: #d4b078;
+  --brand-primary-soft: rgb(200 162 106 / 0.12);
+  --brand-primary-border: rgb(200 162 106 / 0.34);
+  /*
+   * The followed-row wash, separate from --brand-primary-soft on purpose.
+   *
+   * The soft token is shared with badges and chips, which sit on several
+   * different backgrounds; the row wash has exactly one background to work
+   * against and can be tuned for it. At 0.12 the row was 1.22:1 against an
+   * unfollowed row -- present in the stylesheet and invisible on screen. At
+   * 0.22 it is 1.50:1, which reads as a tint, while the text on it stays at
+   * 10.5:1 (primary) and 5.1:1 (secondary), both clear of the 4.5:1 floor.
+   *
+   * It is not the state indicator and is not tuned to be one: the 3:1
+   * non-text-contrast requirement is met by the 7.55:1 left rule on the row
+   * header and by the "Followed" badge, so the state survives a monochrome
+   * display. The wash only has to help a sighted operator scan.
+   */
+  --row-followed-bg: rgb(200 162 106 / 0.22);
+  --brand-primary-fg: #0b0b0a;
+  /* Amber is bright enough to be its own text colour on carbon. */
+  --brand-on-dark: #c8a26a;
+  --brand: var(--brand-primary);
+  --brand-hover: var(--brand-primary-hover);
+  --primary: var(--brand-primary);
+  --primary-foreground: var(--brand-primary-fg);
+  --ring: var(--brand-primary);
+  --brand-rgb: 200 162 106;
+
+  /*
+   * Status. The foregrounds are lifted along the same hue
+   * until each clears 4.5:1 on its own 12% chip — a fill colour and a text
+   * colour are not the same colour.
+   */
+  --status-success-fill: #7e9464;
+  --status-warning-fill: #f07a34;
+  --status-error-fill: #e2604e;
+  --status-info-fill: #a8a29a;
+
+  --status-success: #8fae75;
+  --status-warning: #f07a34;
+  --status-error: #e8695c;
+  --status-info: #a8a29e;
+  --status-neutral: var(--gray-dark);
+  --on-status: #0b0b0a;
+
+  --surface-success: rgb(143 174 117 / 0.12);
+  --surface-warning: rgb(240 122 52 / 0.12);
+  --surface-error: rgb(232 105 92 / 0.12);
+  --surface-info: rgb(168 162 158 / 0.12);
+  --surface-neutral: var(--ink-50);
+
+  --on-surface-success: var(--status-success);
+  --on-surface-warning: var(--status-warning);
+  --on-surface-error: var(--status-error);
+  --on-surface-info: var(--status-info);
+  --on-surface-neutral: var(--text-secondary);
+
+  /* Chip palette — carbon colour */
+  --badge-neutral-bg: var(--ink-50);
+  --badge-neutral-fg: var(--text-secondary);
+  --badge-neutral-border: var(--ink-100);
+  --badge-accent-bg: var(--brand-primary-soft);
+  --badge-accent-fg: var(--brand-on-dark);
+  --badge-accent-border: var(--brand-primary-border);
+  --badge-success-bg: var(--surface-success);
+  --badge-success-fg: var(--status-success);
+  --badge-success-border: rgb(143 174 117 / 0.3);
+  --badge-warning-bg: var(--surface-warning);
+  --badge-warning-fg: var(--status-warning);
+  --badge-warning-border: rgb(240 122 52 / 0.3);
+  --badge-error-bg: var(--surface-error);
+  --badge-error-fg: var(--status-error);
+  --badge-error-border: rgb(232 105 92 / 0.3);
+  --badge-info-bg: var(--surface-info);
+  --badge-info-fg: var(--status-info);
+  --badge-info-border: rgb(168 162 158 / 0.3);
+
+  /* ================================================================
+   * Spacing — 4pt grid
+   * ================================================================ */
+
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* ================================================================
+   * Radius — TN hard lock: 6 / 8 / 12 + pill
+   * ================================================================ */
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  --radius-canvas-inner: var(--radius-lg);
+  --radius-tray-inner: var(--radius-md);
+  --tray-frame-inset: 4px;
+  --shell-frame-inset: 4px;
+  --radius-tray-outer: calc(var(--radius-tray-inner) + var(--tray-frame-inset));
+  --radius-shell-outer: calc(var(--radius-canvas-inner) + var(--shell-frame-inset));
+  --radius-content-frame: 16px;
+
+  --border-1: 1px;
+  --border-2: 2px;
+
+  /* ================================================================
+   * Badge / chip
+   * ================================================================ */
+
+  --badge-h-sm: 18px;
+  --badge-h-md: 20px;
+  --badge-h-lg: 24px;
+  --badge-h-card: 22px;
+  --badge-px-sm: 6px;
+  --badge-px-md: 6px;
+  --badge-px-lg: var(--space-2);
+  --badge-radius: var(--radius-full);
+  --badge-gap: var(--space-1);
+  --badge-font-size: var(--type-xs-size);
+  --badge-font-weight: var(--fw-medium);
+  --badge-letter-spacing: var(--tracking-normal);
+
+  /* Chip colour is defined once, in the carbon block above. Two palettes for
+   * the same variables is how a lifted foreground silently reverts to a fill
+   * colour and drops a 12px chip to 2.7:1. */
+
+  /* ================================================================
+   * Shadows
+   * ================================================================ */
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.36), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 12px 16px -4px rgba(0, 0, 0, 0.42), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-focus: 0 0 0 4px rgb(200 162 106 / 0.24);
+  --shadow-focus-ring: var(--shadow-focus);
+  --shadow-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --shadow-1: var(--shadow-xs);
+
+  --raised-top-highlight: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0) 50%
+  );
+  --raised-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* ================================================================
+   * Z-index
+   * ================================================================ */
+
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-dropdown: 100;
+  --z-overlay: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+  --z-tooltip: 500;
+
+  /* ================================================================
+   * Typography — Inter only, weights 400/500
+   * ================================================================ */
+
+  --type-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, Helvetica, Arial, sans-serif;
+  --type-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --type-xs-size: 12px;
+  --type-xs-lh: 16px;
+  --type-sm-size: 13px;
+  --type-sm-lh: 18px;
+  --type-md-size: 14px;
+  --type-md-lh: 20px;
+  --type-lg-size: 16px;
+  --type-lg-lh: 22px;
+  --type-xl-size: 18px;
+  --type-xl-lh: 24px;
+  --type-2xl-size: 20px;
+  --type-2xl-lh: 26px;
+  --type-kpi-size: 24px;
+  --type-kpi-lh: 28px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+
+  --tracking-normal: -0.31px;
+  --tracking-tight: var(--tracking-normal);
+
+  /* ================================================================
+   * Density
+   * ================================================================ */
+
+  /* ----------------------------------------------------------------
+   * Console shell geometry
+   *
+   * Widths and heights of the application frame, in one place, because the
+   * same numbers are asserted from three directions: the CSS below, the
+   * constants in `src/ui/dashboard/shell.ts`, and the Playwright measurement
+   * in `tests/e2e/shell.spec.ts`. Typed once, they can only agree.
+   *
+   * The two surfaces are aliases, not new colours. The ground is the *lighter*
+   * of the pair and the card is the page's own carbon — see the note above
+   * `.console` in global.css for why inverting the usual inset arrangement is
+   * what keeps the gray-tray ladder alive.
+   * ---------------------------------------------------------------- */
+
+  --sidebar-w: 240px;
+  --sidebar-w-rail: 72px;
+  --sidebar-item-h: 36px;
+  --rail-w: 320px;
+  --rail-w-collapsed: 44px;
+  --shell-inset: 8px;
+  --shell-topbar-h: 48px;
+
+  --surface-shell: var(--carbon-sunken);
+  --surface-canvas: var(--carbon);
+
+  --row-height-comfortable: 44px;
+  --row-height-compact: 32px;
+  --control-height-sm: 32px;
+  --control-height-md: 36px;
+  --control-height-lg: 44px;
+  --gray-tray-header-h: var(--control-height-sm);
+  --content-padding-x: var(--space-8);
+  --content-padding-y: var(--space-6);
+  --page-section-gap: var(--space-6);
+  --section-header-gap: var(--space-3);
+
+  /* ================================================================
+   * Motion
+   * ================================================================ */
+
+  --motion-duration-instant: 80ms;
+  --motion-duration-fast: 150ms;
+  --motion-duration-base: 220ms;
+  --motion-duration-slow: 320ms;
+  --motion-duration-slower: 480ms;
+
+  --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-easing-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-easing-decelerate: cubic-bezier(0, 0, 0, 1);
+  --motion-easing-accelerate: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ================================================================
+   * Icons — single size, single stroke
+   * ================================================================ */
+
+  --icon-size: 16px;
+  --icon-size-sm: 14px;
+  --icon-stroke: 1.2;
+
+  /* ================================================================
+   * Charts
+   * ================================================================ */
+
+  --chart-grid: var(--ink-100);
+  --chart-axis: var(--ink-300);
+  --chart-axis-label: var(--text-tertiary);
+  --chart-tooltip-bg: var(--panel);
+  --chart-tooltip-border: var(--border-default);
+  --chart-stroke-thin: 1.5px;
+  --chart-stroke-default: 2px;
+  --chart-stroke-thick: 2.5px;
+  --chart-fill-opacity: 0.65;
+
+  --chart-1: var(--brand-primary);
+  --chart-2: var(--chart-neutral);
+  --chart-3: var(--status-success);
+  --chart-4: var(--status-warning);
+  --chart-5: var(--status-error);
+
+  /* Neutral series for charts that are not signalling state. */
+  --chart-neutral: #8f8b87;
+  --chart-neutral-dim: #57514b;
+
+  /* Categorical ramp — the reference donut: bone, amber, warm grey, olive. */
+  --chart-cat-1: #c8a26a;
+  --chart-cat-2: #8f8b87;
+  --chart-cat-3: #8fae75;
+  --chart-cat-4: #f07a34;
+  --chart-cat-5: #b5a08a;
+  --chart-cat-6: #57514b;
+  --chart-cat-7: #e8695c;
+  --chart-cat-8: #f2f0ed;
+
+  /* ----------------------------------------------------------------
+   * Named series (added for the shadcn chart port).
+   *
+   * A chart component must never name a raw hex, and "--chart-cat-6" does
+   * not say what it means. These give every series a name the reader of the
+   * component can check against the design intent: bone/warm-grey for
+   * background traffic, red for attacker activity and nothing else, amber
+   * for the score the player actually earned.
+   *
+   * Fills are the same hue at low alpha rather than a gradient — a flat wash
+   * that separates two stacked bands without inventing a third colour.
+   * ---------------------------------------------------------------- */
+
+  --chart-series-baseline: var(--chart-neutral);
+  --chart-series-baseline-fill: rgba(143, 139, 135, 0.16);
+  --chart-series-anomaly: var(--status-error);
+  --chart-series-anomaly-fill: rgba(232, 105, 92, 0.22);
+
+  --chart-series-critical: var(--status-error);
+  --chart-series-high: var(--status-warning);
+  --chart-series-medium: var(--chart-cat-1);
+  --chart-series-low: var(--chart-neutral-dim);
+
+  --chart-series-earned: var(--brand-primary);
+  --chart-series-shortfall: var(--ink-100);
+
+  /* Hover affordances. Restrained: the cursor marks the column, it does not
+     light it up. */
+  --chart-cursor-fill: var(--ink-50);
+  --chart-cursor-stroke: var(--ink-200);
+  --chart-tick-size: var(--type-xs-size);
+  --chart-node-fill: var(--surface-subtle);
+  --chart-edge-muted: var(--ink-200);
+
+  /* ================================================================
+   * Buttons / dropdowns — component tokens
+   * ================================================================ */
+
+  --btn-h-cta: var(--control-height-sm);
+  --btn-h-sm: var(--btn-h-cta);
+  --btn-radius: var(--radius-md);
+  --btn-text-sm-size: var(--type-sm-size);
+
+  --btn-cta-bg: var(--brand-primary);
+  --btn-cta-bg-hover: var(--brand-primary-hover);
+  --btn-cta-fg: var(--text-on-brand);
+  /* Elevation comes from the edge, not the fill: on a near-black page a mid
+     blue only separates 3.2:1, so the control carries a light 1px edge. */
+  --btn-cta-shadow:
+    0 0 0 1px var(--edge-control),
+    0 1px 0 0 rgba(255, 255, 255, 0.14) inset,
+    var(--shadow-xs);
+  --btn-cta-shadow-hover:
+    0 0 0 1px rgba(255, 255, 255, 0.2),
+    0 1px 0 0 rgba(255, 255, 255, 0.18) inset,
+    0 4px 12px rgba(0, 0, 0, 0.45);
+
+  --btn-secondary-bg: var(--panel);
+  --btn-secondary-bg-hover: var(--surface-subtle);
+  --btn-secondary-fg: var(--text-primary);
+  --btn-secondary-border: var(--border-default);
+  --btn-secondary-border-hover: var(--border-strong);
+
+  --btn-ghost-bg-hover: var(--tray-cell-hover);
+  --btn-ghost-bg-active: var(--panel-2);
+  --btn-ghost-fg: var(--text-primary);
+
+  --btn-destructive-bg: var(--status-error);
+  --btn-destructive-fg: #ffffff;
+
+  --btn-sheen-top: var(--raised-top-highlight);
+
+  --dd-h: var(--btn-h-sm);
+  --dd-px: 12px;
+  --dd-gap: 8px;
+  --dd-radius: var(--radius-md);
+  --dd-bg: var(--btn-secondary-bg);
+  --dd-bg-hover: var(--btn-secondary-bg-hover);
+  --dd-bg-open: var(--btn-secondary-bg-hover);
+  --dd-fg: var(--text-secondary);
+  --dd-fg-muted: var(--text-tertiary);
+  --dd-border: var(--btn-secondary-border);
+  --dd-border-hover: var(--btn-secondary-border-hover);
+  --dd-border-open: var(--badge-accent-border);
+  --dd-chevron-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-instant: 1ms;
+    --motion-duration-fast: 1ms;
+    --motion-duration-base: 1ms;
+    --motion-duration-slow: 1ms;
+    --motion-duration-slower: 1ms;
+  }
+}

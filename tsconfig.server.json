@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": true,
+    "types": ["node"]
+  },
+  "include": ["server", "shared", "tests/backend"],
+  /*
+   * Four backend suites exercise the BROWSER adapter (IndexedDB, import.meta.env),
+   * not the server. Compiling them here drags src/backend into a project with no
+   * DOM lib, which is why `indexedDB` and `ImportMeta.env` were unresolved. They
+   * type-check under tsconfig.app.json, which owns src/.
+   */
+  "exclude": [
+    "tests/backend/unit/telemetry.test.ts",
+    "tests/backend/unit/localMode.test.ts",
+    "tests/backend/unit/offlineQueue.test.ts",
+    "tests/backend/integration/runSync.test.ts",
+    "tests/backend/helpers/run.ts"
+  ]
+}
