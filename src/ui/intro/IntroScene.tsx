@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 import { useGame, usePrefersReducedMotion, useRuntime } from '../../app/gameContext';
 import { useAudio } from '../../audio/audioContext';
@@ -81,13 +82,31 @@ export function IntroScene() {
 
     const apply = (step: GlyphStep) => {
       const text = lines[step.line]!.text;
+
+      /*
+       * The whole sentence reaches the transcript before its first glyph
+       * reaches the DOM, and the order is the point.
+       *
+       * The glyph write below is synchronous; `setSpoken` was not, so for the
+       * span between them the partial line existed on screen while the
+       * complete one had not yet been committed. A reader sampling in that
+       * window is handed half a sentence, which is exactly what the aria-hidden
+       * typed layer exists to prevent. `flushSync` closes the window.
+       *
+       * It has to be the FIRST glyph rather than the line before, because the
+       * transcript is a live region and a live region does not announce the
+       * content it is first rendered with.
+       */
+      if (step.chars === 1) {
+        flushSync(() => setSpoken((count) => Math.max(count, step.line + 1)));
+      }
+
       const node = glyphRefs.current[step.line];
       if (node) {
         node.dataset.typed = text.slice(0, step.chars);
         // The caret belongs to the line under the hand, and nowhere else.
         node.dataset.state = step.chars === text.length ? 'done' : 'typing';
       }
-      if (step.chars === 1) setSpoken((count) => Math.max(count, step.line + 1));
       if (step.sound) {
         keys += 1;
         audioRef.current.play('typewriter');

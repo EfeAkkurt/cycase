@@ -135,6 +135,45 @@ async function playStepWithPointer(
   }
 }
 
+/**
+ * The office's narration toggle, which is on screen beside mute and volume.
+ *
+ * Scoped to `main.office` rather than left global because the office and the
+ * console are both mounted during the crossfade, and both mount a
+ * `VoiceSettings` — an unscoped `.voice-settings__toggle` is a strict-mode
+ * violation waiting for a frame where the two overlap, not merely an imprecise
+ * locator.
+ */
+function officeNarrationToggle(page: Page) {
+  return page.locator('.office .voice-settings__toggle');
+}
+
+/**
+ * The console's narration toggle, which is behind a press.
+ *
+ * The shell branch consolidated the dashboard's narration, voice and
+ * operating-system list into one Settings surface in the top bar —
+ * `Dashboard.tsx` renders `<VoiceSettings surface="menu" />`, and that surface
+ * keeps its body inside a disclosure so Pause and Return stay visible in a
+ * 48px band. The control the office shows inline is therefore one press away
+ * on the console; it is not gone, and it is not in the rail.
+ *
+ * So the reading is done the way a player does it: open Settings, then read the
+ * toggle. The disclosure is component state, so it is closed again on every
+ * mount — each leg of the round trip opens it for itself, which is also the
+ * point, since a console that had rebuilt its settings state would open on the
+ * default rather than on the preference the player set.
+ */
+async function openConsoleSettings(page: Page): Promise<void> {
+  const settings = page.locator('.voice-settings--menu').getByRole('button', { name: 'Settings' });
+  await settings.click();
+  await expect(settings).toHaveAttribute('aria-expanded', 'true');
+}
+
+function consoleNarrationToggle(page: Page) {
+  return page.locator('.voice-settings__panel .voice-settings__toggle');
+}
+
 /** The whole canonical run, with the pointer, from wherever the console is open. */
 async function playCaseWithPointer(page: Page): Promise<void> {
   for (const step of PERFECT_RUN) {
@@ -282,10 +321,14 @@ test.describe('every path finishes the case', () => {
      * "no voices" note instead of the advanced disclosure — the toggle is the
      * control that is always there, and the preference it writes is the one
      * that has to survive.
+     *
+     * The office shows that toggle inline; the console keeps it inside the top
+     * bar's Settings disclosure. Both legs press the same control and make the
+     * same assertion — see `openConsoleSettings`.
      */
     await openOffice2D(page);
 
-    const toggle = page.locator('.voice-settings__toggle');
+    const toggle = officeNarrationToggle(page);
     await expect(toggle).toHaveText('Narration on');
     await toggle.click();
     await expect(toggle).toHaveText('Narration off');
@@ -297,15 +340,26 @@ test.describe('every path finishes the case', () => {
 
     // The console carries the same control, so the first thing the crossfade
     // could lose is checked before the round trip even starts.
-    await expect(page.locator('.voice-settings__toggle')).toHaveText('Narration off');
+    await openConsoleSettings(page);
+    await expect(consoleNarrationToggle(page)).toHaveText('Narration off');
 
     await page.locator('#return-to-office').click();
-    await expect(page.locator('.voice-settings__toggle')).toHaveText('Narration off', SCENE);
+    await expect(officeNarrationToggle(page)).toHaveText('Narration off', SCENE);
 
     await page.locator('#office-resume-cta').click(SCENE);
     await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible(SCENE);
-    await expect(page.locator('.voice-settings__toggle')).toHaveText('Narration off');
-    await expect(page.locator('.voice-settings__toggle')).toHaveAttribute('aria-pressed', 'false');
+    await openConsoleSettings(page);
+    await expect(consoleNarrationToggle(page)).toHaveText('Narration off');
+    await expect(consoleNarrationToggle(page)).toHaveAttribute('aria-pressed', 'false');
+
+    /*
+     * Closed before the run resumes, the way a player closes it: pressing
+     * Escape. Leaving a dialog open over the workspace would be a state no
+     * player carries into the case, and the run below is the same seventeen
+     * steps every other path in this file plays.
+     */
+    await page.keyboard.press('Escape');
+    await expect(consoleNarrationToggle(page)).toHaveCount(0);
 
     await playCaseWithPointer(page);
     await expectContainedDebrief(page);

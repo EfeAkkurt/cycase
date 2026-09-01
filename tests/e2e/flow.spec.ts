@@ -32,6 +32,25 @@ function nav(page: Page, name: string) {
   return page.getByRole('navigation').getByRole('button', { name: new RegExp(`^${name}`) });
 }
 
+/**
+ * Opens one of the guidance rail's extras the way a player has to.
+ *
+ * The rail starts collapsed, and narration, optional evidence, the activity
+ * feed and the registered tools are one tab at a time — each panel is absent
+ * from the document until its own tab is selected. So a test that wants any of
+ * them has to expand the rail and select the tab, exactly as a person does,
+ * rather than reach for an id that is no longer rendered.
+ */
+async function openRailTab(page: Page, name: string): Promise<void> {
+  const toggle = page.locator('.rail__toggle');
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+  const tab = page.getByRole('tab', { name });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
+
 /* ------------------------------------------------------------------ */
 
 test.describe('evidence is read where it can be seen', () => {
@@ -97,25 +116,38 @@ test.describe('evidence is read where it can be seen', () => {
     await openDashboard(page);
     await runSequence(page, [
       { tool: 'submit_decision', input: { decisionId: 'D1', optionId: 'D1_preserve_and_inspect' } },
+      { tool: 'inspect_artifact', input: { artifactId: 'art_email_001' } },
     ]);
 
-    // The rail's optional-evidence shortcut.
+    // The rail's optional-evidence shortcut, which sits behind the rail's
+    // "Optional" tab in a rail that starts collapsed.
     await nav(page, 'Command').click();
+    await openRailTab(page, 'Optional');
     await page.locator('#explore-more summary').click();
     const shortcut = page.locator('#rail-explore').getByRole('button', { name: /^Open / }).first();
-    const name = (await shortcut.getAttribute('aria-label')) ?? '';
+    const label = ((await shortcut.getAttribute('aria-label')) ?? '').replace(/^Open /, '');
+    expect(label).not.toBe('');
     await shortcut.click();
-    await expect(page.locator('#evidence-inspector')).toBeVisible();
-    expect(name).toContain('Open');
 
-    // The timeline's, on a record that has already been read.
+    /*
+     * Navigation, not a read in place: Evidence is up, showing the record this
+     * shortcut named, and the list agrees about which one is open. Asserting
+     * only that *some* inspector appeared would pass for a shortcut that opened
+     * the wrong record, which is the failure this control used to have.
+     */
+    await expect(page.locator('#evidence-inspector')).toBeVisible();
+    await expect(page.locator('#evidence-record-title')).toHaveText(label);
+    await expect(page.locator('.evidence__item[aria-current="true"]')).toContainText(label);
+
+    // The timeline's control, on a record that has already been read. Same
+    // press, same destination, same record — on a named row, because a
+    // `.first()` behind an `if (count())` proves nothing on the day the row
+    // stops rendering.
     await nav(page, 'Timeline').click();
-    const timelineOpen = page.locator('[id^="timeline-open-"]').first();
-    if (await timelineOpen.count()) {
-      await timelineOpen.click();
-      await expect(page.locator('#evidence-inspector')).toBeVisible();
-      await expect(page.locator('#evidence-record-title')).toBeVisible();
-    }
+    await page.locator('#timeline-open-art_email_001').click();
+    await expect(page.locator('#evidence-inspector')).toBeVisible();
+    await expect(page.locator('#evidence-record-title')).toContainText('Phishing message');
+    await expect(page.locator('#evidence-art_email_001')).toHaveAttribute('aria-current', 'true');
   });
 });
 
@@ -403,7 +435,10 @@ test.describe('narration cannot move the case', () => {
 
     expect(await readStateVersion(page)).toBe(version + 1);
     // Recorded as the player's move, not the agent's: the activity feed
-    // attributes every call, and this one is human.
+    // attributes every call, and this one is human. The feed is one of the
+    // rail's tabs now, so open it the way a player would and ask the same
+    // question of the same source — the attribution *is* the test.
+    await openRailTab(page, 'Activity');
     await expect(page.locator('#rail-activity')).toContainText('submit_decision');
     const agentCalls = await page
       .locator('#rail-activity .feed__row', { hasText: 'submit_decision' })
@@ -502,9 +537,25 @@ test.describe('one progress model', () => {
     await expect(page.locator('#phase-triage')).toHaveAttribute('aria-current', 'step');
     await expect(page.locator('#phase-progress')).toContainText('Triage');
 
-    // Neither rival counter survives anywhere on the page.
-    await expect(page.locator('body')).not.toContainText(/Step \d+ of \d+/);
-    await expect(page.locator('body')).not.toContainText(/Decision \d+ of \d+/);
+    /*
+     * Neither rival counter survives anywhere on the page — and "the page" now
+     * has to be made to mean what the player sees. The guidance rail starts
+     * collapsed and renders one extra at a time, so narration, optional
+     * evidence, the activity feed and the tools panel are *absent from the
+     * document* rather than merely off screen. A whole-body negative that never
+     * opens them is a negative about a smaller document than the player's, and
+     * would go green with a step counter sitting in any of the four.
+     */
+    const noRivalCounter = async () => {
+      await expect(page.locator('body')).not.toContainText(/Step \d+ of \d+/);
+      await expect(page.locator('body')).not.toContainText(/Decision \d+ of \d+/);
+    };
+
+    await noRivalCounter();
+    for (const tab of ['Narration', 'Optional', 'Activity', 'Tools']) {
+      await openRailTab(page, tab);
+      await noRivalCounter();
+    }
   });
 
   test('advances the active phase as the case progresses', async ({ page }) => {

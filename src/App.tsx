@@ -43,8 +43,30 @@ export function App() {
   // document, and gate themselves by state. See docs/WEBMCP_CONTRACT.md.
   const mcp = useWebMcpTools();
 
-  /** True from the moment the crossfade starts until the cover has lifted. */
-  const [crossfading, setCrossfading] = useState(false);
+  /**
+   * The crossfade, counted rather than flagged.
+   *
+   * This was a boolean, and a boolean cannot express "start a second crossfade
+   * while the first one is still on screen". Entering `transition` again set an
+   * already-true flag, which is a no-op, so the cover that was still mounted
+   * from the previous crossfade stayed mounted — and that instance has already
+   * swapped, so it never calls `onSwap` again. `TRANSITION_DONE` was therefore
+   * never sent, the machine sat in `transition` forever, and `transition` gives
+   * both stages `inert` and the dashboard `stage--muted`. The result was a black,
+   * inert, unrecoverable screen; only a reload got out of it.
+   *
+   * It is reachable by a player, not just by a test: the forward cover runs
+   * 380 ms in, 90 hold, 400 out, and the dashboard goes live and interactive at
+   * 380 ms — so pressing "Return to office" and then "Open response console"
+   * inside the following ~490 ms locks the console. Under reduced motion the
+   * window is 80 ms, narrower and still reachable.
+   *
+   * Counting gives every crossfade its own cover. The key change unmounts the
+   * old instance, whose `cancelAnimationFrame` cleanup runs, so its stale
+   * `onEnd` cannot land on the new one.
+   */
+  const [crossfade, setCrossfade] = useState(0);
+  const crossfading = crossfade > 0;
 
   /**
    * The wake reveal is a first-arrival event, not a scene event. P0.7 requires
@@ -60,7 +82,10 @@ export function App() {
   }, [scene]);
 
   useEffect(() => {
-    if (scene === 'transition') setCrossfading(true);
+    // A new token on every entry, so a crossfade that begins while the previous
+    // cover is still fading out gets its own cover rather than inheriting one
+    // that has already done its swap.
+    if (scene === 'transition') setCrossfade((token) => token + 1);
   }, [scene]);
 
   const onSwap = useCallback(() => {
@@ -73,7 +98,7 @@ export function App() {
     });
   }, [runtime]);
 
-  const onCoverEnd = useCallback(() => setCrossfading(false), []);
+  const onCoverEnd = useCallback(() => setCrossfade(0), []);
 
   const inTransition = scene === 'transition';
   const officeMounted = scene === 'office' || inTransition;
@@ -136,7 +161,12 @@ export function App() {
         ) : null}
 
         {crossfading ? (
-          <TransitionCover reducedMotion={reducedMotion} onSwap={onSwap} onEnd={onCoverEnd} />
+          <TransitionCover
+            key={crossfade}
+            reducedMotion={reducedMotion}
+            onSwap={onSwap}
+            onEnd={onCoverEnd}
+          />
         ) : null}
 
         {scene === 'debrief' ? <Debrief /> : null}
