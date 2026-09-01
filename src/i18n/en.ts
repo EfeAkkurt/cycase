@@ -206,6 +206,9 @@ export const en = {
   'evidence.destroyed': 'Destroyed',
   'evidence.destroyed_hint': 'This artifact was deleted and can no longer be inspected.',
   'evidence.inspect': 'Inspect',
+  // The inspector is showing the record but the case has not recorded the
+  // read yet — true for one commit, and never a lie while it is true.
+  'evidence.reading': 'On screen',
   'evidence.inspected': 'Inspected',
   'evidence.raw': 'Raw',
   'evidence.explained': 'Explained',
@@ -984,7 +987,6 @@ export const en = {
   'guide.closed': 'The case is closed.',
   'guide.closed.body': 'Nothing further is required. The debrief has the score and the reasoning.',
   'guide.running': 'Running…',
-  'guide.step_failed': 'That step stopped early: {reason}',
 
   'guide.d1.title': 'Decide how to handle the reported message',
   'guide.d1.why': 'The first move decides whether the evidence survives the response.',
@@ -1028,9 +1030,6 @@ export const en = {
   'guide.unblock.cta': 'Collect the missing evidence',
 
   /* ---------------- incident phases: the one progress model ---------------- */
-  'evidence.reading': 'On screen',
-
-  /* ---------------- incident phases: the one progress model (cont.) -------- */
   'phase.triage': 'Triage',
   'phase.investigate': 'Investigate',
   'phase.contain': 'Contain',
@@ -1038,7 +1037,6 @@ export const en = {
   'phase.close': 'Close',
   'phase.rail': 'Incident phase',
   'phase.progress': '{phase} — step {index} of {total}',
-  'phase.position': 'Phase {index} of {total}',
   'phase.complete': 'Every phase is complete.',
   'phase.state.done': 'done',
   'phase.state.active': 'in progress',
@@ -1051,7 +1049,6 @@ export const en = {
   'guide.stage.then': 'Then, separately',
   'guide.stage.one_at_a_time':
     'One step at a time. Each of these is a separate action you authorise on its own.',
-  'guide.stage.navigating': 'Opening the record — it is not recorded as read until you can see it.',
 
   /* ---------------- receipts ---------------- */
   'receipt.title': 'What just happened',
@@ -1062,7 +1059,6 @@ export const en = {
   'receipt.state.done': 'Applied',
   'receipt.state.partial': 'Partly applied',
   'receipt.state.failed': 'Refused',
-  'receipt.dismiss': 'Dismiss this receipt',
   'receipt.failed.title': 'That did not run',
   'receipt.failed.why':
     'A refused call changes nothing at all — no score, no findings, no case state.',
@@ -1089,7 +1085,6 @@ export const en = {
     'This was not the route you chose, and choosing it does not undo what that cost. It is what still closes the incident.',
   'corrective.why': 'Your decision did not authorise this, and {finding} is still open.',
   'corrective.count': '{count} still fixable',
-  'corrective.none': 'Nothing needs correcting.',
   'corrective.cta': 'Apply {label}',
 
   'guide.optional': 'Optional evidence',
