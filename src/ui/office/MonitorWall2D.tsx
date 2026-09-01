@@ -296,17 +296,72 @@ export function MonitorSurface3D({
  * fallback to complete the case, and "opens the correct full tool" is part of
  * completing it.
  */
+/**
+ * Why the flat monitor wall is on screen.
+ *
+ * Ordered by precedence, most specific first: a runtime failure outranks a
+ * preference, because a player who turned 3D *on* and got 2D anyway is owed the
+ * real reason.
+ */
+export type FallbackReason =
+  | 'context_lost'
+  | 'load_failed'
+  | 'webgl'
+  | 'viewport'
+  | 'preference';
+
+const FALLBACK_COPY = {
+  context_lost: 'fallback.reason.context_lost',
+  load_failed: 'fallback.reason.load_failed',
+  webgl: 'fallback.reason.webgl',
+  viewport: 'fallback.reason.viewport',
+  preference: 'fallback.reason.preference',
+} as const;
+
 export function MonitorWall2D({
   unacknowledged,
   onAcknowledge,
+  reason,
+  onRetry3D,
 }: {
   unacknowledged: boolean;
   onAcknowledge: () => void;
+  /** Omitted while the 3D chunk is merely still loading — that is not a fallback. */
+  reason?: FallbackReason | null;
+  /** Offered only when a retry could actually succeed. */
+  onRetry3D?: () => void;
 }) {
   const monitors = useMonitors();
 
   return (
     <section className="monitors" aria-label={t('fallback.title')}>
+      {reason ? (
+        /*
+         * `role="status"` rather than a plain paragraph: on the context-lost and
+         * load-failed paths this replaces a room that was on screen a moment
+         * ago, and a screen-reader user gets no other signal that the scene
+         * changed under them. `aria-atomic` keeps it one sentence rather than a
+         * word-by-word recital as the retry button mounts beside it.
+         *
+         * Saying why the wall is here matters most when it is NOT a failure: a
+         * player who turned 3D off, or is on a narrow viewport, would otherwise
+         * read the flat wall as the room having broken.
+         */
+        <p
+          className="monitors__reason"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          aria-label={t('fallback.reason.label')}
+        >
+          {t(FALLBACK_COPY[reason])}
+          {onRetry3D ? (
+            <Button size="sm" variant="ghost" onClick={onRetry3D}>
+              {t('fallback.retry_3d')}
+            </Button>
+          ) : null}
+        </p>
+      ) : null}
       <MonitorSurface monitor={monitors.left} alert={unacknowledged} />
       <MonitorSurface
         monitor={monitors.center}

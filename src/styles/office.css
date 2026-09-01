@@ -1,0 +1,203 @@
+/* ------------------------------------------------------------------ *
+ * Office — head-look surface, first-run help, and the 2D fallback note
+ *
+ * A file of its own rather than more of `global.css`, because everything here
+ * belongs to one lazily-loaded scene and none of it is a design-system rule.
+ * `global.css` still owns `.office`, `.office3d` and the monitor projection;
+ * this owns what the Phase 2C interaction work added, and it is imported from
+ * `Office.tsx` so it travels with the scene.
+ *
+ * It uses the existing token vocabulary and defines no colours of its own.
+ * ------------------------------------------------------------------ */
+
+/*
+ * The drag surface is the whole office region now, not the canvas.
+ *
+ * `touch-action: none` has to live here rather than on `.office3d__canvas`,
+ * because the projected monitor panels sit above the canvas and cover most of
+ * the picture — with it on the canvas alone, a touch drag that started on a
+ * panel was interpreted as a page scroll and the room did not move at all.
+ *
+ * The projected panels re-enable pointer events for themselves in `global.css`;
+ * nothing here changes which element receives a click.
+ */
+.office3d {
+  touch-action: none;
+  cursor: grab;
+}
+
+/*
+ * Only while a gesture has actually travelled past the drag threshold.
+ *
+ * `:active` was doing this before, which meant the grabbing cursor appeared on
+ * every plain click — including the click that acknowledges the alarm.
+ */
+.office3d[data-dragging='true'] {
+  cursor: grabbing;
+  /*
+   * The drag surface covers three panels of real text, so without this,
+   * pulling the room sideways selected every line it passed over and left the
+   * selection highlighted afterwards.
+   */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/*
+ * Controls keep their own cursor. The region's `grab` would otherwise override
+ * the pointer on every button and the text caret on every input inside it.
+ */
+.office3d button,
+.office3d a[href],
+.office3d input,
+.office3d select,
+.office3d textarea,
+.office3d [role='button'] {
+  cursor: revert;
+}
+
+/* ------------------------------------------------------------------ *
+ * Mouse-look status
+ * ------------------------------------------------------------------ */
+
+.office3d__controls {
+  align-items: center;
+}
+
+/*
+ * "Esc to release", and the two refusal messages.
+ *
+ * Empty most of the time; `:empty` collapses it so it never reserves space or
+ * draws a background beside the toggle when there is nothing to say.
+ */
+.office3d__status {
+  max-width: 34ch;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh, 1.4);
+  text-align: right;
+}
+
+.office3d__status:empty {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * First-run head-look help (task: compact "Drag / arrows-WASD / Home")
+ *
+ * Top-left, opposite the mouse-look toggle, so the two never overlap. It is
+ * deliberately not centred over the room: the alarm has to stay the first focal
+ * point in the unacknowledged frame, and `headlook.spec.ts` measures that.
+ * ------------------------------------------------------------------ */
+
+.office-help {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: 2;
+  max-width: min(20rem, calc(100% - var(--space-8, 2rem)));
+}
+
+.office-help__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg);
+  box-shadow: var(--shadow-raised, 0 2px 8px rgb(0 0 0 / 0.35));
+}
+
+.office-help__title {
+  font-size: var(--type-sm-size);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.office-help__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--type-xs-size);
+  color: var(--text-secondary);
+}
+
+.office-help__list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/*
+ * The gesture name, set like a key cap so the three lines scan as a legend
+ * rather than as a paragraph. `min-width` keeps the descriptions aligned.
+ */
+.office-help__key {
+  flex: none;
+  min-width: 7.5ch;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--type-xs-size);
+  text-align: center;
+}
+
+/* Collapsed: one control, same corner, same tab order. */
+.office-help--collapsed .btn,
+.office-help--collapsed button {
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .office-help__panel {
+    animation: office-help-in 240ms var(--motion-easing-standard, ease-out) both;
+  }
+}
+
+@keyframes office-help-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Why the 2D monitor wall is on screen
+ * ------------------------------------------------------------------ */
+
+/*
+ * Spans the whole grid rather than sitting in the first column: `.monitors` is
+ * a three-column grid, and without this the note would be squeezed into the
+ * telemetry monitor's width and push it out of alignment with the other two.
+ */
+.monitors__reason {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: var(--type-sm-size);
+  text-align: center;
+}

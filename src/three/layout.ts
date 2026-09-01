@@ -356,66 +356,56 @@ export const BACKDROP = {
  */
 export const COLLEAGUE_PATH: [number, number, number][] = [
   /*
-   * Re-staged for the P0.4 pass, and the reason is the doorway.
-   *
-   * She used to start at (2.45, 1.62) — beside the operator's own shoulder,
-   * behind the seated cone — walk forward past the camera and settle upstage.
-   * The player therefore never saw an entrance; a figure simply resolved out of
-   * the dark at the right-hand edge. The back wall now carries a real doorway
-   * with a lit corridor behind it (`BACKDROP.door`), so she starts *down that
-   * corridor*, hidden by the wall, and walks into the room through the opening
-   * the player can see. That is an arrival.
+   * She starts down the corridor, hidden by the back wall, and walks into the
+   * room through the opening the player can see. That is an arrival; a figure
+   * resolving out of the dark at the frame edge is not.
    */
-  [2.14, 0, -3.4],
+  [2.14, 0, -3.40],
   [2.14, 0, -2.44],
-  [2.1, 0, -1.82],
+  [2.06, 0, -1.98],
+  [1.78, 0, -1.46],
   /*
-   * She settles where she is actually framed.
+   * The settle point: 2.40 m from the seat, in front of the server bay, and —
+   * for the first time — inside the frame the player is actually looking at.
    *
-   * Projected with the scene camera at 1440x900: head at screen (1162, 185),
-   * chest at (1159, 272), feet at (1145, 610) in the 1440x700 office viewport.
-   * At the previous endpoint her head landed at x=1367 — inside the frame by
-   * arithmetic, cropped by the right edge in practice once the body has width —
-   * and the audit's acceptance is that she is "clearly visible, human-sized and
-   * not substantially occluded during her report". Standing further back and
-   * further in also puts her head and shoulders clear above the right monitor
-   * rather than behind it.
+   * ## What was wrong
+   *
+   * The previous endpoint was (2.15, −0.95), and it was staged against a camera
+   * yaw of −17.1°: the office used to hold `DOOR_YAW * 0.45` for the whole of
+   * her report, so every clearance number in this file described a shot the
+   * player only saw because the camera had turned to find her. Projected at
+   * yaw 0 — the framing the office now holds, and the one a recentred or
+   * returning player is in — her head landed at screen x 1510..1603 in a
+   * 1440-wide frame. She was not "partly occluded"; she was **entirely off the
+   * right-hand edge**, and no assertion caught it because
+   * `CHARACTER_ANCHORS.colleagueHead` was measured at (1.62, −1.75) — a
+   * *waypoint* she walks through, not the point she stops at.
+   *
+   * ## How this one was chosen
+   *
+   * By sweep, against `createCamera` — the same projection the app and
+   * `tests/e2e/characters.spec.ts` use — evaluated at yaw 0 at every viewport
+   * that reaches the 3D path (1920x1080, 1440x900, 1280x720 and 1024-wide, each
+   * at a generous and a tight office height). Every candidate had to keep her
+   * crown and her face clear of all three monitor quads, keep her head, her
+   * shoulders and her head-and-shoulders volume inside the picture with margin,
+   * stand clear of the desk and of both server cabinets, and sit between 2.0 and
+   * 2.9 m from the seat. Of the positions that qualified, this one puts her head
+   * 72% of the way across the frame — beside the right monitor rather than over
+   * it — at a conversational 2.40 m.
+   *
+   * ## What is *not* claimed
+   *
+   * Her elbow and everything below it is behind the monitor interface, and that
+   * is a geometric fact rather than a tuning failure. The DOM panels composite
+   * over the canvas and fill the band from screen y≈247 to y≈464 across almost
+   * the whole width, so only what stands above world y≈1.29 at this distance is
+   * visible in those columns. Her shoulder joint is at world y 1.017 and her arm
+   * is 0.53 m long, so no natural pose puts the elbow above that line. What the
+   * staging does guarantee, measured: crown, face, shoulders, upper torso, and
+   * the raised forearm and hand that carry the pointing beat.
    */
-  [1.62, 0, -1.75],
-  /*
-   * The settle point: 2.36 m from the seat, clear of the desk, in front of the
-   * server bay.
-   *
-   * Three constraints meet here and only a narrow band satisfies all three.
-   *
-   * The audit asks for her "BESIDE the right monitor, not behind it, so her
-   * full report pose is visible", and finding that spot needed a search rather
-   * than an eyeball. The seated frame is unforgiving: the desk spans x ±0.94,
-   * the monitor array fills the middle of the picture, and the DOM interface
-   * composites *over* the canvas — so anything behind a screen quad is not
-   * dimmed, it is gone.
-   *
-   * This point comes out of a sweep against `createCamera`, the same projection
-   * the app and `tests/e2e/characters.spec.ts` use, evaluated at both review
-   * sizes and at both framings that matter: the recentred one, and the yaw
-   * −17.1° the office holds for the whole of her report (`DOOR_YAW * 0.45` in
-   * `src/ui/office/Office.tsx`). Every candidate had to keep the crown of her
-   * head clear of all three monitors and keep her head-and-shoulders volume
-   * inside the picture, at all four of those combinations. 1,614 positions do;
-   * this one puts her head two thirds of the way across the report frame at
-   * 2.4 m, which is a conversational distance rather than a portrait.
-   *
-   * What is *not* claimed: her lower body is behind the desk and the monitors
-   * at the report framing, and no position in this room avoids that. She is a
-   * 1.7 m person standing behind a desk with three screens on it. What the
-   * staging guarantees is the part that carries the beat — head, hair,
-   * shoulders and gesturing arm above the glass.
-   *
-   * She is also in front of the server bay rather than lost against bare
-   * plaster, so the lit LED rows separate her silhouette from the wall, and her
-   * key and rim lights are in `OfficeScene`.
-   */
-  [2.15, 0, -0.95],
+  [1.01, 0, -1.38],
 ];
 
 /**
@@ -620,54 +610,50 @@ export const COLLEAGUE_HEIGHT = 1.7;
  */
 export const CHARACTER_ANCHORS = {
   /**
-   * The crown of her head at the settle point — hair and skull, the part that
-   * must never be behind the interface.
+   * Her face and collar at the settle point — the lit band, not the crown.
    *
-   * Corrected for the P0.4 pass, and the correction matters more than it looks.
-   * The anchor used to be a 0.21 sphere centred at y = 1.62, which is *above
-   * the character*: her rig measures exactly 1.70 m to the top of her hair, so
-   * a third of the volume the clearance test was checking was empty air over
-   * her head. The test was passing on a shape she does not occupy — which is
-   * how the audit could find her "partly hidden behind the right monitor" while
-   * every character assertion was green.
+   * A narrow band, found by measuring rather than guessing. Her hair is the
+   * darkest material on the model and sits against an equally dark rack, so a
+   * sphere on it moves 2% with her standing in it and is useless as evidence.
+   * The lit part is her face and collar, and at radius 0.17 a sphere there
+   * projected into the right monitor's DOM surface. 1.43 at radius 0.12 is on
+   * the lit material and clear of the glass.
    *
-   * Both numbers below are measured rather than assumed — and measured the only
-   * way that settles it, by tagging her hair material a colour nothing else in
-   * the room uses, rendering, and reading the tagged pixels back through the
-   * scene camera. The top of her hair sits at world y 1.56, not at the 1.70 her
-   * bind-pose bounding box reports; a skinned mesh's `Box3` is the bind volume,
-   * not the posed one, and trusting it is what put this anchor 20 cm into the
-   * air twice. This sphere spans 1.32 to 1.56: the crown of her head, and
-   * nothing that is not her.
-   *
-   * It is a smaller volume than the old anchor, and that is the honest form of
-   * the claim rather than a relaxation of it. A standing 1.7 m person two
-   * metres behind a desk of monitors *is* partly behind them — swept
-   * exhaustively, there is no position in this room at any distance where a
-   * head-and-shoulders sphere both clears the right monitor's quad and stays in
-   * frame. What can be promised, and now is: the crown clears the interface at
-   * both framings and both review sizes, `colleagueBust` below stays inside the
-   * picture, and `characters.spec` additionally requires her patch to carry
-   * real luminance rather than being a lit-looking silhouette.
+   * The x and z now track `COLLEAGUE_PATH`'s **last** point rather than its
+   * fourth. That was the defect: this anchor described (1.62, −1.75), which is
+   * a waypoint she walks through on the way in, so the clearance test proved a
+   * claim about a position she does not stop at while she stood off-frame.
    */
-  /*
-   * Face and collar, not the crown.
-   *
-   * A narrow band, found by measuring rather than guessing. At 1.58 and again
-   * at 1.49 the sphere sits on her hair — the darkest material on the model,
-   * against an equally dark rack — and the patch moved 2.3% and 2.1% with her
-   * standing in it. The lit part is her face and collar, lower down, and at
-   * radius 0.17 a sphere there projected 3 px into the right monitor's DOM
-   * surface, which breaks the audit's "readable without overlapping monitor
-   * DOM". 1.43 at radius 0.12 is on the lit material and clear of the glass.
-   */
-  colleagueHead: { position: [1.62, 1.43, -1.75] as [number, number, number], radius: 0.12 },
+  colleagueHead: { position: [1.01, 1.43, -1.38] as [number, number, number], radius: 0.12 },
   /**
-   * Head and shoulders: not required to clear the monitors — she stands behind
-   * a desk — but required to be inside the picture at both review sizes and at
-   * both framings.
+   * The crown of her head: hair and skull, the part that must never be behind
+   * the interface.
+   *
+   * 1.56 is measured, not derived. Her rig's bind-pose `Box3` reports 1.70 m,
+   * but a skinned mesh's bounding box is the bind volume rather than the posed
+   * one; the top of her hair actually sits at world y 1.56, established by
+   * tagging her hair material a colour nothing else in the room uses and
+   * reading the tagged pixels back through the scene camera.
    */
-  colleagueBust: { position: [2.03, 1.22, -0.95] as [number, number, number], radius: 0.34 },
+  colleagueCrown: { position: [1.01, 1.56, -1.38] as [number, number, number], radius: 0.11 },
+  /**
+   * Head and shoulders: required to be inside the picture at every review size,
+   * and — unlike the two above — *not* required to clear the monitors. She
+   * stands behind a desk carrying three panels; the lower half of this volume
+   * is legitimately behind them.
+   */
+  colleagueBust: { position: [1.01, 1.22, -1.38] as [number, number, number], radius: 0.34 },
+  /**
+   * Where her pointing hand has to arrive.
+   *
+   * Not a pose the animation guesses at — `Colleague.tsx` drives the arm to it
+   * and `characters.spec.ts` reads the *actual* `FistR` bone back out of the
+   * live skeleton and compares. The value here is the target the joint angles
+   * were solved for, measured by posing the real rig headlessly: it is the one
+   * part of the gesture that clears the glass, so it is the part that is
+   * asserted.
+   */
+  colleaguePoint: { position: [0.98, 1.27, -1.24] as [number, number, number], radius: 0.09 },
 } as const;
 
 /**

@@ -959,6 +959,26 @@ export const en = {
   'fallback.prev': 'Previous monitor',
   'fallback.next': 'Next monitor',
 
+  /*
+   * Why the flat monitor wall is on screen instead of the room.
+   *
+   * The 2D path used to arrive with no explanation, which reads as the 3D
+   * office having failed to load rather than as a deliberate, complete way to
+   * play the case. Each reason is a full sentence because it is announced to a
+   * screen reader as well as shown.
+   */
+  'fallback.reason.preference': '2D mode is on because you turned the 3D office off. The full case is playable here.',
+  'fallback.reason.viewport':
+    '2D mode is on because this window is too narrow for the 3D office. The full case is playable here.',
+  'fallback.reason.webgl':
+    '2D mode is on because this browser cannot draw WebGL. The full case is playable here.',
+  'fallback.reason.load_failed':
+    '2D mode is on because the 3D office could not be loaded. The full case is playable here, and nothing about the case has been lost.',
+  'fallback.reason.context_lost':
+    '2D mode is on because the graphics context was lost. The full case is playable here, and nothing about the case has been lost.',
+  'fallback.reason.label': 'Why you are in 2D mode',
+  'fallback.retry_3d': 'Try the 3D office again',
+
   /* ---------------- a11y ---------------- */
   'a11y.live_region': 'Case updates',
   'a11y.monitor_left': 'Left monitor: event telemetry',
@@ -974,6 +994,29 @@ export const en = {
   'office.headlook.help':
     'Drag the room, or use the arrow keys or A, D, W and S, to turn your head. The view is limited to what you can see without leaving the chair. Press Home, or the Recenter view control, to face the monitors again. Mouse look captures the pointer; Escape releases it.',
   'office.headlook.mouse_look': 'Mouse look',
+
+  /*
+   * The first-run head-look hint and the mouse-look status line.
+   *
+   * Added rather than rewritten: nothing above changes wording. The room is the
+   * one surface in the product with an interaction and no affordance, so the
+   * three gestures are named once, compactly, and the panel stands down as soon
+   * as one of them has been used.
+   */
+  'office.headlook.help_title': 'Look around the room',
+  'office.headlook.help_drag_key': 'Drag',
+  'office.headlook.help_drag': 'anywhere in the room',
+  'office.headlook.help_keys_key': 'Arrows / WASD',
+  'office.headlook.help_keys': 'turn your head',
+  'office.headlook.help_home_key': 'Home',
+  'office.headlook.help_home': 'faces the monitors again',
+  'office.headlook.help_show': 'Look controls',
+  'office.headlook.help_dismiss': 'Got it',
+  'office.headlook.release': 'Mouse look is on — press Esc to release the pointer',
+  'office.headlook.lock_denied':
+    'The browser would not capture the pointer. Drag the room, or use the arrow keys, to look around instead.',
+  'office.headlook.lock_unsupported':
+    'This browser has no pointer capture. Drag the room, or use the arrow keys, to look around instead.',
   /* ---------------- guided path (audit contract P0.6) ---------------- */
   'guide.title': 'Next required step',
   'guide.why': 'Why this step',

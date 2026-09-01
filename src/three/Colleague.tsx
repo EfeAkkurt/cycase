@@ -36,13 +36,16 @@ import {
  *
  *   entering  → `Walk`, driven along `COLLEAGUE_PATH`
  *   urgent    → `Idle` at 1.4x with a forward lean and a fast chest rise
- *   pointing  → the right arm aimed at the centre monitor in *world* space,
- *               head turned to follow it, held for two seconds
+ *   pointing  → the right arm raised toward the centre monitor on bounded
+ *               joint rotations, head turned to follow it, held for two seconds
  *   relieved  → `Idle` at 0.85x, lean released, breath long
  *
- * Aiming the arm in world space rather than baking a pose means she points at
- * the monitor the layout actually places, not at where a canned clip guessed
- * it would be.
+ * `urgent` and `relieved` are positions on one axis rather than two poses, and
+ * that axis is driven by the *case* — `caseResolved` — not by how long she has
+ * been standing there. See `RELIEF_RATE`.
+ *
+ * The point is solved against the real skeleton rather than aimed at runtime;
+ * `POINT_POSE` records how, and why the runtime aim it replaces was removed.
  */
 
 /** Long enough to read as a walk, short of the machine's 4500 ms safety net. */
@@ -54,8 +57,23 @@ const POINT_IN = 0.8;
 const POINT_HOLD = 1.9;
 const POINT_OUT = 0.7;
 const POINT_END = URGENT_UNTIL + POINT_IN + POINT_HOLD + POINT_OUT;
-/** Full relief is reached a beat after the arm comes down. */
-const RELIEF_OVER = 2.4;
+
+/**
+ * How fast she settles between urgent and relieved, as an exponential rate.
+ *
+ * Applied as `1 - e^(-rate * dt)` for the same reason `cameraRig` does: it is
+ * frame-rate independent, so the transition takes the same wall-clock time on a
+ * 60 Hz laptop and inside a stepped test.
+ *
+ * This is a *transition* rate, and that distinction is the whole point of this
+ * pass. It used to be `RELIEF_OVER`, a duration measured from the moment she
+ * stopped walking — so she relaxed 7.3 seconds after arriving whatever the
+ * player had done, including nothing. She reported a live intrusion and then
+ * visibly calmed down while it was still live. Relief is now a function of the
+ * case, and this constant only says how quickly she reacts once the case
+ * actually changes.
+ */
+const RELIEF_RATE = 0.9;
 
 /** Playback rate of the shared `Idle` clip per emotional beat. */
 const IDLE_RATE_URGENT = 1.4;
@@ -71,6 +89,39 @@ export type ColleaguePhase = 'hidden' | 'entering' | 'settled';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const RIGHT = new THREE.Vector3(1, 0, 0);
+const FORWARD = new THREE.Vector3(0, 0, 1);
+
+/**
+ * The pointing pose, as bounded rotations on the right arm's own joints.
+ *
+ * Solved rather than eyeballed, and solved against the real rig: the GLB was
+ * loaded headlessly, posed on `Idle`, placed at the settle point, and the four
+ * angles searched for the combination that (a) puts her fist above world y 1.26
+ * — the height at which the monitor interface stops occluding her at 2.40 m —
+ * and (b) minimises the angle between her forearm and the direction from her
+ * hand to the alarm rim. The solution below lands 21° off that aim with the
+ * fist at y 1.27, and keeps both arm segments at their true lengths (0.30 m and
+ * 0.24 m), so the chain still resolves to an arm rather than to a stretched one.
+ *
+ * This replaces a gesture that had been switched off. The previous attempt
+ * slerped the bone toward a world direction and wrote it back through the
+ * parent's inverse, which on this rig swung *both* arms toward the camera and
+ * read as a deformed figure — so it was disabled, and the beat the contract
+ * asks for has never played. These are plain local-axis multiplies on the two
+ * bones the clip already drives, which is the same mechanism as the lean and
+ * the breath below, and the mechanism the file's own note says survives the
+ * frame intact.
+ */
+const POINT_POSE = {
+  /** Raises the upper arm forward and up, about the bone's own bend axis. */
+  lift: -2.6,
+  /** A little outward, so the elbow clears her ribs. */
+  swing: 0.3,
+  /** Rolls the arm so the forearm comes across toward the monitors. */
+  twist: 1.1,
+  /** The elbow bend that brings her hand up above the glass. */
+  elbow: -1.6,
+} as const;
 
 /** Smoothstep, so every beat eases in and out rather than snapping. */
 function smooth(t: number): number {
@@ -87,22 +138,34 @@ function pointWeight(elapsed: number): number {
   return 1 - smooth((t - POINT_IN - POINT_HOLD) / POINT_OUT);
 }
 
-/** 0 while she is still catching her breath, 1 once the room has calmed. */
-function reliefWeight(elapsed: number): number {
-  return smooth((elapsed - POINT_END) / RELIEF_OVER);
-}
-
 export function Colleague({
   phase,
   onArrive,
+  caseResolved = false,
 }: {
   phase: ColleaguePhase;
   onArrive?: () => void;
+  /**
+   * Whether the player has actually dealt with the incident.
+   *
+   * Read from the case, not from a clock — `Office` derives it from the
+   * containment actions on the machine's context. While it is false she stays
+   * urgent however long she has been standing there, which is the behaviour the
+   * contract asks for: she does not relax before the player solves it.
+   */
+  caseResolved?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const elapsedRef = useRef(0);
   const settledRef = useRef(0);
   const arrivedRef = useRef(false);
+  /**
+   * Her current position between urgent (0) and relieved (1).
+   *
+   * Eased toward `caseResolved` rather than set from it, so the change reads as
+   * someone letting a breath out rather than as a pose swap.
+   */
+  const reliefRef = useRef(caseResolved ? 1 : 0);
 
   const gltf = useLoader(GLTFLoader, CHARACTER_FILES.colleague);
 
@@ -308,11 +371,27 @@ export function Colleague({
       walk?.reset().setEffectiveWeight(1).play();
       return;
     }
-    if (!enteredFromWalk.current) settledRef.current = POINT_END + RELIEF_OVER;
+    if (!enteredFromWalk.current) {
+      /*
+       * A return from the dashboard, which must not replay the arrival: park
+       * the beat clock past the point gesture so the arm stays down.
+       *
+       * Her *mood* is deliberately not parked with it. On the old build this
+       * same line also made her relieved, because relief was a function of this
+       * clock — so a player who bounced to the dashboard and straight back
+       * found her calm about an incident nobody had touched. Relief now comes
+       * from `caseResolved`, and the two paths stay separate.
+       */
+      settledRef.current = POINT_END;
+      reliefRef.current = caseResolved ? 1 : 0;
+    }
     if (!idle) return;
     idle.reset().setEffectiveWeight(1).play();
     if (walk?.isRunning()) walk.crossFadeTo(idle, 0.45, false);
     else walk?.stop();
+    // `caseResolved` is read for the mount-time seed only; re-running this
+    // effect when the case changes would restart her idle mid-report.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, actions, mixer]);
 
   /**
@@ -395,7 +474,16 @@ export function Colleague({
 
     settledRef.current += delta;
     const elapsed = settledRef.current;
-    const relief = reliefWeight(elapsed);
+
+    /*
+     * Ease toward whatever the case says, every frame. Nothing here can reach
+     * relief while the incident is open, which is the entire fix.
+     */
+    const target = caseResolved ? 1 : 0;
+    reliefRef.current += (target - reliefRef.current) * (1 - Math.exp(-RELIEF_RATE * Math.max(0, delta)));
+    if (Math.abs(target - reliefRef.current) < 0.002) reliefRef.current = target;
+    const relief = reliefRef.current;
+
     const point = pointWeight(elapsed);
 
     const end = curve.getPointAt(1);
@@ -556,23 +644,37 @@ function applyPosture(
   }
 
   /*
-   * The point gesture is off.
+   * The point.
    *
-   * `aimAt` slerps a bone toward a world direction and then writes it back
-   * through the parent's inverse — correct in principle, but on this rig it
-   * swung both arms out toward the camera and, at the distance she is staged
-   * at, read as a deformed figure rather than someone gesturing at a monitor.
-   * A gesture that breaks the character is worse than no gesture, and the line
-   * she delivers already names what she is pointing at.
-   *
-   * The lean, the breath and the shoulder turn stay: those are bounded
-   * single-axis offsets on bones the clip already drives, and they survive the
-   * frame intact. Restoring the point needs a proper aim constraint with a
-   * per-joint limit, which is a bigger piece of work than this pass.
+   * Every term is scaled by `point`, which runs 0 → 1 → 0 across the beat, so
+   * the arm rises, holds and comes back down, and outside the beat this whole
+   * block is arithmetically the identity. That is what makes it safe to layer
+   * on a clip: at `point === 0` the bones are left exactly as the mixer wrote
+   * them.
    */
   if (bones.shoulder) {
+    // The shoulder itself lifts a little, so the arm does not appear to hinge
+    // out of a fixed socket.
     bones.shoulder.quaternion.multiply(
       scratch.quat.setFromAxisAngle(RIGHT, -0.26 * point + 0.12 * urgency),
+    );
+  }
+
+  if (bones.upperArm) {
+    bones.upperArm.quaternion.multiply(
+      scratch.quat.setFromAxisAngle(RIGHT, POINT_POSE.lift * point),
+    );
+    bones.upperArm.quaternion.multiply(
+      scratch.quat.setFromAxisAngle(FORWARD, POINT_POSE.swing * point),
+    );
+    bones.upperArm.quaternion.multiply(
+      scratch.quat.setFromAxisAngle(UP, POINT_POSE.twist * point),
+    );
+  }
+
+  if (bones.lowerArm) {
+    bones.lowerArm.quaternion.multiply(
+      scratch.quat.setFromAxisAngle(RIGHT, POINT_POSE.elbow * point),
     );
   }
 }

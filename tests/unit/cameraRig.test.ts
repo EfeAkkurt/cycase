@@ -50,20 +50,28 @@ describe('clamps', () => {
     expect(cameraRig.state.yaw).toBeCloseTo(-YAW_LIMIT, 10);
   });
 
-  it('holds the asymmetric pitch limits: +25 up, -20 down', () => {
+  it('holds the asymmetric pitch limits: +32 up, -38 down', () => {
     cameraRig.setInstant(true);
 
     cameraRig.lookAt(0, 10);
     expect(cameraRig.state.pitch).toBeCloseTo(PITCH_UP_LIMIT, 10);
-    expect(PITCH_UP_LIMIT / DEGREE).toBeCloseTo(25, 6);
+    expect(PITCH_UP_LIMIT / DEGREE).toBeCloseTo(32, 6);
 
     cameraRig.lookAt(0, -10);
     expect(cameraRig.state.pitch).toBeCloseTo(-PITCH_DOWN_LIMIT, 10);
-    expect(PITCH_DOWN_LIMIT / DEGREE).toBeCloseTo(20, 6);
+    expect(PITCH_DOWN_LIMIT / DEGREE).toBeCloseTo(38, 6);
   });
 
-  it('is the contract cone: ±55° of yaw', () => {
-    expect(YAW_LIMIT / DEGREE).toBeCloseTo(55, 6);
+  it('is a chair swivel, not a neck: ±120° of yaw', () => {
+    /*
+     * Widened from the audit's ±55°. At 55° the side walls are still at the
+     * edge of the picture and the room behind the seat has never been on
+     * screen, so "look around the office" resolved to "look slightly to one
+     * side of your monitors". `CAMERA.fov` is deliberately unchanged — see the
+     * note on `YAW_LIMIT` — so the projection at yaw 0 is byte-identical and
+     * the 2 px overlay budget is untouched by the widening.
+     */
+    expect(YAW_LIMIT / DEGREE).toBeCloseTo(120, 6);
   });
 
   it('clamps the eased target too, not just the instant one', () => {
@@ -323,24 +331,55 @@ describe('the monitor projection follows the rig', () => {
     expect(panelCentre(oneFrameOfDrag, 0)).toEqual(stale);
   });
 
-  it('keeps the centre monitor projected right across the head-look cone', () => {
+  it('never projects a monitor to nonsense, anywhere in the cone', () => {
     /*
-     * At the yaw clamp the far side monitor has swung past 90° off the view
-     * axis and is dropped rather than projected to nonsense — that is the
-     * `behindCamera` guard doing its job. The centre monitor, which carries the
-     * alarm and the acknowledge control, has to survive every pose in the cone.
+     * The invariant that actually has to hold everywhere: no pose in the cone
+     * may produce a `matrix3d` containing NaN or Infinity. A single one of
+     * those silently blanks the projected panel it is written to, and the
+     * homography's degenerate cases are exactly what the `behindCamera` and
+     * `isQuadUsable` guards exist to catch.
      */
-    for (const yaw of [-YAW_LIMIT, -0.5, 0, 0.5, YAW_LIMIT]) {
-      for (const pitch of [-PITCH_DOWN_LIMIT, 0, PITCH_UP_LIMIT]) {
-        const placements = computeMonitorPlacements(WIDTH, HEIGHT, yaw, pitch);
-        expect(
-          placements.map((entry) => entry.id),
-          `yaw ${yaw} pitch ${pitch}`,
-        ).toContain('center');
-        for (const placement of placements) {
-          expect(placement.transform).not.toMatch(/NaN|Infinity/);
+    for (let yaw = -YAW_LIMIT; yaw <= YAW_LIMIT + 1e-9; yaw += YAW_LIMIT / 24) {
+      for (const pitch of [-PITCH_DOWN_LIMIT, -0.2, 0, 0.2, PITCH_UP_LIMIT]) {
+        for (const placement of computeMonitorPlacements(WIDTH, HEIGHT, yaw, pitch)) {
+          expect(placement.transform, `yaw ${yaw} pitch ${pitch}`).not.toMatch(/NaN|Infinity/);
         }
       }
     }
+  });
+
+  it('carries the centre monitor across the working range, and drops it past 90°', () => {
+    /*
+     * This assertion used to read "the centre monitor survives every pose in
+     * the cone", which was true of a ±55° cone and is not true of a ±120° one:
+     * past about 75° of yaw the centre panel has swung behind the camera and
+     * `computeMonitorPlacements` correctly declines to project it. Asserting
+     * the old claim against the new cone would have forced the cone back.
+     *
+     * What matters is not that the panel is always drawn — it is that the
+     * player can never lose the acknowledge control by looking away. They
+     * cannot: `Office`'s dialogue renders its own "Acknowledge alarm" button
+     * for the whole of `alarmUnacknowledged`, outside the canvas and outside
+     * the projection, so the control survives a pose the monitor does not.
+     */
+    /*
+     * 65°, not 70. Measured: the centre panel survives to ±75° of yaw when the
+     * head is level, but only to ±69° with the head pitched fully up — the two
+     * rotations compose, so the safe range is the worst pitch's, not the best.
+     */
+    for (const yaw of [-65 * DEGREE, -0.5, 0, 0.5, 65 * DEGREE]) {
+      for (const pitch of [-PITCH_DOWN_LIMIT, 0, PITCH_UP_LIMIT]) {
+        expect(
+          computeMonitorPlacements(WIDTH, HEIGHT, yaw, pitch).map((entry) => entry.id),
+          `yaw ${yaw} pitch ${pitch}`,
+        ).toContain('center');
+      }
+    }
+
+    // And at the clamp itself it is gone, which is the honest reading of
+    // having turned your chair away from your desk.
+    expect(
+      computeMonitorPlacements(WIDTH, HEIGHT, YAW_LIMIT, 0).map((entry) => entry.id),
+    ).not.toContain('center');
   });
 });

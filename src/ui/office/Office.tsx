@@ -3,11 +3,13 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react
 import { useAudio } from '../../audio/audioContext';
 import {
   useGame,
+  useGameSelector,
   useOfficeSubScene,
   usePrefersReducedMotion,
   useRuntime,
   type OfficeSubScene,
 } from '../../app/gameContext';
+import type { ResponseActionId } from '../../game/types';
 import { t } from '../../i18n';
 import { cameraRig } from '../../three/cameraRig';
 import type { ColleaguePhase } from '../../three/Colleague';
@@ -15,8 +17,12 @@ import { VoiceSettings } from '../../audio/VoiceSettings';
 import { NarrationPanel, useNarration } from '../narration/NarrationPanel';
 import { TransitionCover } from '../intro/TransitionCover';
 import { Button } from '../primitives';
-import { MonitorWall2D } from './MonitorWall2D';
+import { MonitorWall2D, type FallbackReason } from './MonitorWall2D';
 import { SettingsBar, use3DEnabled } from './SettingsBar';
+import { focusLookSurface } from './lookSurface';
+import { Scene3DBoundary } from './Scene3DBoundary';
+
+import '../../styles/office.css';
 
 /**
  * three.js is loaded only when the room is actually going to be drawn. The
@@ -48,6 +54,22 @@ const MIN_3D_WIDTH = 1024;
 
 /** The scripted glance toward the doorway after acknowledging. */
 const DOOR_YAW = -(38 * Math.PI) / 180;
+
+/**
+ * The containment actions. Any one of them means the player has stopped
+ * standing still, which is what lets the colleague stop being urgent.
+ *
+ * `close_case` is deliberately absent — closing the case is covered by
+ * `caseClosed` below, and treating the *act* of closing as containment would
+ * let a player relieve her by closing an incident they never touched.
+ */
+const CONTAINING_ACTIONS: readonly ResponseActionId[] = [
+  'revoke_sessions',
+  'reset_credentials',
+  'isolate_endpoint',
+  'block_indicator',
+];
+
 
 /** Alarm ping cadence while unacknowledged. */
 const ALARM_PING_MS = 2400;
@@ -120,7 +142,53 @@ export function Office() {
   const [enabled3D, setEnabled3D] = use3DEnabled();
   const viewportAllows = useViewportAllows3D();
   const webglSupported = useWebglSupported();
-  const show3D = enabled3D && viewportAllows && webglSupported;
+
+  /*
+   * A runtime failure of the 3D path, which is a different thing from a
+   * preference or a capability. `retryKey` re-arms the error boundary and
+   * remounts the lazy chunk, so "try again" is a real retry rather than a
+   * relabelled reload.
+   */
+  const [runtimeFailure, setRuntimeFailure] = useState<'load_failed' | 'context_lost' | null>(
+    null,
+  );
+  const [retryKey, setRetryKey] = useState(0);
+
+  const show3D = enabled3D && viewportAllows && webglSupported && runtimeFailure === null;
+
+  const fallbackReason: FallbackReason | null = show3D
+    ? null
+    : (runtimeFailure ??
+      (!webglSupported ? 'webgl' : !viewportAllows ? 'viewport' : 'preference'));
+
+  const retry3D = useCallback(() => {
+    setRuntimeFailure(null);
+    setRetryKey((key) => key + 1);
+  }, []);
+
+  /*
+   * A failure is per-attempt, not per-session. Turning 3D off and on again, or
+   * widening the window back past the threshold, is the player asking for the
+   * room again — so the recorded failure is cleared when the thing that could
+   * have caused it changes.
+   */
+  useEffect(() => {
+    setRuntimeFailure(null);
+  }, [enabled3D, viewportAllows]);
+
+  /**
+   * Has the player actually dealt with this incident?
+   *
+   * The colleague's urgent/relieved axis reads this instead of a wall clock.
+   * `useGameSelector` rather than `useGame` because the case context is
+   * republished every second by the incident clock, and this value changes a
+   * handful of times in a whole run.
+   */
+  const caseResolved = useGameSelector(
+    (context) =>
+      context.caseClosed ||
+      context.performedActions.some((action) => CONTAINING_ACTIONS.includes(action.actionId)),
+  );
 
   const unacknowledged = sub === 'alarmUnacknowledged';
   const colleaguePhase = colleaguePhaseFor(sub);
@@ -215,15 +283,25 @@ export function Office() {
   }, [unacknowledged, audio]);
 
   /*
-   * Scripted glances: toward the doorway while she enters, back to centre as
-   * she reports. Head-look input (P0.1) rides the same rig.
+   * The glance to the doorway, and back to centre for the report.
    *
-   * `assistantReporting` used to hold the camera at 45% of the door yaw, which
-   * was right while it was a six-second transient the timer moved you out of.
-   * It is now where the player sits until they choose, so a held 17-degree
-   * offset would mean reading the monitors and pressing a control from a room
-   * turned away from both. She is already `settled` by this beat, so this is
-   * the moment the comment above always described as "back to centre".
+   * `assistantReporting` used to hold `DOOR_YAW * 0.45` — a 17.1° turn toward
+   * the door — for the whole of her report, and the colleague was staged
+   * against that turned framing. Two things were wrong with it. The player who
+   * pressed Home, or came back from the dashboard, saw the centred frame
+   * instead, and in the centred frame she was entirely off the right-hand edge.
+   * And the framing was a number two files had to agree on by hand:
+   * `characters.spec.ts` hard-coded the same 17.1° in order to know where to
+   * look for her.
+   *
+   * The report is now framed at yaw 0 and she is staged there — see the settle
+   * point in `layout.ts`. There is one report framing, it is the same one a
+   * recentred player is in, and the test reads the live `data-yaw` rather than
+   * assuming it.
+   *
+   * `explained` is in this list because the auto-advance is gone: it is now
+   * reachable straight out of `assistantReporting`, where the camera would
+   * otherwise still be angled at the doorway.
    */
   useEffect(() => {
     if (sub === 'acknowledged') cameraRig.lookAt(DOOR_YAW, 0);
@@ -263,7 +341,23 @@ export function Office() {
           {/* Narration voice, beside the room's own mute and volume. */}
           <VoiceSettings />
           {show3D ? (
-            <Button size="sm" variant="ghost" onClick={() => cameraRig.recenter()}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                cameraRig.recenter();
+                /*
+                 * Hand the keyboard back to the room.
+                 *
+                 * Camera keys are ignored while a button has focus — otherwise
+                 * ArrowLeft on the volume slider would turn the head — so
+                 * without this, clicking Recenter left focus on Recenter and
+                 * silently killed arrow and WASD look until the player clicked
+                 * the room again. That was the reported bug.
+                 */
+                focusLookSurface();
+              }}
+            >
               {t('office.recenter')}
             </Button>
           ) : null}
@@ -273,18 +367,58 @@ export function Office() {
         </div>
 
         {show3D ? (
-          <Suspense fallback={<MonitorWall2D unacknowledged={unacknowledged} onAcknowledge={acknowledge} />}>
-            <Office3D
-              colleaguePhase={colleaguePhase}
-              onColleagueArrive={() => runtime.send({ type: 'COLLEAGUE_ARRIVED' })}
-              alert={unacknowledged}
-              reducedMotion={reducedMotion}
-              onAcknowledgeAlarm={unacknowledged ? acknowledge : undefined}
-              onReady={returning ? markRoomDrawn : undefined}
-            />
-          </Suspense>
+          /*
+           * Boundary outside, Suspense inside.
+           *
+           * `useLoader` throws a rejected fetch *through* Suspense, so a missing
+           * GLB is an error the Suspense boundary cannot catch — it needs this.
+           * Both land on the same 2D wall, and both keep the case: nothing about
+           * the incident has ever lived in the canvas.
+           */
+          <Scene3DBoundary
+            resetKey={retryKey}
+            onError={() => setRuntimeFailure('load_failed')}
+            fallback={
+              <MonitorWall2D
+                unacknowledged={unacknowledged}
+                onAcknowledge={acknowledge}
+                reason="load_failed"
+                onRetry3D={retry3D}
+              />
+            }
+          >
+            <Suspense
+              fallback={
+                <MonitorWall2D unacknowledged={unacknowledged} onAcknowledge={acknowledge} />
+              }
+            >
+              <Office3D
+                key={retryKey}
+                colleaguePhase={colleaguePhase}
+                onColleagueArrive={() => runtime.send({ type: 'COLLEAGUE_ARRIVED' })}
+                alert={unacknowledged}
+                reducedMotion={reducedMotion}
+                onAcknowledgeAlarm={unacknowledged ? acknowledge : undefined}
+                onReady={returning ? markRoomDrawn : undefined}
+                caseResolved={caseResolved}
+                onContextLost={() => setRuntimeFailure('context_lost')}
+              />
+            </Suspense>
+          </Scene3DBoundary>
         ) : (
-          <MonitorWall2D unacknowledged={unacknowledged} onAcknowledge={acknowledge} />
+          <MonitorWall2D
+            unacknowledged={unacknowledged}
+            onAcknowledge={acknowledge}
+            reason={fallbackReason}
+            onRetry3D={
+              /*
+               * Only offered where retrying could work. A narrow window or a
+               * browser with no WebGL will fail again identically, and a button
+               * that cannot succeed is worse than no button.
+               */
+              runtimeFailure && viewportAllows && webglSupported ? retry3D : undefined
+            }
+          />
         )}
 
         <Dialogue sub={sub} operatorName={ctx.operatorName} onAcknowledge={acknowledge} />

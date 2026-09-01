@@ -6,13 +6,32 @@
  * WebGL camera, the DOM monitor projection and any scripted glance all read
  * the same yaw/pitch — per frame, without a React render in the loop.
  *
- * Clamps are the contract's: ±55° yaw, +25°/−20° pitch. The doorway, both
- * side walls and the racks are all inside that cone.
+ * ## The cone, and why it is wider than the audit's
+ *
+ * It was ±55° yaw and +25°/−20° pitch, which is the range of a head turning on
+ * a fixed neck. That is not the range of a person in an office chair, and the
+ * difference mattered: at 55° the side walls are still at the edge of the
+ * picture and the room behind the seat has never been on screen at all, so
+ * "look around the office" resolved to "look slightly to one side of your
+ * monitors". The cone below is a chair swivel — 120° either way reaches both
+ * side walls square-on and brings the back of the room into frame, which is
+ * what makes the set dressing behind the operator worth having.
+ *
+ * Two things this deliberately does **not** change, because both would move the
+ * monitor overlay:
+ *
+ * - `CAMERA.fov` in `layout.ts`. The horizontal field is already 92.7° at
+ *   1440x900 and 104.5° at 1280x720; widening it further would distort the
+ *   frame and re-scale every projected DOM surface. The cone is a clamp on
+ *   where the camera may point, not on how much it sees at once.
+ * - The projection itself. `computeMonitorPlacements` is a pure function of
+ *   size and pose, so at yaw 0 it returns exactly what it returned before —
+ *   the 2 px drift budget is untouched by this file.
  */
 
-export const YAW_LIMIT = (55 * Math.PI) / 180;
-export const PITCH_UP_LIMIT = (25 * Math.PI) / 180;
-export const PITCH_DOWN_LIMIT = (20 * Math.PI) / 180;
+export const YAW_LIMIT = (120 * Math.PI) / 180;
+export const PITCH_UP_LIMIT = (32 * Math.PI) / 180;
+export const PITCH_DOWN_LIMIT = (38 * Math.PI) / 180;
 
 /**
  * How fast an eased glance closes on its target.
@@ -77,6 +96,38 @@ class CameraRig {
 
   recenter(): void {
     this.lookAt(0, 0);
+  }
+
+  /**
+   * Pulls the current pose back inside the clamps.
+   *
+   * Needed because the rig outlives the thing that moved it. The office
+   * unmounts and remounts on a 3D toggle and on a viewport crossing the 3D
+   * threshold, and a build that narrows the cone would otherwise leave a
+   * remounted scene pointing somewhere the clamps no longer allow — visible as
+   * a room that opens facing a wall. Cheap, idempotent, and safe to call on
+   * every mount.
+   */
+  clampToLimits(): void {
+    this.lookAt(this.targetYaw, this.targetPitch);
+    this.yaw = clamp(this.yaw, -YAW_LIMIT, YAW_LIMIT);
+    this.pitch = clamp(this.pitch, -PITCH_DOWN_LIMIT, PITCH_UP_LIMIT);
+    this.emit();
+  }
+
+  /**
+   * True when the pose is centred and at rest.
+   *
+   * The office asks this before deciding whether a remount needs to recentre
+   * the view at all, so that a return from the dashboard — which mounts already
+   * centred — does not emit a redundant glance.
+   */
+  get centred(): boolean {
+    return (
+      Math.abs(this.yaw) <= SETTLE_EPSILON &&
+      Math.abs(this.pitch) <= SETTLE_EPSILON &&
+      !this.moving
+    );
   }
 
   /** Advance the easing. Returns true while still moving. */

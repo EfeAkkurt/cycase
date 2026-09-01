@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { cameraRig } from './cameraRig';
+import { publishRenderProbe } from './renderDiagnostics';
 import { Colleague, type ColleaguePhase } from './Colleague';
 import { WarmEnvironment } from './assets';
 import { BACKDROP, DESK, LIGHTS, PALETTE, ROOM } from './layout';
@@ -30,6 +31,21 @@ export interface OfficeSceneProps {
   reducedMotion: boolean;
   onFootstep?: () => void;
   onAcknowledgeAlarm?: () => void;
+  /**
+   * Whether the player has contained the incident. Drives the colleague's
+   * urgent/relieved axis; see `RELIEF_RATE` in `Colleague.tsx`.
+   */
+  caseResolved?: boolean;
+  /**
+   * Fired when the WebGL context is lost.
+   *
+   * A lost context is not recoverable in place here — every program, texture
+   * and buffer this renderer owns is gone — so the office does not try to
+   * rebuild it. It tells the caller, which drops to the 2D monitor wall with
+   * the case state untouched. Silence was the old behaviour and it left a black
+   * rectangle where the room had been.
+   */
+  onContextLost?: () => void;
   /**
    * Fired once the room has actually been drawn — see `ReadyProbe`.
    *
@@ -118,6 +134,7 @@ function ContactShadowLight() {
 }
 
 export function OfficeScene(props: OfficeSceneProps) {
+  const { onContextLost } = props;
   return (
     <Canvas
       // Static scene: frames are requested, not pumped. `AnimationDriver`
@@ -150,6 +167,24 @@ export function OfficeScene(props: OfficeSceneProps) {
       onCreated={({ gl }) => {
         gl.setClearColor(PALETTE.void, 1);
         gl.toneMappingExposure = 0.44;
+
+        /*
+         * `webglcontextlost` fires on the canvas, not on the renderer, and its
+         * default action is to make the loss permanent — `preventDefault` is
+         * what allows a restore to be attempted at all. We do not attempt one:
+         * rebuilding this scene's programs and textures against a new context
+         * is exactly the 2.5 s stall the return cover exists to hide, and the
+         * player would be watching it. Falling back to the 2D wall is instant
+         * and loses nothing, because the case has never lived in the canvas.
+         */
+        gl.domElement.addEventListener(
+          'webglcontextlost',
+          (event) => {
+            event.preventDefault();
+            onContextLost?.();
+          },
+          { once: true },
+        );
       }}
       aria-hidden="true"
     >
@@ -175,18 +210,24 @@ function SceneContents({
   onFootstep,
   onAcknowledgeAlarm,
   onReady,
+  caseResolved,
 }: OfficeSceneProps) {
   const animating = colleaguePhase === 'entering';
 
   return (
     <>
       <ReadyProbe onReady={onReady} />
+      <RenderProbe />
       <WarmEnvironment intensity={1.25} />
       <Lighting alert={alert} colleagueLit={colleaguePhase !== 'hidden'} />
       <Room />
       <Workstation />
       <Monitors alert={alert} onAcknowledge={onAcknowledgeAlarm} />
-      <Colleague phase={colleaguePhase} onArrive={onColleagueArrive} />
+      <Colleague
+        phase={colleaguePhase}
+        onArrive={onColleagueArrive}
+        caseResolved={caseResolved}
+      />
       <HeadLookDriver />
       <AnimationDriver
         active={animating}
@@ -233,6 +274,60 @@ function ReadyProbe({ onReady }: { onReady?: () => void }) {
       return;
     }
     invalidate();
+  });
+
+  return null;
+}
+
+/**
+ * Publishes what the renderer actually did, for the performance gates.
+ *
+ * It counts *rendered* frames, which on a `frameloop="demand"` scene is a
+ * completely different quantity from `requestAnimationFrame` ticks: the idle
+ * office is pumped at 10 Hz by `AnimationDriver`, so rAF reads ~60 while this
+ * reads ~10 — and rAF would keep reading 60 with the canvas black. See
+ * `renderDiagnostics.ts` for why the performance spec no longer calls the
+ * former "WebGL FPS".
+ *
+ * `useFrame` runs immediately before `gl.render`, so the interval measured from
+ * one callback to the next spans exactly one rendered frame plus whatever idle
+ * the demand loop spent parked. Both are reported; neither is inferred.
+ */
+const HISTORY_LIMIT = 600;
+
+function RenderProbe() {
+  const gl = useThree((state) => state.gl);
+  const history = useRef<{ at: number; costMs: number }[]>([]);
+  const lastStart = useRef(0);
+
+  useEffect(() => {
+    publishRenderProbe({
+      sample: () => ({
+        frame: gl.info.render.frame,
+        calls: gl.info.render.calls,
+        triangles: gl.info.render.triangles,
+        geometries: gl.info.memory.geometries,
+        textures: gl.info.memory.textures,
+        programs: gl.info.programs?.length ?? 0,
+      }),
+      history: () => history.current,
+    });
+    return () => publishRenderProbe(null);
+  }, [gl]);
+
+  useFrame(() => {
+    const now = performance.now();
+    /*
+     * Cost, not interval: the time the *previous* rendered frame took, measured
+     * from the top of its `useFrame` to the top of this one, minus the wait the
+     * demand loop spent idle. `AnimationDriver` parks on a 100 ms timer when
+     * nothing is moving, and charging that wait to the frame would report a
+     * cheap idle room as a 100 ms frame.
+     */
+    const sinceLast = lastStart.current ? now - lastStart.current : 0;
+    lastStart.current = now;
+    history.current.push({ at: now, costMs: sinceLast });
+    if (history.current.length > HISTORY_LIMIT) history.current.shift();
   });
 
   return null;

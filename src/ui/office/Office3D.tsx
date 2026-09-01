@@ -9,6 +9,8 @@ import { computeMonitorPlacements, type MonitorPlacement } from '../../three/pro
 import { ResizeObserverShim } from '../../three/ResizeObserverShim';
 import { OfficeScene } from '../../three/OfficeScene';
 import { Button } from '../primitives';
+import { HeadLookHelp } from './HeadLookHelp';
+import { LOOK_SURFACE_ID } from './lookSurface';
 import { MonitorSurface3D } from './MonitorWall2D';
 
 /**
@@ -30,6 +32,18 @@ import { MonitorSurface3D } from './MonitorWall2D';
  * during a glance is both a frame-budget problem and a source of one-frame lag
  * between the canvas and the overlay; React is only asked to re-render when the
  * *set* of visible monitors changes.
+ *
+ * ## Two elements, two jobs
+ *
+ * `.office3d` is the **interaction region**: it is what a drag is bound to, and
+ * it sits above the projected panels so that grabbing a monitor's blank surface
+ * turns the room like grabbing anything else does. `.office3d__canvas` is the
+ * **focus target**: it carries `role="application"`, the ARIA description and
+ * the keyboard shortcuts, and it is what Pointer Lock is requested on.
+ *
+ * They used to be the same element, and being the same element is what made the
+ * drag unreliable — the listener sat *below* an overlay that covers most of the
+ * picture, so whether a drag worked depended on where in the frame it started.
  */
 
 const HELP_ID = 'office-headlook-help';
@@ -41,6 +55,8 @@ export function Office3D({
   reducedMotion,
   onAcknowledgeAlarm,
   onReady,
+  caseResolved,
+  onContextLost,
 }: {
   colleaguePhase: ColleaguePhase;
   onColleagueArrive?: () => void;
@@ -49,19 +65,53 @@ export function Office3D({
   onAcknowledgeAlarm?: () => void;
   /** Fired once the WebGL room has drawn. Only the dashboard return uses it. */
   onReady?: () => void;
+  /** Drives the colleague's urgent/relieved axis from the case, not a clock. */
+  caseResolved?: boolean;
+  /** The WebGL context went away; the office falls back to the 2D wall. */
+  onContextLost?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   /** Bumped when React hands us a different container node — see `attachContainer`. */
   const [containerGeneration, setContainerGeneration] = useState(0);
-  // Same reason as `attachContainer`: React replaces this node on remount, and
-  // the head-look listeners must follow it rather than stay on the dead one.
-  const [hostNode, setHostNode] = useState<HTMLDivElement | null>(null);
+  /*
+   * Same reason as `attachContainer`: React replaces these nodes on remount, and
+   * the head-look listeners must follow them rather than stay on the dead ones.
+   * `regionNode` is what a drag is bound to; `canvasNode` is what takes focus.
+   */
+  const [regionNode, setRegionNode] = useState<HTMLDivElement | null>(null);
+  const [canvasNode, setCanvasNode] = useState<HTMLDivElement | null>(null);
   const surfaceRefs = useRef(new Map<MonitorPlacement['id'], HTMLDivElement>());
   const latestRef = useRef<MonitorPlacement[]>([]);
   const [visible, setVisible] = useState<MonitorPlacement[]>([]);
   const audio = useAudio();
 
-  const { pointerLocked, togglePointerLook, pointerLockSupported } = useHeadLook(hostNode);
+  const {
+    pointerLocked,
+    togglePointerLook,
+    pointerLockSupported,
+    pointerLockFailure,
+    dragging,
+    hasLooked,
+  } = useHeadLook(regionNode, canvasNode);
+
+  /*
+   * The room opens facing the monitors, every time it opens.
+   *
+   * `cameraRig` is a module singleton, so it outlives this component: turning
+   * 3D off and on again, or dragging the window narrow enough to cross the 3D
+   * threshold and back, unmounts and remounts *this* while the rig keeps
+   * whatever pose it was left in. Before this, the office came back facing a
+   * side wall and the player had to find Recenter to get their monitors back.
+   *
+   * `clampToLimits` runs first for the case where the cone itself has changed
+   * between builds, and `reset` is used rather than `recenter` because there is
+   * no frame to ease from — the room is being mounted, not turned.
+   */
+  useLayoutEffect(() => {
+    cameraRig.clampToLimits();
+    if (!cameraRig.centred) cameraRig.reset();
+    return () => cameraRig.reset();
+  }, []);
 
   /*
    * A callback ref, not a plain object ref with an empty-dependency effect.
@@ -78,6 +128,7 @@ export function Office3D({
   const attachContainer = useCallback((node: HTMLDivElement | null) => {
     if (containerRef.current === node) return;
     containerRef.current = node;
+    setRegionNode(node);
     setContainerGeneration((generation) => generation + 1);
   }, []);
 
@@ -176,16 +227,24 @@ export function Office3D({
        * going out, then the live charts redrawing, then her walking past.
        */
       data-colleague-phase={colleaguePhase}
+      /*
+       * Read by CSS, not by script: it swaps the cursor to `grabbing` and locks
+       * text selection while a drag is running. Selection matters now that the
+       * drag surface covers the monitor panels — without it, pulling the room
+       * sideways highlighted every line of the incident brief on the way past.
+       */
+      data-dragging={dragging ? 'true' : 'false'}
     >
       {/*
-        * The canvas host, not an overlay on top of it: pointer events still
-        * reach React Three Fiber, so the physical alarm monitor keeps its
-        * raycast click. It is focusable and labelled because head-look has to
-        * be discoverable and operable with no mouse at all.
+        * The canvas host. Focusable and labelled because head-look has to be
+        * discoverable and operable with no mouse at all, and it is what Pointer
+        * Lock is requested on — but it is *not* what the drag listens to. The
+        * region above owns that, so a drag works over the projected panels too.
         */}
       <div
         className="office3d__canvas"
-        ref={setHostNode}
+        id={LOOK_SURFACE_ID}
+        ref={setCanvasNode}
         tabIndex={0}
         role="application"
         aria-label={t('office.headlook.label')}
@@ -200,6 +259,8 @@ export function Office3D({
           onFootstep={() => audio.play('footstep')}
           onAcknowledgeAlarm={onAcknowledgeAlarm}
           onReady={onReady}
+          caseResolved={caseResolved}
+          onContextLost={onContextLost}
         />
       </div>
 
@@ -207,7 +268,28 @@ export function Office3D({
         {t('office.headlook.help')}
       </p>
 
+      <HeadLookHelp hasLooked={hasLooked} pointerLocked={pointerLocked} />
+
       <div className="office3d__controls">
+        {/*
+          * The mouse-look state, said out loud.
+          *
+          * Pointer Lock hides the cursor and swallows every mouse event on the
+          * page, so a player who does not know Escape gets it back has lost
+          * control of the window — and the only previous indication was
+          * `aria-pressed` on a button they can no longer click. Both branches
+          * are `aria-live` so the change is announced rather than merely drawn.
+          */}
+        <p className="office3d__status" role="status" aria-live="polite">
+          {pointerLocked ? t('office.headlook.release') : null}
+          {!pointerLocked && pointerLockFailure === 'denied'
+            ? t('office.headlook.lock_denied')
+            : null}
+          {!pointerLocked && pointerLockFailure === 'unsupported'
+            ? t('office.headlook.lock_unsupported')
+            : null}
+        </p>
+
         {pointerLockSupported ? (
           <Button
             size="sm"
