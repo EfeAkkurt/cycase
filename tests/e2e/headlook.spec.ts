@@ -42,6 +42,17 @@ const PITCH_DOWN_LIMIT = 38;
 
 /** One key press, in degrees. Thirty presses reach either yaw clamp. */
 const KEY_STEP = 4;
+/** Presses to reach a clamp, derived so a wider cone does not need a new count. */
+const TO_LIMIT = Math.ceil(YAW_LIMIT / KEY_STEP) + 2;
+/*
+ * Presses that cross the whole pitch span. `w` and `s` are driven straight out
+ * of the opposite clamp with no recenter in between, so they have to travel
+ * PITCH_DOWN_LIMIT + PITCH_UP_LIMIT, not one clamp's worth — twelve presses
+ * leave the head at +10° when the assertion wants it past +19.2°.
+ */
+const ACROSS_PITCH = Math.ceil((PITCH_UP_LIMIT + PITCH_DOWN_LIMIT) / KEY_STEP) + 2;
+/** Drag steps of 40 px that push twice past the cone, at ~15 px per degree. */
+const DRAG_STEPS = Math.ceil((YAW_LIMIT * 15 * 2) / 40);
 
 /**
  * The room-visibility thresholds, from P0.4 and reused verbatim by P0.1's
@@ -255,10 +266,12 @@ test.describe('seated head-look input (P0.1)', () => {
     const region = (await page.locator('.office3d').boundingBox())!;
     const startY = region.y + region.height - 80;
 
-    // ~1600 px of travel — four times what the cone is worth.
+    // Travel derived from the cone rather than written out: at roughly 15 px
+    // per degree the old 1600 px was four times a 55 degree cone and short of a
+    // 120 degree one, which is how this stopped at 109.2 instead of clamping.
     await page.mouse.move(region.x + 40, startY);
     await page.mouse.down();
-    for (let step = 1; step <= 40; step += 1) {
+    for (let step = 1; step <= DRAG_STEPS; step += 1) {
       await page.mouse.move(region.x + 40 + step * 40, startY);
     }
     await page.mouse.up();
@@ -267,7 +280,7 @@ test.describe('seated head-look input (P0.1)', () => {
     // And back the other way, past the opposite limit.
     await page.mouse.move(region.x + region.width - 40, startY);
     await page.mouse.down();
-    for (let step = 1; step <= 40; step += 1) {
+    for (let step = 1; step <= DRAG_STEPS; step += 1) {
       await page.mouse.move(region.x + region.width - 40 - step * 40, startY);
     }
     await page.mouse.up();
@@ -340,18 +353,20 @@ test.describe('seated head-look input (P0.1)', () => {
     expect(rest.pitch, 'down-pitch passed its clamp').toBeGreaterThanOrEqual(-PITCH_DOWN_LIMIT - 0.01);
 
     // W and S carry the same axis for a hand already on the keyboard.
-    await look(page, 'w', 12);
+    await look(page, 'w', ACROSS_PITCH);
     rest = await restingPose(page);
     expect(rest.pitch, 'w did not raise the head').toBeGreaterThan(PITCH_UP_LIMIT * 0.6);
 
-    await look(page, 's', 20);
+    await look(page, 's', ACROSS_PITCH);
     rest = await restingPose(page);
     expect(rest.pitch, 's did not lower the head').toBeLessThan(-PITCH_DOWN_LIMIT * 0.6);
 
-    // Driven far past either yaw limit, the head stops at the cone.
-    await look(page, 'ArrowLeft', 16);
+    // Driven far past either yaw limit, the head stops at the cone. Derived, so
+    // widening the cone again does not leave this settling on a value the room
+    // reaches on the way rather than the clamp it is asserting.
+    await look(page, 'ArrowLeft', TO_LIMIT);
     await settleAt(page, YAW_LIMIT, -PITCH_DOWN_LIMIT);
-    await look(page, 'ArrowRight', 30);
+    await look(page, 'ArrowRight', TO_LIMIT * 2);
     await settleAt(page, -YAW_LIMIT, -PITCH_DOWN_LIMIT);
   });
 
@@ -445,7 +460,7 @@ test.describe('seated head-look input (P0.1)', () => {
 
     // It is still head-look, not a jump cut to a fixed pose: the clamps and the
     // recenter path behave exactly as they do with easing on.
-    await look(page, 'ArrowLeft', 16);
+    await look(page, 'ArrowLeft', TO_LIMIT);
     expect((await pose(page)).yaw).toBeCloseTo(YAW_LIMIT, 1);
 
     await page.getByRole('button', { name: 'Recenter view' }).click();
@@ -478,6 +493,14 @@ test.describe('seated head-look input (P0.1)', () => {
  * around worked at all depended on where in the frame you happened to grab.
  */
 test.describe('head-look works wherever the player actually grabs', () => {
+  /*
+   * Touch is one of the three input paths this describe covers, and Playwright
+   * refuses `touchscreen.tap` unless the context was created with it. Scoped
+   * here rather than set on the project, because the rest of the GPU suite is
+   * measuring a desktop pointer and a context that also reports touch changes
+   * what the page believes about its input.
+   */
+  test.use({ hasTouch: true });
   test.slow();
 
   /** The centre of a monitor surface, which is where a player naturally drags. */
@@ -971,12 +994,12 @@ test.describe('visual evidence (P0.4)', () => {
 
       // 2/3/4. The head-look limits, taken from the same unacknowledged state
       //    so the room is judged on its own structure rather than on the story.
-      await look(page, 'ArrowLeft', 20);
+      await look(page, 'ArrowLeft', TO_LIMIT);
       await settleAt(page, YAW_LIMIT, 0);
       await page.waitForTimeout(500);
       await shot('02-look-left');
 
-      await look(page, 'ArrowRight', 40);
+      await look(page, 'ArrowRight', TO_LIMIT * 2);
       await settleAt(page, -YAW_LIMIT, 0);
       await page.waitForTimeout(500);
       await shot('03-look-right');

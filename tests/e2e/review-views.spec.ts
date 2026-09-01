@@ -35,9 +35,23 @@ const SIZES = [
 
 /** The clamps, copied from the rig rather than imported, so a change to the
  * product's limits shows up here as a failed settle rather than a silently
- * different framing. */
-const YAW_LIMIT = 55;
+ * different framing. It has now done that once: the cone widened from a 55°
+ * contract cone to a 120° chair swivel, this file still said 55, and the
+ * settle failed rather than quietly recapturing the review set at a framing
+ * nobody chose. */
+const YAW_LIMIT = 120;
 const PITCH_DOWN_LIMIT = 20;
+
+/**
+ * Degrees per arrow press, and the presses it takes to reach a clamp.
+ *
+ * The press counts used to be written out — 20 to the left, 40 back to the
+ * right — which was right for 55° and silently short of 120°: twenty presses
+ * land at 80° and the settle waits for a value the room will never reach.
+ * Deriving them means the next change to the cone moves one number.
+ */
+const KEY_STEP_DEG = 4;
+const TO_LIMIT = Math.ceil(YAW_LIMIT / KEY_STEP_DEG) + 2;
 
 /*
  * These three are deliberately local rather than shared with
@@ -149,11 +163,11 @@ for (const size of SIZES) {
      */
     await capture(page, size.label, '01-front-unacknowledged');
 
-    await look(page, 'ArrowLeft', 20);
+    await look(page, 'ArrowLeft', TO_LIMIT);
     await settleAt(page, YAW_LIMIT, 0);
     await capture(page, size.label, '02-look-left');
 
-    await look(page, 'ArrowRight', 40);
+    await look(page, 'ArrowRight', TO_LIMIT * 2);
     await settleAt(page, -YAW_LIMIT, 0);
     await capture(page, size.label, '03-look-right');
 
