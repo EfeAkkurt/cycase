@@ -34,7 +34,8 @@ export type IconName =
   | 'eye'
   | 'block'
   | 'panelLeft'
-  | 'panelRight';
+  | 'panelRight'
+  | 'settings';
 
 const PATHS: Record<IconName, ReactNode> = {
   alert: (
@@ -137,6 +138,12 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="m13.5 9.5 2.5 2.5-2.5 2.5" />
     </>
   ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
+    </>
+  ),
 };
 
 export function Icon({
@@ -175,11 +182,14 @@ export function Icon({
  * Panel
  * ------------------------------------------------------------------ */
 
+export type PanelVariant = 'summary' | 'workbench' | 'data-table' | 'critical' | 'disclosure';
+
 export function Panel({
   title,
   id,
   tone,
   compact,
+  variant = 'workbench',
   actions,
   flush,
   children,
@@ -189,6 +199,7 @@ export function Panel({
   id?: string;
   tone?: 'critical';
   compact?: boolean;
+  variant?: PanelVariant;
   actions?: ReactNode;
   flush?: boolean;
   children: ReactNode;
@@ -196,13 +207,14 @@ export function Panel({
 }) {
   const headingId = useId();
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
+  const resolved = tone === 'critical' ? 'critical' : compact ? 'summary' : variant;
 
   return (
     <section
       id={id}
       className={[
         'panel',
-        tone === 'critical' ? 'panel--critical' : '',
+        `panel--${resolved}`,
         compact ? 'panel--compact' : '',
       ]
         .filter(Boolean)
@@ -215,7 +227,9 @@ export function Panel({
         </Heading>
         {actions}
       </header>
-      <div className={flush ? 'panel__body panel__body--flush' : 'panel__body'}>{children}</div>
+      <div className={flush || resolved === 'data-table' ? 'panel__body panel__body--flush' : 'panel__body'}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -225,11 +239,13 @@ export function Panel({
  * ------------------------------------------------------------------ */
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'primary' | 'danger' | 'ghost';
+  variant?: 'default' | 'primary' | 'danger' | 'ghost' | 'success';
   size?: 'md' | 'sm';
   block?: boolean;
   /** Rendered under the label. A disabled control must always say why. */
   reason?: string;
+  /** Replaces the label with a spinner and sets aria-busy. */
+  busy?: boolean;
   /** React 19 passes `ref` as a plain prop; forwarded to the underlying button. */
   ref?: Ref<HTMLButtonElement>;
 };
@@ -239,28 +255,32 @@ export function Button({
   size = 'md',
   block,
   reason,
+  busy,
   children,
   className,
+  disabled,
   ...rest
 }: ButtonProps) {
+  const resolved = busy && variant === 'primary' ? 'primary' : variant;
   return (
     <button
       type="button"
       className={[
         'btn',
-        // `default` is the secondary button — an outlined surface.
-        // It needs its own class rather than falling through to a bare `.btn`,
-        // which has no background and reads as a link.
-        `btn--${variant === 'default' ? 'secondary' : variant}`,
+        `btn--${resolved === 'default' ? 'secondary' : resolved}`,
         size === 'sm' ? 'btn--sm' : '',
         block ? 'btn--block' : '',
+        busy ? 'btn--loading' : '',
         className ?? '',
       ]
         .filter(Boolean)
         .join(' ')}
+      disabled={disabled || busy}
+      aria-busy={busy || undefined}
       {...rest}
     >
-      <span>
+      {busy ? <span className="btn__spinner" aria-hidden="true" /> : null}
+      <span className="btn__label">
         {children}
         {reason ? <span className="btn__reason">{reason}</span> : null}
       </span>

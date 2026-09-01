@@ -79,8 +79,12 @@
   --text-tertiary: var(--gray-dark);
   --text-disabled: rgba(var(--color-ink-rgb), 0.3);
   --text-inverse: var(--carbon);
-  --text-on-accent: #ffffff;
-  --text-on-brand: #ffffff;
+  /*
+   * Amber is a mid luminance. White on it is ~2.4:1; carbon on it is ~8.3:1.
+   * Primary CTAs, and any other text sitting on the brand fill, use carbon.
+   */
+  --text-on-accent: var(--brand-primary-fg);
+  --text-on-brand: var(--brand-primary-fg);
 
   /* Borders */
   --border-subtle: var(--ink-50);
@@ -324,9 +328,24 @@
   --rail-w-collapsed: 44px;
   --shell-inset: 8px;
   --shell-topbar-h: 48px;
+  --hit-target: 44px;
 
-  --surface-shell: var(--carbon-sunken);
-  --surface-canvas: var(--carbon);
+  /*
+   * Three surface levels, and only three. Shell, workspace, section, card and
+   * inset all resolve to one of these rather than inventing a fourth grey.
+   *
+   *   0  ground — the page frame the columns sit on
+   *   1  raised — the workspace card and any panel chrome
+   *   2  inset  — the inner well of a section, table or disclosure
+   */
+  --surface-0: var(--carbon-sunken);
+  --surface-1: var(--carbon);
+  --surface-2: var(--carbon-raised);
+  --surface-shell: var(--surface-0);
+  --surface-canvas: var(--surface-1);
+  --surface-section: var(--surface-2);
+  --surface-card: var(--surface-1);
+  --surface-inset: var(--surface-2);
 
   --row-height-comfortable: 44px;
   --row-height-compact: 32px;
@@ -344,10 +363,14 @@
    * ================================================================ */
 
   --motion-duration-instant: 80ms;
+  --motion-duration-press: 120ms;
   --motion-duration-fast: 150ms;
+  --motion-duration-panel: 200ms;
   --motion-duration-base: 220ms;
-  --motion-duration-slow: 320ms;
-  --motion-duration-slower: 480ms;
+  /* Routine UI stays under 300ms. The slower steps are reserved for scene
+     transitions outside the console, and reduced-motion collapses them. */
+  --motion-duration-slow: 280ms;
+  --motion-duration-slower: 280ms;
 
   --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
   --motion-easing-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
@@ -441,7 +464,10 @@
 
   --btn-cta-bg: var(--brand-primary);
   --btn-cta-bg-hover: var(--brand-primary-hover);
-  --btn-cta-fg: var(--text-on-brand);
+  --btn-cta-bg-disabled: #9d7d4a;
+  --btn-cta-fg: var(--brand-primary-fg);
+  --btn-cta-fg-hover: var(--brand-primary-fg);
+  --btn-cta-fg-disabled: var(--brand-primary-fg);
   /* Elevation comes from the edge, not the fill: on a near-black page a mid
      blue only separates 3.2:1, so the control carries a light 1px edge. */
   --btn-cta-shadow:
@@ -463,8 +489,12 @@
   --btn-ghost-bg-active: var(--panel-2);
   --btn-ghost-fg: var(--text-primary);
 
-  --btn-destructive-bg: var(--status-error);
-  --btn-destructive-fg: #ffffff;
+  --btn-destructive-bg: var(--status-error-fill);
+  --btn-destructive-bg-hover: var(--status-error);
+  --btn-destructive-fg: var(--on-status);
+  --btn-success-bg: var(--status-success-fill);
+  --btn-success-bg-hover: var(--status-success);
+  --btn-success-fg: var(--on-status);
 
   --btn-sheen-top: var(--raised-top-highlight);
 
@@ -486,7 +516,9 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-duration-instant: 1ms;
+    --motion-duration-press: 1ms;
     --motion-duration-fast: 1ms;
+    --motion-duration-panel: 1ms;
     --motion-duration-base: 1ms;
     --motion-duration-slow: 1ms;
     --motion-duration-slower: 1ms;

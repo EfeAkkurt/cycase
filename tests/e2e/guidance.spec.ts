@@ -135,6 +135,7 @@ test.describe('two clocks', () => {
     page,
   }) => {
     await openDashboard(page);
+    await page.getByText('System details', { exact: true }).click();
 
     await expect(page.getByText('Play time', { exact: true })).toBeVisible();
     await expect(page.getByText('Incident time', { exact: true })).toBeVisible();
@@ -152,6 +153,7 @@ test.describe('two clocks', () => {
     page,
   }) => {
     await openDashboard(page);
+    await page.getByText('System details', { exact: true }).click();
 
     // Both values are read in one evaluation, so a tick cannot land between
     // the two samples and fake a ratio.
@@ -336,13 +338,22 @@ test.describe('the golden path fits the session', () => {
   });
 });
 
+async function openOptionalEvidence(page: Page): Promise<Locator> {
+  const toggle = page.locator('.rail__toggle');
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+  await page.getByRole('tab', { name: 'Optional' }).click();
+  return page.locator('#explore-more');
+}
+
 test.describe('optional evidence', () => {
   test('is behind "Explore more" rather than competing with the required step', async ({
     page,
   }) => {
     await openDashboard(page);
 
-    const details = page.locator('#explore-more');
+    const details = await openOptionalEvidence(page);
     const summary = details.getByText('Explore more', { exact: true });
     await expect(summary).toBeVisible();
 
@@ -365,7 +376,7 @@ test.describe('optional evidence', () => {
   test('never lists evidence the guided path collects for you', async ({ page }) => {
     await openDashboard(page);
 
-    const details = page.locator('#explore-more');
+    const details = await openOptionalEvidence(page);
     await details.getByText('Explore more', { exact: true }).click();
 
     await expect(details.getByRole('button', { name: /Phishing message/ })).toHaveCount(0);

@@ -103,9 +103,10 @@ const PINNED: Record<string, string> = {
 
   // Motion
   '--motion-duration-instant': '80ms',
+  '--motion-duration-press': '120ms',
   '--motion-duration-fast': '150ms',
   '--motion-duration-base': '220ms',
-  '--motion-duration-slow': '320ms',
+  '--motion-duration-slow': '280ms',
   '--motion-easing-standard': 'cubic-bezier(0.2, 0, 0, 1)',
   '--motion-easing-emphasized': 'cubic-bezier(0.16, 1, 0.3, 1)',
 
@@ -277,6 +278,56 @@ describe('design token conformance', () => {
     it('identifies the state with a rule that clears 3:1 on its own', () => {
       // .row--focused > th:first-child { box-shadow: inset 3px 0 0 --brand-primary }
       expect(ratio(channels(ours.get('--brand-primary')!), cell)).toBeGreaterThan(3);
+    });
+  });
+
+  describe('the primary CTA', () => {
+    function channels(hex: string): [number, number, number] {
+      return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+    }
+
+    function luminance([r, g, b]: [number, number, number]): number {
+      const lin = (c: number) => {
+        const v = c / 255;
+        return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    }
+
+    function ratio(a: [number, number, number], b: [number, number, number]): number {
+      const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+      return (hi! + 0.05) / (lo! + 0.05);
+    }
+
+    function hex(token: string): string {
+      const value = ours.get(token)!;
+      if (value.startsWith('#')) return value;
+      if (value.startsWith('var(')) {
+        const inner = value.slice(4, -1).trim();
+        return hex(inner);
+      }
+      throw new Error(`${token} is not a hex colour: ${value}`);
+    }
+
+    const ink = channels(hex('--btn-cta-fg'));
+
+    it('keeps carbon text on amber, not white, in every CTA state', () => {
+      expect(ours.get('--btn-cta-fg')).toBe('var(--brand-primary-fg)');
+      expect(ours.get('--btn-cta-fg-hover')).toBe('var(--brand-primary-fg)');
+      expect(ours.get('--btn-cta-fg-disabled')).toBe('var(--brand-primary-fg)');
+      expect(hex('--btn-cta-fg')).toBe('#0b0b0a');
+    });
+
+    it('clears 4.5:1 on the default fill', () => {
+      expect(ratio(ink, channels(hex('--btn-cta-bg')))).toBeGreaterThan(4.5);
+    });
+
+    it('clears 4.5:1 on hover', () => {
+      expect(ratio(ink, channels(hex('--btn-cta-bg-hover')))).toBeGreaterThan(4.5);
+    });
+
+    it('clears 4.5:1 when disabled, without fading the type to white', () => {
+      expect(ratio(ink, channels(hex('--btn-cta-bg-disabled')))).toBeGreaterThan(4.5);
     });
   });
 });

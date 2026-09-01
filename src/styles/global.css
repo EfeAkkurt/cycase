@@ -266,7 +266,7 @@ svg {
   flex-direction: column;
   border-radius: var(--radius-tray-outer);
   border: 1px solid var(--tray-border);
-  background: var(--tray-bg);
+  background: var(--surface-1);
   padding: var(--tray-frame-inset);
   overflow: hidden;
   min-width: 0;
@@ -305,7 +305,7 @@ svg {
   gap: var(--space-4);
   border-radius: var(--radius-tray-inner);
   border: 1px solid var(--tray-border);
-  background: var(--tray-cell-bg);
+  background: var(--surface-inset);
   padding: var(--space-4);
   overflow: hidden;
   min-width: 0;
@@ -345,9 +345,36 @@ svg {
   border-radius: var(--radius-sm);
 }
 
+.panel--summary {
+  background: var(--surface-1);
+}
+
+.panel--summary .panel__body {
+  background: var(--surface-1);
+  border-color: transparent;
+  padding: var(--space-3);
+}
+
+.panel--workbench {
+  background: var(--surface-1);
+}
+
+.panel--data-table .panel__body {
+  padding: 0;
+  background: var(--surface-inset);
+}
+
+.panel--disclosure {
+  background: var(--surface-1);
+}
+
+.panel--disclosure .panel__body {
+  background: var(--surface-inset);
+}
+
 /* ------------------------------------------------------------------ *
  * Buttons
- * 32h · 13px · 500 · px-12 · gap-8 · radius 8
+ * 32h visible · 44×44 hit · 13px · 500 · px-12 · gap-8 · radius 8
  * ------------------------------------------------------------------ */
 
 .btn {
@@ -368,23 +395,45 @@ svg {
   border-radius: var(--btn-radius);
   background-clip: padding-box;
   user-select: none;
-  overflow: hidden;
+  isolation: isolate;
   transition:
     background-color var(--motion-duration-fast) var(--motion-easing-standard),
     border-color var(--motion-duration-fast) var(--motion-easing-standard),
-    box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+    color var(--motion-duration-fast) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
+    opacity var(--motion-duration-fast) var(--motion-easing-standard),
+    transform var(--motion-duration-press) var(--motion-easing-standard);
 }
 
-.btn:active:not(:disabled) {
+/*
+ * Visible control stays 32px. The hit rect is expanded with an absolutely
+ * positioned layer so desktop density does not grow, while the accessible
+ * target is at least 44×44.
+ */
+.btn::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 50%;
+  width: max(100%, var(--hit-target));
+  height: max(100%, var(--hit-target));
+  transform: translate(-50%, -50%);
+}
+
+.btn:active:not(:disabled):not([aria-busy='true']) {
   transform: translateY(1px);
 }
 
 .btn:disabled {
-  pointer-events: none;
-  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-/* Primary CTA — solid brand with the inset sheen. */
+.btn[aria-busy='true'] {
+  cursor: progress;
+}
+
+/* Primary CTA — carbon on amber, never white on amber. */
 .btn--primary {
   background: var(--btn-cta-bg);
   color: var(--btn-cta-fg);
@@ -395,6 +444,7 @@ svg {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 0;
   border-radius: inherit;
   background: var(--btn-sheen-top);
   pointer-events: none;
@@ -402,7 +452,15 @@ svg {
 
 .btn--primary:hover:not(:disabled) {
   background: var(--btn-cta-bg-hover);
+  color: var(--btn-cta-fg-hover);
   box-shadow: var(--btn-cta-shadow-hover);
+}
+
+.btn--primary:disabled {
+  opacity: 1;
+  background: var(--btn-cta-bg-disabled);
+  color: var(--btn-cta-fg-disabled);
+  box-shadow: none;
 }
 
 /* Secondary — outlined surface. */
@@ -420,6 +478,15 @@ svg {
   border-color: var(--dd-border-hover);
 }
 
+.btn--default:disabled,
+.btn--secondary:disabled,
+.btn--ghost:disabled {
+  opacity: 1;
+  color: var(--text-disabled);
+  border-color: var(--border-subtle);
+  background: var(--surface-muted);
+}
+
 .btn--ghost {
   background: transparent;
   color: var(--text-secondary);
@@ -431,13 +498,49 @@ svg {
 }
 
 .btn--danger {
-  background: var(--badge-error-bg);
-  border-color: var(--badge-error-border);
-  color: var(--badge-error-fg);
+  background: var(--btn-destructive-bg);
+  border-color: transparent;
+  color: var(--btn-destructive-fg);
 }
 
 .btn--danger:hover:not(:disabled) {
-  background: rgb(232 105 92 / 0.2);
+  background: var(--btn-destructive-bg-hover);
+}
+
+.btn--danger:disabled {
+  opacity: 1;
+  background: var(--surface-error);
+  color: var(--on-surface-error);
+}
+
+.btn--success {
+  background: var(--btn-success-bg);
+  color: var(--btn-success-fg);
+}
+
+.btn--success:hover:not(:disabled) {
+  background: var(--btn-success-bg-hover);
+}
+
+.btn--loading .btn__label {
+  visibility: hidden;
+}
+
+.btn__spinner {
+  position: absolute;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-full);
+  animation: btn-spin var(--motion-duration-slow) linear infinite;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn--sm {
@@ -476,7 +579,7 @@ svg {
   white-space: normal;
 }
 
-.btn > span {
+.btn__label {
   position: relative;
   z-index: var(--z-raised);
   display: inline-flex;
@@ -703,8 +806,8 @@ svg {
    * `.shell` is `min-height: 100%` with an auto height. With `flex-basis: auto`
    * the console's base size is its *content* — two thousand pixels of case —
    * so the shell grew to fit it, there was never any free space to shrink into,
-   * and the frame quietly became a normal scrolling page with the header and
-   * the sidebar scrolling off the top. With a zero basis the container's auto
+   * and the frame quietly became a normal scrolling page with the header and the
+   * sidebar scrolling off the top. With a zero basis the container's auto
    * height resolves to nothing, `min-height: 100%` supplies the height, and the
    * console grows back into exactly one viewport.
    *
@@ -717,7 +820,7 @@ svg {
   display: flex;
   align-items: stretch;
   overflow: hidden;
-  background: var(--surface-shell);
+  background: var(--surface-0);
 }
 
 .console__sidebar,
@@ -784,6 +887,7 @@ svg {
 }
 
 .sidebar__toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -797,6 +901,16 @@ svg {
   transition:
     background-color var(--motion-duration-fast) var(--motion-easing-standard),
     color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.sidebar__toggle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--hit-target);
+  height: var(--hit-target);
+  transform: translate(-50%, -50%);
 }
 
 .sidebar__toggle:hover {
@@ -933,6 +1047,7 @@ svg {
   min-height: var(--shell-topbar-h);
   padding: var(--space-2) var(--space-5);
   border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: nowrap;
 }
 
 .topbar__title {
@@ -1216,6 +1331,51 @@ svg {
   color: var(--text-tertiary);
 }
 
+.sidebar__details {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2);
+}
+
+.sidebar__details-summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  list-style: none;
+}
+
+.sidebar__details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar__details-summary::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: var(--hit-target);
+  transform: translateY(-50%);
+}
+
+.sidebar__details-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
 /* ------------------------------------------------------------------ *
  * Detail rail
  * ------------------------------------------------------------------ */
@@ -1242,18 +1402,19 @@ svg {
 }
 
 .rail--collapsed {
-  padding-left: 0;
+  padding: var(--space-4) 0;
   align-items: center;
 }
 
 .rail__toggle {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
   min-height: var(--control-height-lg);
   padding: 0 var(--space-3);
-  background: var(--tray-bg);
+  background: var(--surface-1);
   border: 1px solid var(--tray-border);
   border-radius: var(--radius-tray-outer);
   color: var(--text-secondary);
@@ -1276,7 +1437,8 @@ svg {
 .rail--collapsed .rail__toggle {
   writing-mode: vertical-rl;
   min-height: 180px;
-  width: auto;
+  width: var(--rail-w-collapsed);
+  min-width: var(--hit-target);
   justify-content: center;
   padding: var(--space-3) 0;
 }
@@ -1512,6 +1674,16 @@ svg {
   color: var(--text-tertiary);
   font-size: var(--type-sm-size);
   font-weight: var(--fw-medium);
+}
+
+.tabs__tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--hit-target);
+  transform: translateY(-50%);
 }
 
 .tabs__tab:hover {
@@ -3798,4 +3970,116 @@ svg {
   gap: var(--space-2);
   font-size: var(--type-sm-size);
   color: var(--text-secondary);
+}
+
+.rail__extras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.voice-settings--menu {
+  position: relative;
+}
+
+.voice-settings__panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 280px;
+  max-width: min(360px, calc(100vw - var(--space-8)));
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-lg);
+}
+
+.voice-settings--menu .voice-settings__advanced {
+  position: static;
+}
+
+.voice-settings--menu .voice-settings__advanced-body {
+  position: static;
+  top: auto;
+  right: auto;
+  padding: var(--space-2) 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.voice-settings--menu .voice-settings__select {
+  max-width: 100%;
+}
+
+.voice-settings--menu .voice-settings__note {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+  color: var(--text-tertiary);
+}
+
+html[data-input='keyboard'] .btn:active,
+html[data-input='keyboard'] .nav__item,
+html[data-input='keyboard'] .sidebar,
+html[data-input='keyboard'] .rail,
+html[data-input='keyboard'] .console__body {
+  transition: none;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+
+  .btn__spinner {
+    animation: none;
+    border-right-color: currentColor;
+  }
+}
+
+@media (forced-colors: active) {
+  .btn,
+  .nav__item,
+  .panel,
+  .rail__toggle,
+  .sidebar__toggle,
+  .console__card,
+  .badge,
+  .voice-settings__toggle,
+  .voice-settings__panel {
+    border: 1px solid CanvasText;
+  }
+
+  .btn--primary,
+  .btn--success,
+  .btn--danger {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .nav__item[aria-current='page']::before {
+    background: Highlight;
+  }
+
+  :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
 }

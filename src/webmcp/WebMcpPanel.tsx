@@ -28,32 +28,26 @@ export function useWebMcpStatus(): WebMcpStatus {
   return useContext(WebMcpContext);
 }
 
-/** Compact status for the top bar. */
+/** Compact agent connection for the sidebar. Details live in the rail. */
 export function WebMcpBadge() {
   const status = useWebMcpStatus();
+  const short = status.registered
+    ? t('topbar.agent.connected')
+    : t('topbar.agent.offline');
+  const detail = status.registered
+    ? t('webmcp.status.registered', { count: status.toolNames.length })
+    : status.supported
+      ? t('webmcp.status.partial', { count: status.toolNames.length, total: TOTAL_TOOLS })
+      : t('webmcp.status.unsupported');
 
   return (
     <div className="stat" id="webmcp-status">
       <span className="stat__label">{t('webmcp.title')}</span>
       <span className="stat__value">
-        {status.registered ? (
-          <Badge tone="accent" icon="agent">
-            {t('webmcp.status.registered', { count: status.toolNames.length })}
-          </Badge>
-        ) : status.supported ? (
-          // Supported but incomplete is a different problem from unsupported,
-          // and saying "not available" here would hide a real failure.
-          <Badge tone="critical" icon="alert">
-            {t('webmcp.status.partial', {
-              count: status.toolNames.length,
-              total: TOTAL_TOOLS,
-            })}
-          </Badge>
-        ) : (
-          <Badge tone="warning" icon="alert">
-            {t('webmcp.status.unsupported')}
-          </Badge>
-        )}
+        <Badge tone={status.registered ? 'success' : 'neutral'} icon="agent">
+          {short}
+        </Badge>
+        <span className="sr-only">{detail}</span>
       </span>
     </div>
   );

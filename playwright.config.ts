@@ -49,6 +49,12 @@ export default defineConfig({
      * a software rasteriser — the office measures about 3 FPS there — so the 3D
      * specs are not merely slow in this project, their measurements are
      * meaningless. They live in `desktop-3d` below.
+     *
+     * `shell-visual.spec.ts` is the shell contract — the fold, the rail, the CTA
+     * contrast — and it is a DOM measurement, so it belongs here. It arrived on
+     * the shell branch under the name `dashboard-visual.spec.ts`, which by then
+     * already meant the GPU before/after capture set in `desktop-3d`; the two
+     * are unrelated files and both are kept, under names that say which is which.
      */
     {
       name: 'desktop',

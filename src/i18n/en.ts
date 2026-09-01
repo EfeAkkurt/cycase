@@ -75,7 +75,7 @@ export const en = {
   'topbar.connection': 'Connection',
   'topbar.agent': 'Agent',
   'topbar.connection.live': 'Live',
-  'topbar.agent.offline': 'No agent',
+  'topbar.agent.offline': 'Agent offline',
   'topbar.agent.connected': 'Agent connected',
   'topbar.agent.working': 'Agent working',
   'topbar.state_version': 'State',
@@ -152,6 +152,7 @@ export const en = {
   'sidebar.status': 'Incident status',
   'sidebar.collapse': 'Collapse the sidebar',
   'sidebar.expand': 'Expand the sidebar',
+  'sidebar.system_details': 'System details',
   /*
    * The one announced sentence. Built only from values that change on a real
    * transition — never the clocks, which tick every second.
@@ -739,8 +740,13 @@ export const en = {
    * from case state, the generated-guidance channel, and the tool log — so it
    * is named for what it holds rather than for the one person in the room. */
   'rail.title': 'Guidance and activity',
-  'rail.collapse': 'Collapse guidance and activity',
-  'rail.expand': 'Expand guidance and activity',
+  'rail.collapse': 'Collapse guidance',
+  'rail.expand': 'Expand guidance',
+  'rail.extras': 'Guidance extras',
+  'rail.tab.narration': 'Narration',
+  'rail.tab.explore': 'Optional',
+  'rail.tab.activity': 'Activity',
+  'rail.tab.tools': 'Tools',
   'rail.explanation': 'Explanation',
   'rail.why': 'Why this matters',
   'rail.actions': 'Available actions',
@@ -1111,6 +1117,7 @@ export const en = {
   'settings.narration': 'Narration',
   'settings.narration_on': 'Narration on',
   'settings.narration_off': 'Narration off',
+  'settings.shell': 'Settings',
   /* The disclosure that holds the operating system's voice list. */
   'settings.advanced': 'Advanced',
   'settings.voice': 'Voice',

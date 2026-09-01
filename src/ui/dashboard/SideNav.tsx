@@ -3,37 +3,24 @@ import type { ReactNode } from 'react';
 import { useGame, useRuntime } from '../../app/gameContext';
 import { ARTIFACTS, DECISIONS, FINDINGS, RESPONSE_ACTIONS } from '../../game/fixtures/case001';
 import { siemEvents } from '../../game/investigate';
-import { hasPerformed, unresolvedCriticalFindings, visibleTimeline } from '../../game/selectors';
 import { clocks } from '../../game/live';
-import { formatElapsed } from '../../game/selectors';
+import { formatElapsed, hasPerformed, unresolvedCriticalFindings, visibleTimeline } from '../../game/selectors';
 import { t } from '../../i18n';
 import { DASHBOARD_ROUTES, type DashboardRoute } from '../../game/types';
 import { Icon, StatusDot, type IconName } from '../primitives';
-import { incidentStatusRows, incidentStatusSentence, navItemA11y } from './shell';
+import {
+  incidentStatusDetailRows,
+  incidentStatusPrimaryRows,
+  incidentStatusSentence,
+  navItemA11y,
+} from './shell';
 
 /**
  * The console's left column: identity, destinations and incident status.
  *
- * Three things were previously spread across the chrome and are now in one
- * place, because they answer one question — *where am I in this case?*
- *
- *  1. Which case this is.
- *  2. Which of the six destinations is open (redesign doc §4; six is a cap).
- *  3. What the case currently reads: the eight numbers that used to be strung
- *     across the top bar, where they competed with the page title and pushed
- *     the global actions into a second row at 1280px.
- *
- * It collapses to a 72px rail. Collapsed, every destination is still a real
- * button in the same order, still keyboard reachable, and still carries its
- * label *and* its count in the accessible name — the icon is an abbreviation
- * for the eye, never for assistive technology. The status group is the part
- * that genuinely does not fit in 72px, so collapsing is an explicit trade the
- * player makes for width, and the toggle says so.
- *
- * Identities and assets are not missing from the six. They are inside
- * Investigate, under the tools an analyst would actually reach for to look at
- * them, which is the point of modelling the pivot rather than flattening every
- * source into one level of navigation.
+ * The glanceable group is four facts: incident, severity, feed and agent.
+ * Clocks, event rate, state version and registration detail sit behind
+ * System details so a 240px column stays a status strip rather than a log.
  */
 const ROUTE_META: Record<DashboardRoute, { labelKey: Parameters<typeof t>[0]; icon: IconName }> = {
   command: { labelKey: 'nav.command', icon: 'shield' },
@@ -51,7 +38,6 @@ export function SideNav({
 }: {
   collapsed: boolean;
   onToggle: () => void;
-  /** Rendered as the last row of the status group. */
   statusExtras?: ReactNode;
 }) {
   const ctx = useGame();
@@ -60,9 +46,6 @@ export function SideNav({
   const appliedActions = RESPONSE_ACTIONS.filter((action) => hasPerformed(ctx, action.id)).length;
   const resolvedFindings = FINDINGS.length - unresolvedCriticalFindings(ctx).length;
 
-  // The glanceable chip and the spoken sentence for the same fact. Neither is
-  // derived from the other at render time — a "2/6" read aloud is two numbers
-  // and no noun, and a full sentence in a 240px column is a wrapped paragraph.
   const counts: Record<DashboardRoute, { chip: string; label: string }> = {
     command: {
       chip: `${resolvedFindings}/${FINDINGS.length}`,
@@ -115,9 +98,6 @@ export function SideNav({
       <nav className="nav" id="sidebar-nav" aria-label={t('nav.section')}>
         {DASHBOARD_ROUTES.map((route) => {
           const meta = ROUTE_META[route];
-          // The debrief is a real destination that is not open yet. It stays in
-          // the spine, disabled and saying why, rather than appearing out of
-          // nowhere when the case closes.
           const locked = route === 'debrief' && !ctx.caseClosed;
           const a11y = navItemA11y({
             label: t(meta.labelKey),
@@ -147,9 +127,6 @@ export function SideNav({
               <Icon name={meta.icon} size={16} />
               <span className="nav__label sidebar__label">{t(meta.labelKey)}</span>
               {counts[route].chip ? (
-                // Decorative: the same fact is already in the accessible name,
-                // as a sentence. Announcing both would read "Evidence, 2 of 6
-                // artifacts inspected, 2 slash 6".
                 <span className="nav__count sidebar__label" aria-hidden="true">
                   {counts[route].chip}
                 </span>
@@ -164,19 +141,10 @@ export function SideNav({
   );
 }
 
-/**
- * The status group.
- *
- * Eight labelled rows and exactly one live region. The rows themselves are
- * plain markup: the play clock ticks once a second, and a polite region wrapped
- * around these values would read a stream of digits at a screen-reader user for
- * the length of the session. The live region carries a sentence instead, and
- * that sentence only changes when something actually happened — a new state
- * version, a severity change, the feed pausing, an agent attaching.
- */
 function IncidentStatus({ statusExtras }: { statusExtras?: ReactNode }) {
   const ctx = useGame();
-  const rows = incidentStatusRows(ctx);
+  const primary = incidentStatusPrimaryRows(ctx);
+  const details = incidentStatusDetailRows(ctx);
   const clock = clocks(ctx);
   const decisionsDone = Object.keys(ctx.decisions).length;
 
@@ -186,34 +154,15 @@ function IncidentStatus({ statusExtras }: { statusExtras?: ReactNode }) {
         {t('sidebar.status')}
       </h2>
 
-      <dl className="status">
-        {rows.map((row) => (
-          <div className="status__row" key={row.id}>
-            <dt className="status__label">{row.label}</dt>
-            <dd
-              className={row.mono ? 'status__value status__value--mono' : 'status__value'}
-              id={row.id}
-              aria-describedby={row.describedBy}
-            >
-              {row.tone ? <StatusDot tone={row.tone} pulse={row.pulse} /> : null}
-              <span className="status__text">{row.value}</span>
-              {row.suffix ? (
-                <span className="status__suffix" aria-hidden="true">
-                  {row.suffix}
-                </span>
-              ) : null}
-              {row.detail ? <span className="status__detail">{row.detail}</span> : null}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <StatusList rows={primary} />
 
-      {/*
-       * The WebMCP registration status. Outside the `<dl>` because it is not a
-       * term/definition pair — it is a chip with a label, and a bare `<div>`
-       * between `<dt>`s is invalid list markup.
-       */}
-      {statusExtras}
+      <details className="sidebar__details">
+        <summary className="sidebar__details-summary">{t('sidebar.system_details')}</summary>
+        <div className="sidebar__details-body" data-surface="2">
+          <StatusList rows={details} />
+          {statusExtras}
+        </div>
+      </details>
 
       <span className="sr-only" id="clock-explainer">
         {t('clock.explainer', {
@@ -222,10 +171,6 @@ function IncidentStatus({ statusExtras }: { statusExtras?: ReactNode }) {
         })}
       </span>
 
-      {/*
-       * One sentence, one region. See `incidentStatusSentence` for why this is
-       * not the eight rows above with `aria-live` on their container.
-       */}
       <p className="sr-only" role="status">
         {incidentStatusSentence(ctx)}
       </p>
@@ -237,5 +182,31 @@ function IncidentStatus({ statusExtras }: { statusExtras?: ReactNode }) {
         </span>
       </div>
     </section>
+  );
+}
+
+function StatusList({ rows }: { rows: ReturnType<typeof incidentStatusPrimaryRows> }) {
+  return (
+    <dl className="status">
+      {rows.map((row) => (
+        <div className="status__row" key={row.id}>
+          <dt className="status__label">{row.label}</dt>
+          <dd
+            className={row.mono ? 'status__value status__value--mono' : 'status__value'}
+            id={row.id}
+            aria-describedby={row.describedBy}
+          >
+            {row.tone ? <StatusDot tone={row.tone} pulse={row.pulse} /> : null}
+            <span className="status__text">{row.value}</span>
+            {row.suffix ? (
+              <span className="status__suffix" aria-hidden="true">
+                {row.suffix}
+              </span>
+            ) : null}
+            {row.detail ? <span className="status__detail">{row.detail}</span> : null}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }

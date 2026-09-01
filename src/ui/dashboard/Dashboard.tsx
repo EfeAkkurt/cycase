@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 
 import { useGame, useRuntime } from '../../app/gameContext';
+import { VoiceSettings } from '../../audio/VoiceSettings';
 import { t } from '../../i18n';
+import { useNarration } from '../narration/NarrationPanel';
 import { Button } from '../primitives';
 import { LearningRail } from './LearningRail';
-import { NextStepCard, LastOutcome } from './NextStepCard';
+import { LastOutcome, NextStepCard } from './NextStepCard';
 import {
   CommandRoute,
   EvidenceRoute,
@@ -15,53 +17,58 @@ import {
 import { destinationTitle } from './shell';
 import { SideNav } from './SideNav';
 import { TopBar } from './TopBar';
-import { VoiceSettings } from '../../audio/VoiceSettings';
 
 /**
  * The operations console: real DOM and SVG, never a texture.
  *
- * The shell is three columns inside one non-scrolling frame:
+ * The shell is three columns inside one non-scrolling frame. The learning rail
+ * starts collapsed so a 240px sidebar plus a 320px rail cannot squeeze the
+ * workspace off a 1280px screen; the player can open it back. Guidance stays
+ * findable from the collapsed strip.
  *
- *   ┌ sidebar ┬──────────── workspace card ────────────┐
- *   │ 240/72  │ topbar: destination + global actions   │
- *   │ nav     ├──────────────────────┬─────────────────┤
- *   │ status  │ main (scrolls)       │ rail (scrolls)  │
- *   └─────────┴──────────────────────┴─────────────────┘
- *
- * The page itself never scrolls; `main` and the rail scroll independently. That
- * is what keeps the required step, the destination heading and the global
- * actions in the same place all session, and it is why a long evidence list can
- * no longer push the Pause control off the screen.
- *
- * Order inside `main` is the whole point of the layout work:
+ * Order inside `main`:
  *
  *   1. the required step, compact
  *   2. `#destination-content` — the real content of the active destination
  *   3. `#last-outcome` — what the previous step did
- *
- * (2) has to be above the fold at 1280×720 and 1440×900; `tests/e2e/shell.spec.ts`
- * measures it rather than trusting this comment. (3) is feedback for an action
- * already taken, so it is the one thing that may sit below the fold — it is
- * still on the page, unconditionally, not behind a disclosure.
- *
- * On mount, focus moves to the page title — acceptance criterion 4 in
- * docs/PROJECT_CONTEXT.md requires the office-to-dashboard transition to land
- * focus here without a reload.
  */
 export function Dashboard({ statusExtras }: { statusExtras?: React.ReactNode }) {
   const ctx = useGame();
   const runtime = useRuntime();
+  const narration = useNarration();
 
-  // Two independent collapses. The sidebar trades the incident status for
-  // width; the rail trades the assistant notes for width. Neither is
-  // remembered across a session on purpose — a hidden persisted preference is
-  // how a returning player finds a console they did not configure.
   const [navCollapsed, setNavCollapsed] = useState(false);
-  const [railCollapsed, setRailCollapsed] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(true);
 
   useEffect(() => {
     document.getElementById('incident-title')?.focus();
   }, []);
+
+  useEffect(() => {
+    const onPointer = () => {
+      document.documentElement.dataset.input = 'pointer';
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        event.key === 'Tab' ||
+        event.key === 'Enter' ||
+        event.key === ' ' ||
+        event.key.startsWith('Arrow')
+      ) {
+        document.documentElement.dataset.input = 'keyboard';
+      }
+    };
+    document.addEventListener('pointerdown', onPointer, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (narration.active) setRailCollapsed(false);
+  }, [narration.active]);
 
   const className = [
     'console',
@@ -72,15 +79,15 @@ export function Dashboard({ statusExtras }: { statusExtras?: React.ReactNode }) 
     .join(' ');
 
   return (
-    <div className={className}>
+    <div className={className} data-surface="0">
       <SideNav
         collapsed={navCollapsed}
         onToggle={() => setNavCollapsed((value) => !value)}
         statusExtras={statusExtras}
       />
 
-      <div className="console__workspace">
-        <div className="console__card">
+      <div className="console__workspace" data-surface="1">
+        <div className="console__card" data-surface="1">
           <TopBar
             title={destinationTitle(ctx.route)}
             context={t('incident.title')}
@@ -96,15 +103,8 @@ export function Dashboard({ statusExtras }: { statusExtras?: React.ReactNode }) 
                   {ctx.paused ? t('topbar.resume') : t('topbar.pause')}
                 </Button>
 
-                {/*
-                 * The same voice control the office carries. Narration follows
-                 * the player across the transition, so its settings have to as
-                 * well — otherwise "Stop voice" is only reachable from a room
-                 * you have left.
-                 */}
-                <VoiceSettings />
+                <VoiceSettings surface="menu" />
 
-                {/* P0.7 — back to the seat without replaying the wake. */}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -119,8 +119,6 @@ export function Dashboard({ statusExtras }: { statusExtras?: React.ReactNode }) 
 
           <div className="console__body">
             <main className="workspace" id="main">
-              {/* P0.6 — one persistent required step, on every route, so
-                  "where do I click next?" never has to be asked. */}
               <NextStepCard />
 
               <div className="workspace__content" id="destination-content">

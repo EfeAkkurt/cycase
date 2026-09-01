@@ -175,14 +175,21 @@ test.describe('the shell frame', () => {
     const header = page.getByRole('banner');
     await expect(header.getByRole('heading', { level: 1 })).toHaveText('Command');
 
-    // The three global controls, and nothing that belongs to a destination.
     await expect(header.getByRole('button', { name: 'Pause simulation' })).toBeVisible();
-    await expect(header.getByRole('button', { name: /Narration/ })).toBeVisible();
+    await expect(header.getByRole('button', { name: 'Settings' })).toBeVisible();
     await expect(header.getByRole('button', { name: 'Return to office' })).toBeVisible();
+    await expect(header.getByRole('button', { name: /Narration/ })).toHaveCount(0);
 
-    // The metrics moved out of it, into the sidebar's status group.
+    await header.getByRole('button', { name: 'Settings' }).click();
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Narration/ })).toBeVisible();
+
     for (const id of ['#play-clock', '#incident-clock', '#state-version', '#feed-health']) {
       await expect(page.locator(`.topbar ${id}`)).toHaveCount(0);
+    }
+    await expect(page.locator('.sidebar #feed-health')).toBeVisible();
+    await page.getByText('System details', { exact: true }).click();
+    for (const id of ['#play-clock', '#incident-clock', '#state-version']) {
       await expect(page.locator(`.sidebar ${id}`)).toBeVisible();
     }
   });
@@ -239,6 +246,8 @@ test.describe('the sidebar collapses to a rail', () => {
 
     await page.getByRole('button', { name: 'Expand the sidebar' }).click();
     expect(Math.round((await box(page, '.sidebar')).width)).toBe(240);
+    await expect(page.getByRole('button', { name: 'Collapse the sidebar' })).toBeFocused();
+    await page.getByText('System details', { exact: true }).click();
     await expect(page.locator('#state-version')).toBeVisible();
   });
 
@@ -279,21 +288,74 @@ test.describe('the incident status group', () => {
     expect(clocksAreLive).toBe(false);
   });
 
-  test('carries all eight values, each with a visible label', async ({ page }) => {
+  test('carries the four glanceable facts, and parks the rest in System details', async ({
+    page,
+  }) => {
     await openDashboard(page);
 
-    const group = page.locator('.sidebar__status');
-    for (const label of [
-      'Incident',
-      'Severity',
-      'Play time',
-      'Incident time',
-      'Events',
-      'Feed',
-      'State',
-      'Agent',
-    ]) {
-      await expect(group.getByText(label, { exact: true })).toBeVisible();
+    for (const id of ['#incident-id', '#incident-severity', '#feed-health', '#agent-status']) {
+      await expect(page.locator(`.sidebar ${id}`)).toBeVisible();
     }
+    await expect(page.locator('#play-clock')).toBeHidden();
+    await expect(page.locator('#incident-clock')).toBeHidden();
+    await expect(page.locator('#state-version')).toBeHidden();
+
+    await page.getByText('System details', { exact: true }).click();
+    for (const id of ['#play-clock', '#incident-clock', '#event-rate', '#state-version']) {
+      await expect(page.locator(`.sidebar ${id}`)).toBeVisible();
+    }
+    await expect(page.locator('#webmcp-status')).toContainText('Agent connected');
+    await expect(page.locator('#webmcp-status')).toContainText('7 tools registered');
   });
+});
+
+test.describe('the learning rail', () => {
+  test('starts collapsed so 1280px keeps a workspace, and can be opened back', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openDashboard(page);
+
+    expect(Math.round((await box(page, '.rail')).width)).toBe(44);
+    await expect(page.locator('#rail-guidance')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Expand guidance' })).toBeVisible();
+
+    const content = await box(page, '#destination-content');
+    expect(content.width).toBeGreaterThan(500);
+    expect(content.top + MIN_VISIBLE).toBeLessThanOrEqual(720);
+
+    await page.getByRole('button', { name: 'Expand guidance' }).click();
+    await expect(page.getByRole('button', { name: 'Collapse guidance' })).toBeFocused();
+    await expect(page.locator('#rail-guidance')).toBeVisible();
+    expect(Math.round((await box(page, '.rail')).width)).toBe(320);
+
+    const openContent = await box(page, '#destination-content');
+    expect(openContent.width).toBeGreaterThan(240);
+    expect(openContent.top + MIN_VISIBLE).toBeLessThanOrEqual(720);
+
+    await page.getByRole('button', { name: 'Collapse guidance' }).click();
+    await expect(page.getByRole('button', { name: 'Expand guidance' })).toBeFocused();
+    expect(Math.round((await box(page, '.rail')).width)).toBe(44);
+  });
+});
+
+test.describe('the top bar', () => {
+  for (const size of SIZES) {
+    test(`does not wrap or overflow at ${size.label}`, async ({ page }) => {
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await openDashboard(page);
+
+      const overflow = await page.evaluate(() => {
+        const bar = document.querySelector('.topbar') as HTMLElement;
+        const box = bar.getBoundingClientRect();
+        return {
+          wraps: bar.offsetHeight > 56,
+          overflows: box.right - 1 > document.documentElement.clientWidth,
+          height: Math.round(box.height),
+        };
+      });
+      expect(overflow.wraps, JSON.stringify(overflow)).toBe(false);
+      expect(overflow.overflows).toBe(false);
+    });
+  }
 });

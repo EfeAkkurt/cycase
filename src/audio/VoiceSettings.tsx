@@ -1,49 +1,45 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { t } from '../i18n';
 import { useSpeech } from './speechContext';
+import { Button } from '../ui/primitives';
 
 /**
  * The narration control.
  *
- * One primary switch — **Narration on/off** — and nothing else in the top bar.
- * `NODELESS_SOC_REDESIGN_2026-08-31.md` §7 is explicit about the shape: "One
- * primary toggle: Narration on/off. Mute and volume remain global sound
- * controls… Move the long operating-system voice list under Advanced settings."
- * So the operating system's voice list — which on a stocked machine is dozens
- * of entries long, none of which the player has any reason to care about — sits
- * behind a closed disclosure, and the room's mute and volume stay where they
- * were, in `SettingsBar`.
- *
- * This lives in `src/audio/` rather than in the office chrome so the settings
- * surface and the engine ship together; the chrome drops `<VoiceSettings />` in
- * beside the mute and volume controls and gets the whole thing, including its
- * accessibility behaviour.
- *
- * Three requirements are visible in the markup rather than assumed:
- *
- * - **It tells the truth.** Browser speech quality genuinely depends on the
- *   browser and the operating system, and the note says exactly that instead of
- *   implying a voice we produced.
- * - **It disappears when there is nothing to choose.** A browser with no voices
- *   gets the note, not a broken empty `select` — and the captions carry on.
- * - **It never claims to be spatial.** The alarm is positioned in the room; the
- *   voice is not, and no copy here suggests otherwise.
- *
- * The toggle writes through the speech engine, which owns and persists the one
- * `cycase.speech_muted` preference. The caption's own "Stop voice" writes to
- * the same place, so the two are one control seen from two rooms rather than
- * two switches that can disagree.
+ * On the dashboard this is one Settings surface: narration, voice and the
+ * operating-system list live together so Pause and Return stay visible in the
+ * top bar. In the office it stays inline beside mute and volume.
  */
-export function VoiceSettings() {
+export function VoiceSettings({ surface = 'inline' }: { surface?: 'inline' | 'menu' }) {
   const speech = useSpeech();
   const selectId = useId();
   const noteId = useId();
+  const panelId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
 
   const hasChoices = speech.voices.length > 0;
 
-  return (
-    <div className="voice-settings" role="group" aria-label={t('settings.narration')}>
+  useEffect(() => {
+    if (!open || surface !== 'menu') return;
+
+    const onPointer = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, surface]);
+
+  const body = (
+    <>
       <button
         type="button"
         className="voice-settings__toggle"
@@ -53,14 +49,6 @@ export function VoiceSettings() {
         {speech.muted ? t('settings.narration_off') : t('settings.narration_on')}
       </button>
 
-      {/*
-       * Closed by default, and a real `<details>` rather than a scripted
-       * accordion: keyboard-operable, screen-reader-announced and expandable
-       * with no JavaScript at all.
-       *
-       * Rendered only when the engine has voices to offer. An empty disclosure
-       * promising settings that are not there is worse than no disclosure.
-       */}
       {hasChoices ? (
         <details className="voice-settings__advanced">
           <summary className="voice-settings__summary">{t('settings.advanced')}</summary>
@@ -74,11 +62,6 @@ export function VoiceSettings() {
                 value={speech.selectedVoiceUri ?? ''}
                 onChange={(event) => speech.setVoice(event.target.value || null)}
               >
-                {/*
-                 * "Automatic" is not an empty choice — it is the language
-                 * match. Clearing the stored preference sends the director back
-                 * to picking a local voice in the interface's own language.
-                 */}
                 <option value="">{t('settings.voice_auto')}</option>
                 {speech.voices.map((voice) => (
                   <option key={voice.uri} value={voice.uri}>
@@ -94,14 +77,45 @@ export function VoiceSettings() {
           </div>
         </details>
       ) : (
-        /*
-         * No voices at all: say so where the list would have been. The player
-         * loses nothing — every line is captioned in full either way — and this
-         * is the sentence that stops them hunting for a control that cannot
-         * exist on their machine.
-         */
         <p className="voice-settings__note">{t('settings.voice_none')}</p>
       )}
+    </>
+  );
+
+  if (surface === 'menu') {
+    return (
+      <div
+        ref={rootRef}
+        className="voice-settings voice-settings--menu"
+        role="group"
+        aria-label={t('settings.shell')}
+      >
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {t('settings.shell')}
+        </Button>
+        {open ? (
+          <div
+            className="voice-settings__panel"
+            id={panelId}
+            role="dialog"
+            aria-label={t('settings.shell')}
+          >
+            {body}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="voice-settings" role="group" aria-label={t('settings.narration')}>
+      {body}
     </div>
   );
 }

@@ -6,15 +6,24 @@ import { executeCommand } from '../../src/game/engine';
 import { DASHBOARD_ROUTES } from '../../src/game/types';
 import { en } from '../../src/i18n/en';
 import {
+  CONTROL_HEIGHT,
+  DETAIL_STATUS_IDS,
   GRID_UNIT,
+  HIT_TARGET,
   NAV_ITEM_HEIGHT,
+  PRIMARY_STATUS_IDS,
+  RAIL_COLLAPSED_WIDTH,
+  RAIL_WIDTH,
   SIDEBAR_RAIL_WIDTH,
   SIDEBAR_WIDTH,
   destinationTitle,
+  incidentStatusDetailRows,
+  incidentStatusPrimaryRows,
   incidentStatusRows,
   incidentStatusSentence,
   navItemA11y,
   onGrid,
+  railWidth,
   sidebarWidth,
 } from '../../src/ui/dashboard/shell';
 import { PERFECT_COMMANDS } from './fixtures/perfectRun';
@@ -52,7 +61,15 @@ describe('shell geometry', () => {
   });
 
   it('keeps every shell dimension on the 4px token grid', () => {
-    for (const value of [SIDEBAR_WIDTH, SIDEBAR_RAIL_WIDTH, NAV_ITEM_HEIGHT]) {
+    for (const value of [
+      SIDEBAR_WIDTH,
+      SIDEBAR_RAIL_WIDTH,
+      RAIL_WIDTH,
+      RAIL_COLLAPSED_WIDTH,
+      NAV_ITEM_HEIGHT,
+      CONTROL_HEIGHT,
+      HIT_TARGET,
+    ]) {
       expect(onGrid(value), `${value}px`).toBe(true);
     }
     expect(GRID_UNIT).toBe(4);
@@ -78,6 +95,16 @@ describe('shell geometry', () => {
     expect(token('sidebar-w')).toBe(SIDEBAR_WIDTH);
     expect(token('sidebar-w-rail')).toBe(SIDEBAR_RAIL_WIDTH);
     expect(token('sidebar-item-h')).toBe(NAV_ITEM_HEIGHT);
+    expect(token('rail-w')).toBe(RAIL_WIDTH);
+    expect(token('rail-w-collapsed')).toBe(RAIL_COLLAPSED_WIDTH);
+    expect(token('hit-target')).toBe(HIT_TARGET);
+    expect(token('control-height-sm')).toBe(CONTROL_HEIGHT);
+  });
+
+  it('collapses the learning rail to a strip that is narrower than the open column', () => {
+    expect(railWidth(false)).toBe(RAIL_WIDTH);
+    expect(railWidth(true)).toBe(RAIL_COLLAPSED_WIDTH);
+    expect(RAIL_COLLAPSED_WIDTH).toBeLessThan(RAIL_WIDTH);
   });
 
   /**
@@ -88,6 +115,7 @@ describe('shell geometry', () => {
   it('leaves the collapsed destination row above the WCAG target-size floor', () => {
     expect(NAV_ITEM_HEIGHT).toBeGreaterThanOrEqual(24);
     expect(SIDEBAR_RAIL_WIDTH).toBeGreaterThanOrEqual(NAV_ITEM_HEIGHT);
+    expect(HIT_TARGET).toBeGreaterThanOrEqual(44);
   });
 });
 
@@ -104,6 +132,11 @@ describe('incident status', () => {
       'state-version',
       'agent-status',
     ]);
+  });
+
+  it('puts incident, severity, feed and agent on the glanceable strip', () => {
+    expect(incidentStatusPrimaryRows(context).map((row) => row.id)).toEqual([...PRIMARY_STATUS_IDS]);
+    expect(incidentStatusDetailRows(context).map((row) => row.id)).toEqual([...DETAIL_STATUS_IDS]);
   });
 
   it('labels every row — no value is left to be read off its position', () => {

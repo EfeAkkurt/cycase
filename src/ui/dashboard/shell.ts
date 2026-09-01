@@ -22,20 +22,61 @@ import type { Tone } from '../primitives';
  * the number is typed three times.
  * ------------------------------------------------------------------ */
 
-/** Expanded sidebar width. Matches `--sidebar-w` in `src/styles/global.css`. */
+/** Expanded sidebar width. Matches `--sidebar-w` in `src/styles/tokens.css`. */
 export const SIDEBAR_WIDTH = 240;
 
 /** Collapsed rail width. Matches `--sidebar-w-rail`. */
 export const SIDEBAR_RAIL_WIDTH = 72;
 
+/** Expanded learning-rail width. Matches `--rail-w`. */
+export const RAIL_WIDTH = 320;
+
+/** Collapsed learning-rail width. Matches `--rail-w-collapsed`. */
+export const RAIL_COLLAPSED_WIDTH = 44;
+
 /** Navigation row height — the design system's density lock. */
 export const NAV_ITEM_HEIGHT = 36;
+
+/** Visible control height. Hit area is `HIT_TARGET`, not this. */
+export const CONTROL_HEIGHT = 32;
+
+/** Accessible hit target for 32px controls. Matches `--hit-target`. */
+export const HIT_TARGET = 44;
 
 /** The base unit every spacing token in the system is a multiple of. */
 export const GRID_UNIT = 4;
 
+export const PRIMARY_STATUS_IDS = [
+  'incident-id',
+  'incident-severity',
+  'feed-health',
+  'agent-status',
+] as const;
+
+export const DETAIL_STATUS_IDS = [
+  'play-clock',
+  'incident-clock',
+  'event-rate',
+  'state-version',
+] as const;
+
+export type PrimaryStatusId = (typeof PRIMARY_STATUS_IDS)[number];
+export type DetailStatusId = (typeof DETAIL_STATUS_IDS)[number];
+
 export function sidebarWidth(collapsed: boolean): number {
   return collapsed ? SIDEBAR_RAIL_WIDTH : SIDEBAR_WIDTH;
+}
+
+export function railWidth(collapsed: boolean): number {
+  return collapsed ? RAIL_COLLAPSED_WIDTH : RAIL_WIDTH;
+}
+
+export function isPrimaryStatus(id: string): id is PrimaryStatusId {
+  return (PRIMARY_STATUS_IDS as readonly string[]).includes(id);
+}
+
+export function isDetailStatus(id: string): id is DetailStatusId {
+  return (DETAIL_STATUS_IDS as readonly string[]).includes(id);
 }
 
 /**
@@ -158,6 +199,14 @@ export function incidentStatusRows(ctx: GameContext): StatusRow[] {
       pulse: ctx.agentStatus === 'working',
     },
   ];
+}
+
+export function incidentStatusPrimaryRows(ctx: GameContext): StatusRow[] {
+  return incidentStatusRows(ctx).filter((row) => isPrimaryStatus(row.id));
+}
+
+export function incidentStatusDetailRows(ctx: GameContext): StatusRow[] {
+  return incidentStatusRows(ctx).filter((row) => isDetailStatus(row.id));
 }
 
 /**

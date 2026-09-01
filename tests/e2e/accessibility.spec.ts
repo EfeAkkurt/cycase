@@ -254,6 +254,23 @@ test.describe('control sizing', () => {
     expect(heights.navItem).toBe(36);
     expect(heights.chip).toBe(20);
   });
+
+  test('32px controls still present a 44px hit target', async ({ page }) => {
+    await openDashboard(page);
+
+    const hit = await page.locator('.btn:not(.btn--block)').first().evaluate((element) => {
+      const style = getComputedStyle(element, '::after');
+      return {
+        width: Number.parseFloat(style.width),
+        height: Number.parseFloat(style.height),
+        visible: Math.round(element.getBoundingClientRect().height),
+      };
+    });
+
+    expect(hit.visible).toBe(32);
+    expect(hit.width).toBeGreaterThanOrEqual(44);
+    expect(hit.height).toBeGreaterThanOrEqual(44);
+  });
 });
 
 test.describe('responsive fallback', () => {

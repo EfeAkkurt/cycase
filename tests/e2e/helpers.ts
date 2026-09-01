@@ -132,7 +132,9 @@ export async function callTool<T = unknown>(
 
 /** Reads the live stateVersion straight off the dashboard chrome. */
 export async function readStateVersion(page: Page): Promise<number> {
-  const text = await page.locator('#state-version').innerText();
+  // `innerText` is empty while System details is collapsed (closed <details>),
+  // but the id is still in the document. The chrome contract is the text node.
+  const text = (await page.locator('#state-version').textContent()) ?? '';
   return Number(text.replace(/[^0-9]/g, ''));
 }
 
