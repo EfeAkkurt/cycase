@@ -735,16 +735,20 @@ export const CHARACTER_ANCHORS = {
    */
   colleagueBust: { position: [1.01, 1.22, -1.38] as [number, number, number], radius: 0.34 },
   /**
-   * Where her pointing hand has to arrive.
+   * Where her pointing hand arrives — and the only part of the gesture that
+   * clears the monitor interface.
    *
-   * Not a pose the animation guesses at — `Colleague.tsx` drives the arm to it
-   * and `characters.spec.ts` reads the *actual* `FistR` bone back out of the
-   * live skeleton and compares. The value here is the target the joint angles
-   * were solved for, measured by posing the real rig headlessly: it is the one
-   * part of the gesture that clears the glass, so it is the part that is
-   * asserted.
+   * Not a pose the animation guesses at: `Colleague.tsx` drives the arm to it,
+   * and `characters.spec.ts` reads the *actual* `FistR` bone out of the live
+   * skeleton and projects it against the live monitor rectangles. This value is
+   * the target the joint angles were solved for, measured by posing the real
+   * rig headlessly.
+   *
+   * Her elbow and forearm are behind the glass and no pose fixes that — see
+   * `POINT_POSE` in `Colleague.tsx` for the sweep that establishes it. The
+   * claim this anchor makes is deliberately the small one that is true.
    */
-  colleaguePoint: { position: [0.98, 1.27, -1.24] as [number, number, number], radius: 0.09 },
+  colleaguePoint: { position: [1.03, 1.34, -1.41] as [number, number, number], radius: 0.075 },
 } as const;
 
 /**

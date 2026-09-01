@@ -94,33 +94,60 @@ const FORWARD = new THREE.Vector3(0, 0, 1);
 /**
  * The pointing pose, as bounded rotations on the right arm's own joints.
  *
- * Solved rather than eyeballed, and solved against the real rig: the GLB was
- * loaded headlessly, posed on `Idle`, placed at the settle point, and the four
- * angles searched for the combination that (a) puts her fist above world y 1.26
- * — the height at which the monitor interface stops occluding her at 2.40 m —
- * and (b) minimises the angle between her forearm and the direction from her
- * hand to the alarm rim. The solution below lands 21° off that aim with the
- * fist at y 1.27, and keeps both arm segments at their true lengths (0.30 m and
- * 0.24 m), so the chain still resolves to an arm rather than to a stretched one.
+ * Solved against the real rig rather than eyeballed: the GLB was loaded
+ * headlessly, posed on `Idle`, placed at the settle point, and the four angles
+ * searched — but searched in *screen* space, which is the correction that
+ * matters and the one two earlier attempts got wrong.
  *
- * This replaces a gesture that had been switched off. The previous attempt
- * slerped the bone toward a world direction and wrote it back through the
- * parent's inverse, which on this rig swung *both* arms toward the camera and
- * read as a deformed figure — so it was disabled, and the beat the contract
- * asks for has never played. These are plain local-axis multiplies on the two
- * bones the clip already drives, which is the same mechanism as the lean and
- * the breath below, and the mechanism the file's own note says survives the
- * frame intact.
+ * ## What is actually possible here, measured
+ *
+ * The monitor interface is a DOM layer composited over the canvas, so anything
+ * of hers inside a panel's rectangle is not dimmed, it is gone. Her shoulder
+ * joint sits at world y 1.017 and her arm is 0.53 m long, and the arithmetic
+ * that falls out of those two numbers is unforgiving:
+ *
+ * - Solving for world *height* is not enough. A first pass put the fist at
+ *   y 1.271 — above the 1.26 the body needs at the settle depth — and the hand
+ *   still projected inside the right panel, because the hand is 0.15 m closer
+ *   to the camera than her body is and therefore needs to be higher, not the
+ *   same.
+ * - **The elbow cannot clear at all.** Swept exhaustively with the shoulder
+ *   held inside 140° of flexion, 18,659 poses put the hand clear of every panel
+ *   at every review size and *none* of them clear the elbow. Her forearm comes
+ *   out from behind the glass; the joint it hinges on stays behind it.
+ * - Aim is a trade against that. The best forearm-to-monitor alignment among
+ *   poses whose hand clears is about 41°, so this reads as a raised hand
+ *   indicating the screens rather than as a finger on one. Poses that aim
+ *   within 17° exist, but only past 170° of shoulder flexion — the arm swung
+ *   almost vertically behind her — which is a silhouette no report beat wants.
+ *
+ * So this is the honest maximum: the hand and the upper forearm are the visible
+ * part of the gesture, and the claim in `CHARACTER_ANCHORS.colleaguePoint` is
+ * about the hand alone. `characters.spec.ts` asserts it by projecting the live
+ * `FistR` bone against the live monitor rectangles, so a regression here fails
+ * on the measurement rather than on a screenshot nobody reads.
+ *
+ * This replaces a gesture that had been switched off entirely. The previous
+ * attempt slerped the bone toward a world direction and wrote it back through
+ * the parent's inverse, which on this rig swung *both* arms toward the camera
+ * and read as a deformed figure. These are plain local-axis multiplies on the
+ * two bones the clip already drives — the same mechanism as the lean and the
+ * breath below, which the file's own note says survives the frame intact.
+ *
+ * The one thing not established without a GPU is how it *looks*. The chain
+ * resolves correctly and both segments keep their lengths, but a pose can be
+ * geometrically sound and still read badly, and this shoulder is near the top
+ * of its range. It is the item most worth a human eye on the review capture.
  */
 const POINT_POSE = {
   /** Raises the upper arm forward and up, about the bone's own bend axis. */
-  lift: -2.6,
-  /** A little outward, so the elbow clears her ribs. */
-  swing: 0.3,
+  lift: -2.45,
+  /** A little inward, so the elbow stays off her ribs without flaring. */
+  swing: -0.2,
   /** Rolls the arm so the forearm comes across toward the monitors. */
-  twist: 1.1,
-  /** The elbow bend that brings her hand up above the glass. */
-  elbow: -1.6,
+  twist: 0.9,
+  /** The elbow bend that lifts her hand clear of the glass. */
+  elbow: -1.7,
 } as const;
 
 /** Smoothstep, so every beat eases in and out rather than snapping. */

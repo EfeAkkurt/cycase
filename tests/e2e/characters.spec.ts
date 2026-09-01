@@ -666,6 +666,29 @@ test.describe('the colleague is posed, not accumulated (report of tumbling)', ()
     }
 
     expect(highest, 'the FistR bone was never reported — has the rig been renamed?').not.toBeNull();
+
+    /*
+     * The assertion is made in *screen* space, not on world height, and the
+     * difference is the whole point.
+     *
+     * A first version of this checked `world y > 1.26` — the height her body
+     * needs at the settle depth to clear the panels — and a pose passed it with
+     * the hand still drawn behind the right monitor, because her hand is 0.15 m
+     * closer to the camera than her body is and therefore needs to be higher,
+     * not the same. "Above a height" is a proxy. "Outside the rectangle the
+     * interface occupies" is the claim.
+     */
+    const box = await officeBox(page);
+    const framing = await liveFraming(page);
+    const camera = createCamera(box.width, box.height, framing.yaw, framing.pitch);
+    const monitors = MONITORS.map((monitor) => monitorRect(camera, monitor, box.width, box.height));
+    const hand = anchorRect(
+      camera,
+      { position: highest as [number, number, number], radius: CHARACTER_ANCHORS.colleaguePoint.radius },
+      box.width,
+      box.height,
+    );
+
     const target = CHARACTER_ANCHORS.colleaguePoint.position;
     const miss = Math.hypot(
       highest![0] - target[0],
@@ -673,22 +696,28 @@ test.describe('the colleague is posed, not accumulated (report of tumbling)', ()
       highest![2] - target[2],
     );
     console.log(
-      `pointing hand peaked at (${highest!.map((n) => n.toFixed(3)).join(', ')}), ` +
-        `target (${target.join(', ')}), ${miss.toFixed(3)} m away`,
+      `pointing hand peaked at (${highest!.map((n) => n.toFixed(3)).join(', ')}) -> ` +
+        `${describe(hand)}; target (${target.join(', ')}), ${miss.toFixed(3)} m away`,
     );
 
+    expect(hand.x0, `the pointing hand is off the left edge: ${describe(hand)}`).toBeGreaterThan(0);
+    expect(hand.x1, `the pointing hand is off the right edge: ${describe(hand)}`).toBeLessThan(box.width);
+    expect(hand.y0, `the pointing hand is above the frame: ${describe(hand)}`).toBeGreaterThan(0);
+
+    for (const surface of monitors) {
+      expect(
+        intersects(hand, surface),
+        `her pointing hand ${describe(hand)} is drawn behind the ${surface.id} monitor ` +
+          `${describe(surface)}, so the gesture the report beat is built on is invisible`,
+      ).toBe(false);
+    }
+
     /*
-     * The height is the assertion that matters and it is asserted exactly: at
-     * 2.40 m the monitor panels occlude everything below world y 1.26, so a
-     * hand below that is a gesture the player cannot see. The distance to the
-     * solved target is checked far more loosely — the solve poses the rig on
-     * `Idle` frame 0 and the live rig is somewhere in that clip, so the two
-     * are not expected to agree to the centimetre.
+     * And the live rig really is doing the pose that was solved for. Checked
+     * loosely on purpose: the solve poses the rig on `Idle` frame 0 and the
+     * live rig is somewhere else in that clip, so the two are not expected to
+     * agree to the centimetre — only to be the same gesture.
      */
-    expect(
-      highest![1],
-      'her pointing hand never rises above the monitor interface, so the gesture is invisible',
-    ).toBeGreaterThan(1.26);
     expect(miss, 'the pointing hand is nowhere near the pose it was solved for').toBeLessThan(0.35);
   });
 });
