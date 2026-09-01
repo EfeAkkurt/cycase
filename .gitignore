@@ -1,6 +1,9 @@
 node_modules
 dist
 dist-ssr
+# Per-run build output: `CYCASE_TEST_PORT=4283` builds into `dist-4283`, so two
+# overlapping browser suites never share one output tree.
+dist-*
 coverage
 *.local
 .DS_Store

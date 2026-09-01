@@ -15,7 +15,15 @@
  */
 import { execSync } from 'node:child_process';
 
-const PORT = Number(process.argv[2] ?? 4183);
+import { resolveTestPort } from './test-port.mjs';
+
+/*
+ * An explicit argument still wins, so `node scripts/free-test-port.mjs 4283`
+ * keeps working. Otherwise this clears the port THIS run is about to use — the
+ * distinction that lets two runs on two ports coexist, where a hard-coded 4183
+ * would have had each of them killing the other's server.
+ */
+const PORT = process.argv[2] === undefined ? resolveTestPort() : Number(process.argv[2]);
 
 function pidsOn(port) {
   try {

@@ -16,10 +16,21 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 
+import { resolveTestPort, testDistDir } from './test-port.mjs';
 
+/*
+ * `CYCASE_DIST_DIR` is set by Playwright's `webServer` from the same resolver
+ * the config built the `--outDir` from, so the server always serves the bytes
+ * this run just produced. Unset, this is `dist`.
+ */
+const ROOT = join(process.cwd(), process.env.CYCASE_DIST_DIR || testDistDir());
 
-const ROOT = join(process.cwd(), 'dist');
-const PORT = Number(process.env.PORT ?? 4183);
+/*
+ * `PORT` first, because Playwright's `webServer` sets it explicitly from the
+ * same resolver the config used — so the server binds exactly what the suite is
+ * waiting on. Run by hand with neither variable set, this is 4183 as before.
+ */
+const PORT = process.env.PORT ? Number(process.env.PORT) : resolveTestPort();
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',

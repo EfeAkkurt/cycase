@@ -1,6 +1,7 @@
 import { expect, test, type Request } from '@playwright/test';
 
 import { openDashboard } from './helpers';
+import { testBaseUrl } from '../../scripts/test-port.mjs';
 
 /**
  * Local mode makes zero backend requests (contract §14, first bullet).
@@ -25,7 +26,7 @@ function isBackendCall(request: Request, origin: string): boolean {
 }
 
 test('local mode completes Case 001 while making zero backend requests', async ({ page, baseURL }) => {
-  const origin = new URL(baseURL ?? 'http://127.0.0.1:4183').origin;
+  const origin = new URL(baseURL ?? testBaseUrl()).origin;
   const offOrigin: string[] = [];
   const failed: string[] = [];
 

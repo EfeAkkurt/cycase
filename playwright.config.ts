@@ -1,5 +1,25 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { resolveTestPort, testBaseUrl, testDistDir } from './scripts/test-port.mjs';
+
+/*
+ * One port for this run, shared with the static server and the guard that
+ * clears it. `CYCASE_TEST_PORT` selects it; unset, this is 4183 and a serial
+ * run behaves exactly as it always has. Two runs on two ports can now overlap
+ * without either one's `free-test-port` killing the other's server.
+ */
+const PORT = resolveTestPort();
+const BASE_URL = testBaseUrl();
+const DIST_DIR = testDistDir();
+
+/*
+ * On the default port this is byte-for-byte the command it has always been.
+ * Only a run that asked for its own port gets its own `--outDir`, because vite
+ * empties the output directory before writing and two builds sharing `dist/`
+ * kill each other mid-copy.
+ */
+const BUILD = DIST_DIR === 'dist' ? 'npm run build' : `npm run build -- --outDir ${DIST_DIR}`;
+
 /**
  * E2E configuration.
  *
@@ -13,7 +33,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4183',
+    baseURL: BASE_URL,
     trace: 'retain-on-failure',
     viewport: { width: 1440, height: 900 },
   },
@@ -116,8 +136,9 @@ export default defineConfig({
      * reads as a wall of product regressions. `scripts/test-server.mjs` serves
      * the same `dist/` and survives a bad request.
      */
-    command: 'npm run build && node scripts/test-server.mjs',
-    url: 'http://127.0.0.1:4183',
+    command: `${BUILD} && node scripts/test-server.mjs`,
+    env: { PORT: String(PORT), CYCASE_DIST_DIR: DIST_DIR },
+    url: BASE_URL,
     /*
      * Off by default, deliberately.
      *

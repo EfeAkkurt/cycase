@@ -10,7 +10,11 @@ import reactHooks from 'eslint-plugin-react-hooks';
  * misuse, unused directives, foot-gun equality.
  */
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', '.claude', '.assets-raw', 'output', 'playwright-report', 'test-results', 'scripts/.dist'] },
+  // Mirrors .gitignore. `dist-*` is a parallel run's build output and
+  // `.playwright-cli` holds the trace viewer's own
+  // bundled resources; linting them made the gate depend on whether anyone
+  // had opened a trace, which is not a property of this codebase.
+  { ignores: ['dist', 'dist-*', 'node_modules', '.claude', '.assets-raw', 'output', 'playwright-report', 'test-results', 'scripts/.dist', '.playwright-cli'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
