@@ -76,12 +76,20 @@ test.describe('the destination is above the fold', () => {
   }
 
   /**
-   * The step that costs the most vertical space: the only consequential
-   * operation on the guided path, which shows the destructive chip, the four
-   * things the button will run and the three things each of them changes. If
-   * the fold survives this one it survives the other ten.
+   * The step that costs the most vertical space: the session revocation, which
+   * is the first genuinely consequential stage on the guided path. It carries
+   * the destructive chip, the checklist of the whole containment operation with
+   * the current stage marked, the impact sentence, and — because the stage
+   * before it has just run — a receipt above all of that. If the fold survives
+   * this one it survives the rest.
+   *
+   * Note where the destructive chip is *not*: on the session inventory that
+   * precedes it. That read used to inherit the revocation's warning and its
+   * dialog because the card described the whole operation rather than the stage
+   * about to run, which teaches a player to click through the warning that
+   * matters.
    */
-  test('still holds on the consequential containment step', async ({ page }) => {
+  test('still holds on the consequential containment stage', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await openDashboard(page);
 
@@ -101,14 +109,22 @@ test.describe('the destination is above the fold', () => {
     await expect(page.locator('#next-step-title')).toContainText(
       'Contain the identity and the endpoint',
     );
-    // The impact is on screen before the button is pressed. It is never behind
-    // a disclosure — hiding a consequence to save height is the dark pattern
-    // the brief forbids by name.
+    // The inventory is an ordinary read: named, but not dressed as destructive.
+    await expect(page.locator('#next-step')).toContainText('Session inventory');
+    await expect(page.locator('#next-step').getByText('Consequential')).toHaveCount(0);
+
+    await runSequence(page, [
+      { tool: 'run_diagnostic', input: { diagnosticId: 'session_inventory' } },
+    ]);
+
+    // Now the revocation is the stage, and it says so before it is pressed.
+    // The impact is never behind a disclosure — hiding a consequence to save
+    // height is the dark pattern the brief forbids by name.
     await expect(page.locator('#next-step')).toContainText('Revoke active sessions');
-    await expect(page.getByText('Consequential')).toBeVisible();
+    await expect(page.locator('#next-step').getByText('Consequential')).toBeVisible();
 
     const content = await box(page, '#destination-content');
-    console.log(`1280x720 containment step: #destination-content top=${Math.round(content.top)}`);
+    console.log(`1280x720 containment stage: #destination-content top=${Math.round(content.top)}`);
     expect(content.top + MIN_VISIBLE).toBeLessThanOrEqual(720);
   });
 });

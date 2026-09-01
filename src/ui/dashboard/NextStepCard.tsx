@@ -302,7 +302,13 @@ function PhaseRail({ progress }: { progress: PhaseProgress }) {
             <Badge tone={style.tone} icon={style.icon}>
               {phase.label}
               <span className="sr-only"> — {t(`phase.state.${phase.state}`)}</span>
-              <span className="mono muted" aria-hidden="true">
+              {/*
+                * `mono` but not `muted`: a badge sets its own foreground for
+                * its own background, and dimming text inside one drops it to
+                * 4.33:1 on the accent surface — under the 4.5:1 the
+                * accessibility gate holds this console to.
+                */}
+              <span className="mono" aria-hidden="true">
                 {' '}
                 {t('phase.count', { done: phase.done, total: phase.total })}
               </span>
