@@ -85,6 +85,22 @@ export const presentGuidanceSchema = z.object({
   // — a line cannot claim to be about an artifact that does not exist.
   relatedArtifactId: z.optional(z.enum(ARTIFACT_IDS as unknown as [string, ...string[]])),
   relatedDecisionId: z.optional(z.enum(DECISION_IDS as unknown as [string, ...string[]])),
+  /*
+   * The proposal. Structure and id membership only — that the option actually
+   * belongs to the decision it names is a *case* rule, so the engine checks it
+   * and can say so in a sentence the model can act on. Enums rather than free
+   * strings for the same reason `relatedArtifactId` is one: the console renders
+   * the fixture's own label for whatever is named here, and a gate looser than
+   * the advertised contract is the gap an injected line aims at.
+   */
+  proposes: z.optional(
+    z.object({
+      kind: z.enum(['submit_decision', 'take_response_action']),
+      decisionId: z.optional(z.enum(DECISION_IDS as unknown as [string, ...string[]])),
+      optionId: z.optional(z.enum(optionIds)),
+      actionId: z.optional(z.enum(RESPONSE_ACTION_IDS as unknown as [string, ...string[]])),
+    }),
+  ),
 });
 
 export const COMMAND_SCHEMAS = {
@@ -268,6 +284,22 @@ export const TOOL_JSON_SCHEMAS = {
         type: 'string',
         enum: [...DECISION_IDS],
         description: 'Optional: the decision the line is about.',
+      },
+      proposes: {
+        type: 'object',
+        description:
+          'Optional: ask the player to authorise one consequential move. This changes nothing — ' +
+          'the console shows your line with the move named from the case fixture and an Approve ' +
+          'control, and approving it runs the command as the player. Use it instead of calling ' +
+          'submit_decision or take_response_action yourself.',
+        properties: {
+          kind: { type: 'string', enum: ['submit_decision', 'take_response_action'] },
+          decisionId: { type: 'string', enum: [...DECISION_IDS] },
+          optionId: { type: 'string', enum: [...optionIds] },
+          actionId: { type: 'string', enum: [...RESPONSE_ACTION_IDS] },
+        },
+        required: ['kind'],
+        additionalProperties: false,
       },
     },
     required: ['basedOnStateVersion', 'idempotencyKey', 'tone', 'language', 'message'],

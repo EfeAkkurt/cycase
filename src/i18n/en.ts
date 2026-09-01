@@ -1074,6 +1074,15 @@ export const en = {
   'receipt.recovery.next': 'Continue: {label}',
   'receipt.recovery.decide': 'Continue: answer the open decision',
 
+  /* ---------------- what the agent is asking for ---------------- */
+  'proposal.title': 'The agent suggests',
+  'proposal.badge': 'Awaiting your approval',
+  'proposal.move': 'It is proposing: {label}.',
+  'proposal.approve': 'Approve and run it',
+  'proposal.decline': 'Decline',
+  'proposal.hint':
+    'The suggestion changed nothing. Approving runs it as you, and it is recorded as your decision.',
+
   /* ---------------- the corrective path ---------------- */
   'corrective.title': 'Corrective step',
   'corrective.intro':

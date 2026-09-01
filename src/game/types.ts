@@ -651,6 +651,20 @@ export interface PresentGuidanceInput {
   message: string;
   relatedArtifactId?: string;
   relatedDecisionId?: string;
+  /**
+   * A move the agent is asking the player to authorise.
+   *
+   * Flat on the wire and narrowed by the engine into a `GuidanceProposal`: the
+   * published schema advertises the ids, and the engine checks that the option
+   * belongs to the decision before anything is stored. A proposal changes
+   * nothing — approving it issues an ordinary command with origin `human`.
+   */
+  proposes?: {
+    kind: 'submit_decision' | 'take_response_action';
+    decisionId?: string;
+    optionId?: string;
+    actionId?: string;
+  };
 }
 
 /**

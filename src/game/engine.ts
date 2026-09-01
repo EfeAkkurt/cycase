@@ -61,6 +61,7 @@ import {
   type FlagId,
   type GameCommand,
   type GameContext,
+  type GuidanceProposal,
   type GuidanceView,
   type HintTopic,
   type HintView,
@@ -837,6 +838,67 @@ function handleRequestHint(ctx: GameContext, topic: HintTopic): HandlerOutcome {
  * requires a byte-identical replay signature and score, which is what turns all
  * four from intentions into a test that fails when one is removed.
  */
+/**
+ * Narrows a proposal from the wire shape into the stored one.
+ *
+ * The schema has already checked that every id it names exists. What it cannot
+ * check is a *case* rule — that the option belongs to the decision — so that is
+ * checked here, where the refusal can say which decision the option actually
+ * belongs to instead of "input did not match the tool schema".
+ *
+ * A proposal is still not an action. Nothing here applies anything; the console
+ * shows the proposed move under the fixture's own label with an Approve
+ * control, and approving it issues an ordinary command as the player.
+ */
+function narrowProposal(
+  input: PresentGuidanceInput,
+): { ok: true; proposal?: GuidanceProposal } | { ok: false; error: ToolError } {
+  const proposes = input.proposes;
+  if (!proposes) return { ok: true };
+
+  if (proposes.kind === 'take_response_action') {
+    if (!proposes.actionId) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'A take_response_action proposal needs actionId.',
+          recovery: 'Re-send with proposes.actionId set to the action you want authorised.',
+        },
+      };
+    }
+    return {
+      ok: true,
+      proposal: {
+        kind: 'take_response_action',
+        actionId: proposes.actionId as ResponseActionId,
+      },
+    };
+  }
+
+  const decision = proposes.decisionId ? DECISION_BY_ID.get(proposes.decisionId as DecisionId) : undefined;
+  const option = decision?.options.find((candidate) => candidate.id === proposes.optionId);
+  if (!decision || !option) {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_INPUT',
+        message: 'A submit_decision proposal needs a decisionId and one of that decision\u2019s own optionIds.',
+        recovery: 'Read get_incident.openDecision and propose one of the options it lists.',
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    proposal: {
+      kind: 'submit_decision',
+      decisionId: decision.id,
+      optionId: option.id,
+    },
+  };
+}
+
 function handlePresentGuidance(
   ctx: GameContext,
   input: PresentGuidanceInput,
@@ -847,6 +909,9 @@ function handlePresentGuidance(
     return { error: sanitised.error };
   }
 
+  const proposal = narrowProposal(input);
+  if (!proposal.ok) return { error: proposal.error };
+
   const entry: NarrativeEntry = {
     narrativeSequence: narrativeSequenceOf(ctx) + 1,
     tone: input.tone,
@@ -854,6 +919,7 @@ function handlePresentGuidance(
     message: sanitised.message,
     ...(input.relatedArtifactId ? { relatedArtifactId: input.relatedArtifactId } : {}),
     ...(input.relatedDecisionId ? { relatedDecisionId: input.relatedDecisionId } : {}),
+    ...(proposal.proposal ? { proposes: proposal.proposal } : {}),
     basedOnStateVersion: input.basedOnStateVersion,
     at: incidentClock(ctx),
   };

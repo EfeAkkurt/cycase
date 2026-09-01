@@ -5,13 +5,15 @@ import {
   correctivePath,
   lastCompletedStep,
   nextRequiredStep,
+  pendingProposal,
   phaseProgress,
+  type AgentProposal,
   type CorrectiveStep,
   type GuidedStage,
   type PhaseProgress,
 } from '../../game/selectors';
 import { t } from '../../i18n';
-import { Badge, Button, ConfirmDialog, Icon } from '../primitives';
+import { Badge, Button, ConfirmDialog, Icon, UntrustedShell } from '../primitives';
 import { openEvidenceRecord } from './flow';
 import { Receipt, issueCommand } from './Receipt';
 import { claimReceipt } from './receiptClaim';
@@ -115,6 +117,10 @@ export function NextStepCard() {
         </div>
 
         <PhaseRail progress={progress} />
+
+        {/* What the agent is asking for, if anything. Above the step, because
+            it is a question addressed to the player about that step. */}
+        <AgentProposalCard />
 
         {step ? (
           <>
@@ -305,6 +311,97 @@ function PhaseRail({ progress }: { progress: PhaseProgress }) {
         );
       })}
     </ol>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * The agent's proposal
+ * ------------------------------------------------------------------ */
+
+/**
+ * "The agent suggests X. Approve or decline."
+ *
+ * The whole point of the card is that the agent does not get to act here. Its
+ * line is rendered as untrusted content — it is model-authored text and shares
+ * the treatment attacker-authored evidence gets — and the *move* beside it is
+ * drawn from the case fixture, by id, so nothing the model writes can dress a
+ * different operation up as this one. Approving issues an ordinary command with
+ * origin `human`, which is what puts the player's name on it in the log.
+ */
+function AgentProposalCard() {
+  const ctx = useGame();
+  const runtime = useRuntime();
+  const run = useCommand();
+  const [declined, setDeclined] = useState<number[]>([]);
+  const [confirming, setConfirming] = useState<AgentProposal | null>(null);
+
+  const proposal = pendingProposal(ctx);
+  if (!proposal || declined.includes(proposal.narrativeSequence)) return null;
+
+  const approve = (accepted: AgentProposal) => {
+    setConfirming(null);
+    const move = accepted.proposal;
+    // Origin `human`, because it is: the agent asked, the player agreed, and
+    // the command log should say who authorised it.
+    if (move.kind === 'take_response_action') {
+      run((r) => r.takeResponseAction(move.actionId));
+    } else {
+      run((r) => r.submitDecision(move.decisionId, move.optionId));
+    }
+    claimReceipt(runtime.context.seq);
+  };
+
+  return (
+    <div className="stack stack--tight" id="agent-proposal">
+      <div className="row">
+        <span className="eyebrow">{t('proposal.title')}</span>
+        <Badge tone="accent" icon="agent">
+          {t('proposal.badge')}
+        </Badge>
+      </div>
+
+      <UntrustedShell>
+        <p className="prose text-sm" id="agent-proposal-message">
+          {proposal.message}
+        </p>
+      </UntrustedShell>
+
+      {/* Fixture text, not model text. */}
+      <p className="prose text-sm" id="agent-proposal-move">
+        {t('proposal.move', { label: proposal.label })} {proposal.detail}
+      </p>
+
+      <div className="row">
+        <Button
+          size="sm"
+          variant={proposal.destructive ? 'danger' : 'primary'}
+          id="agent-proposal-approve"
+          onClick={() => (proposal.requiresConfirmation ? setConfirming(proposal) : approve(proposal))}
+        >
+          {t('proposal.approve')}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          id="agent-proposal-decline"
+          onClick={() => setDeclined((seen) => [...seen, proposal.narrativeSequence])}
+        >
+          {t('proposal.decline')}
+        </Button>
+      </div>
+      <p className="muted text-xs">{t('proposal.hint')}</p>
+
+      {confirming ? (
+        <ConfirmDialog
+          titleKey="action.confirm_title"
+          titleValues={{ label: confirming.label }}
+          impact={confirming.detail}
+          confirmLabel={t('action.confirm')}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => approve(confirming)}
+        />
+      ) : null}
+    </div>
   );
 }
 

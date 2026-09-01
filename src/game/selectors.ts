@@ -28,6 +28,7 @@ import type {
   CommandKind,
   DashboardRoute,
   DecisionId,
+  GuidanceProposal,
   Diagnostic,
   DiagnosticId,
   Finding,
@@ -992,6 +993,92 @@ function unblockingStep(ctx: GameContext, phase: IncidentPhase): NextRequiredSte
     applicable: commands,
     pending: commands,
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * What the agent is asking for
+ * ------------------------------------------------------------------ *
+ *
+ * The coaching contract is explain → ask → apply → report, and the "ask" half
+ * needs somewhere to land. `present_guidance` may carry a proposal: a decision
+ * option or a containment action the agent wants the player to authorise. It is
+ * still the only tool that changes nothing — the proposal is ids, the console
+ * renders the *fixture's* label for those ids rather than anything the model
+ * wrote, and approving it issues an ordinary command as the player.
+ *
+ * That is what keeps a narrator from solving the case quietly: the agent can
+ * still call the consequential tools directly, and when it does the receipt and
+ * the activity feed say an agent did it — but the path the tool descriptions
+ * point at ends at a control the player presses.
+ */
+
+export interface AgentProposal {
+  /** Narration sequence, so a declined proposal can be remembered by id. */
+  narrativeSequence: number;
+  /** The agent's own sanitised line. Rendered as untrusted content. */
+  message: string;
+  proposal: GuidanceProposal;
+  /** The case fixture's name for the proposed move. Never the model's words. */
+  label: string;
+  /** The fixture's impact or prompt for it. Also never the model's words. */
+  detail: string;
+  destructive: boolean;
+  requiresConfirmation: boolean;
+}
+
+/**
+ * The most recent proposal that is still both current and legal.
+ *
+ * "Current" is `basedOnStateVersion === stateVersion`: a proposal written about
+ * a state the player has already left is exactly as misleading as guidance
+ * about one, and the engine refuses that outright. "Legal" is the ordinary
+ * availability rule, so a proposal for a decision that is not open, or an
+ * action that has already been applied, simply is not offered.
+ */
+export function pendingProposal(ctx: GameContext): AgentProposal | null {
+  const log = ctx.narrativeLog ?? [];
+
+  for (let index = log.length - 1; index >= 0; index -= 1) {
+    const entry = log[index]!;
+    const proposal = entry.proposes;
+    if (!proposal) continue;
+    if (entry.basedOnStateVersion !== ctx.stateVersion) return null;
+
+    if (proposal.kind === 'take_response_action') {
+      const action = RESPONSE_ACTION_BY_ID.get(proposal.actionId);
+      if (!action) return null;
+      if (!actionAvailability(ctx, proposal.actionId).allowed) return null;
+      return {
+        narrativeSequence: entry.narrativeSequence,
+        message: entry.message,
+        proposal,
+        label: tk(action.labelKey),
+        detail: tk(action.impactKey),
+        destructive: action.destructive,
+        requiresConfirmation: action.requiresConfirmation,
+      };
+    }
+
+    const decision = DECISION_BY_ID.get(proposal.decisionId);
+    const option = decision?.options.find((candidate) => candidate.id === proposal.optionId);
+    if (!decision || !option) return null;
+    if (openDecisionId(ctx) !== decision.id) return null;
+
+    return {
+      narrativeSequence: entry.narrativeSequence,
+      message: entry.message,
+      proposal,
+      label: tk(option.labelKey),
+      detail: tk(decision.promptKey),
+      // A decision is consequential by definition — it is the branch the case
+      // is teaching — but it is not destructive, and the fixture marks no
+      // decision as needing a dialog.
+      destructive: false,
+      requiresConfirmation: false,
+    };
+  }
+
+  return null;
 }
 
 /* ------------------------------------------------------------------ *

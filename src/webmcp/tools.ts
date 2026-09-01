@@ -126,7 +126,19 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       'already left is refused instead of confusing them, and a unique idempotencyKey so a ' +
       'retry does not say the same line twice. Use get_incident.coaching to pitch it: it gives ' +
       'the level, the explanation style the player has asked for, what they have and have not ' +
-      'looked at, what they got right and wrong, and the last few lines already spoken.',
+      'looked at, what they got right and wrong, and the last few lines already spoken. ' +
+      'COACH, DO NOT SOLVE. You are teaching a person to run an incident, so work in this ' +
+      'order. (1) Read: get_incident, inspect_artifact and run_diagnostic are free, reversible ' +
+      'and need nobody\u2019s permission — use them as much as you like. (2) Explain: say what ' +
+      'the evidence shows and what the trade-off is, with this tool, before anything is ' +
+      'applied. (3) Ask: when the next move is consequential — get_incident.coaching.consent ' +
+      'says when, and it means a decision or a destructive containment action — do not call ' +
+      'submit_decision or take_response_action yourself. Send this tool with `proposes` naming ' +
+      'the move, and stop. The console shows your line beside the case\u2019s own label for ' +
+      'that move with an Approve control, and the player decides. (4) Report: once they have ' +
+      'acted, read the result and tell them what actually happened — especially when it is not ' +
+      'what either of you expected. Solving the case silently while the player watches is the ' +
+      'one thing this product exists to prevent.',
     inputSchema: TOOL_JSON_SCHEMAS.present_guidance as unknown as Record<string, unknown>,
     /*
      * Deliberately empty.
