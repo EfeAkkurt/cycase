@@ -12,6 +12,7 @@ import {
   GUIDANCE_MESSAGE_MAX,
   type AllowedNextAction,
   type ArtifactId,
+  type CoachingConsent,
   type CoachingMove,
   type CoachingSnapshot,
   type DiagnosticId,
@@ -19,6 +20,7 @@ import {
   type GameContext,
   type NarrativeEntry,
   type PlayerLevel,
+  type ResponseActionId,
   type ToolError,
 } from './types';
 
@@ -309,6 +311,50 @@ function recentNarration(ctx: GameContext): string[] {
     });
 }
 
+/**
+ * Whether the next move is the player's to authorise.
+ *
+ * The coaching contract is explain → ask → apply → report. An agent cannot
+ * follow it while guessing which moves are consequential from their names, and
+ * guessing wrong in the permissive direction is how a case gets solved silently
+ * while the player watches. So the page says it outright: decisions are always
+ * the player's, destructive containment is always the player's, and reading
+ * evidence or running a diagnostic never is.
+ */
+function consentOf(ctx: GameContext): CoachingConsent | undefined {
+  const next = requiredNextAction(ctx);
+  if (!next) return undefined;
+
+  /*
+   * Terse on purpose, and absent entirely when nothing is pending. Tool results
+   * are budgeted at ~1,500 characters and this rides on every `get_incident`;
+   * the protocol it refers to is spelled out once, at length, in the
+   * `present_guidance` description, which costs nothing per call.
+   */
+  if (next.kind === 'submit_decision') {
+    return {
+      required: true,
+      kind: 'submit_decision',
+      id: next.id,
+      reason: 'explain, propose, let the player choose',
+    };
+  }
+
+  if (next.kind === 'take_response_action') {
+    const action = RESPONSE_ACTION_BY_ID.get(next.id as ResponseActionId);
+    if (action?.destructive) {
+      return {
+        required: true,
+        kind: 'take_response_action',
+        id: next.id,
+        reason: 'consequential — propose it, then wait',
+      };
+    }
+  }
+
+  return undefined;
+}
+
 export function buildCoachingSnapshot(ctx: GameContext): CoachingSnapshot {
   return {
     level: playerLevel(ctx),
@@ -320,5 +366,12 @@ export function buildCoachingSnapshot(ctx: GameContext): CoachingSnapshot {
     diagnosticsRun: [...ctx.ranDiagnostics] as DiagnosticId[],
     moves: moves(ctx),
     recentNarration: recentNarration(ctx),
+    ...consentField(ctx),
   };
+}
+
+/** Spread rather than assigned, so an absent consent leaves no key behind. */
+function consentField(ctx: GameContext): { consent?: CoachingConsent } {
+  const consent = consentOf(ctx);
+  return consent ? { consent } : {};
 }

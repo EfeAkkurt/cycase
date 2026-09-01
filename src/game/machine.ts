@@ -6,11 +6,13 @@ import type {
   AgentStatus,
   ArtifactId,
   DashboardRoute,
+  EvidenceView,
   GameCommand,
   GameContext,
   InvestigateTab,
   InvestigationFocus,
   TimeRangeId,
+  TimelineOriginFilter,
 } from './types';
 
 /**
@@ -49,6 +51,18 @@ export type GameEvent =
   | { type: 'SET_ROUTE'; route: DashboardRoute; tab?: InvestigateTab }
   | { type: 'SET_INVESTIGATE_TAB'; tab: InvestigateTab }
   | { type: 'SELECT_ARTIFACT'; artifactId: ArtifactId | null }
+  /**
+   * The inspector's raw/explained selection, and the chronology's attribution
+   * filter.
+   *
+   * Events rather than component state, and assign-only rather than commands:
+   * they must survive leaving a destination and coming back (§8 of the flow
+   * work), and they must not touch `stateVersion`, the command log or replay —
+   * which of two readings of the same record you are looking at is not a fact
+   * about the incident.
+   */
+  | { type: 'SET_EVIDENCE_VIEW'; view: EvidenceView }
+  | { type: 'SET_TIMELINE_ORIGIN'; origin: TimelineOriginFilter }
   /** The console-wide time range. One control, several places, one value. */
   | { type: 'SET_TIME_RANGE'; range: TimeRangeId }
   /**
@@ -94,6 +108,12 @@ export const gameMachine = setup({
     ),
     selectArtifact: assign(({ event }) =>
       event.type === 'SELECT_ARTIFACT' ? { selectedArtifact: event.artifactId } : {},
+    ),
+    setEvidenceView: assign(({ event }) =>
+      event.type === 'SET_EVIDENCE_VIEW' ? { evidenceView: event.view } : {},
+    ),
+    setTimelineOrigin: assign(({ event }) =>
+      event.type === 'SET_TIMELINE_ORIGIN' ? { timelineOrigin: event.origin } : {},
     ),
     setTimeRange: assign(({ event }) =>
       event.type === 'SET_TIME_RANGE' ? { timeRange: event.range } : {},
@@ -141,6 +161,8 @@ export const gameMachine = setup({
     SET_ROUTE: { actions: 'setRoute' },
     SET_INVESTIGATE_TAB: { actions: 'setInvestigateTab' },
     SELECT_ARTIFACT: { actions: 'selectArtifact' },
+    SET_EVIDENCE_VIEW: { actions: 'setEvidenceView' },
+    SET_TIMELINE_ORIGIN: { actions: 'setTimelineOrigin' },
     SET_TIME_RANGE: { actions: 'setTimeRange' },
     SET_FOCUS: { actions: 'setFocus' },
     RESTART: { target: '.boot', actions: 'reset' },

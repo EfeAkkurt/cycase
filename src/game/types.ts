@@ -660,6 +660,18 @@ export interface PresentGuidanceInput {
  * survives the office/dashboard round trip and is reconstructible by `replay()`
  * from the command log alone.
  */
+/**
+ * What an agent may ask for before it acts.
+ *
+ * Deliberately the three consequential kinds only. Reading evidence and running
+ * a diagnostic are reversible, cheap and never need the player's permission, so
+ * a proposal for one of those would be ceremony that teaches the player to click
+ * through the dialog that matters.
+ */
+export type GuidanceProposal =
+  | { kind: 'submit_decision'; decisionId: DecisionId; optionId: DecisionOptionId }
+  | { kind: 'take_response_action'; actionId: ResponseActionId };
+
 export interface NarrativeEntry {
   /** Monotonic and wholly independent of `stateVersion`. */
   narrativeSequence: number;
@@ -669,6 +681,16 @@ export interface NarrativeEntry {
   message: string;
   relatedArtifactId?: string;
   relatedDecisionId?: string;
+  /**
+   * A move the agent is *asking the player to authorise*, never one it has
+   * taken. Ids only, validated against the fixture, and the console renders the
+   * fixture's own label for that id rather than anything the model wrote — a
+   * proposal is a pointer into the case, not a second channel for prose.
+   *
+   * It changes nothing on its own. Approving it issues an ordinary command with
+   * origin `human`, so the player's consent is what appears in the command log.
+   */
+  proposes?: GuidanceProposal;
   /** The domain state version this line was written about. */
   basedOnStateVersion: number;
   /** Simulation clock at the moment it was spoken, `HH:MM:SS`. */
@@ -686,6 +708,16 @@ export interface GuidanceView extends NarrativeEntry {
   affectsScore: false;
   affectsState: false;
 }
+
+/** The evidence inspector's two readings of the same record. */
+export type EvidenceView = 'raw' | 'explained';
+
+/**
+ * The chronology's attribution filter. Structurally the same four values as
+ * `ChronologyOrigin` in `game/live.ts`; named here because the *selection* is
+ * context and the *filter* is a pure function over a list.
+ */
+export type TimelineOriginFilter = 'all' | CallOrigin | 'system';
 
 export type GameCommand =
   | { kind: 'get_incident'; input: GetIncidentInput; origin: CallOrigin }
@@ -757,6 +789,35 @@ export interface CoachingSnapshot {
   moves: CoachingMove[];
   /** At most the last three narrated lines, each truncated. */
   recentNarration: string[];
+  /**
+   * Present only while the required next step is one the player must authorise.
+   *
+   * The coaching contract is "explain, then ask, then apply". An agent cannot
+   * follow it without knowing which of those three the moment calls for, and
+   * inferring consequence from a tool name is exactly the guess that produces a
+   * silently-solved case.
+   *
+   * Optional rather than always-present because absence is unambiguous — there
+   * is nothing to authorise — and tool results are budgeted at ~1,500
+   * characters, which is a budget this field should only spend when it has
+   * something to say.
+   */
+  consent?: CoachingConsent;
+}
+
+export interface CoachingConsent {
+  /** Always true where the field exists at all. Stated so it reads as a fact. */
+  required: true;
+  /** Which of the two consequential kinds is pending. */
+  kind: 'submit_decision' | 'take_response_action';
+  /** The decision or action id to name in the proposal. */
+  id: string;
+  /**
+   * One clause naming what the player is being asked to authorise. The protocol
+   * itself is in the `present_guidance` description, which costs nothing per
+   * call; this is the first thing dropped when a result is over budget.
+   */
+  reason?: string;
 }
 
 export type PlayerLevel = 'novice' | 'developing' | 'confident';
@@ -1005,6 +1066,18 @@ export interface GameContext {
   investigateTab: InvestigateTab;
   /** Artifact currently open in the evidence inspector. */
   selectedArtifact: ArtifactId | null;
+  /**
+   * Whether the inspector is showing the record or the explanation.
+   *
+   * Context rather than component state because the console must survive a
+   * round trip: reading an artifact explained, pivoting to Respond to act on it
+   * and coming back must not silently reset the reader to raw. Assigned by a
+   * plain machine event, never by a command — it is a view selection, so it
+   * neither bumps `stateVersion` nor enters the command log.
+   */
+  evidenceView: EvidenceView;
+  /** Which attribution the chronology is filtered to, for the same reason. */
+  timelineOrigin: TimelineOriginFilter;
   /**
    * The console-wide time range. Every event-shaped view reads it; inventories
    * report it and correctly decline to filter on it (see `game/investigate.ts`).

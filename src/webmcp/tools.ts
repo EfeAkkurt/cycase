@@ -231,6 +231,18 @@ export function compactResult(result: ToolResult): ToolResult {
     if (fits()) return { ...result, data: trimmed };
   }
 
+  /*
+   * `consent.reason` before any string in the payload is clipped.
+   *
+   * It is the one field here that is a restatement rather than a fact: the
+   * coach-first protocol it summarises is spelled out in full in the
+   * `present_guidance` description, which costs nothing per call. What the
+   * agent cannot reconstruct — whether the next step needs the player, which
+   * kind it is and which id — is three short fields and they stay.
+   */
+  trimmed = dropConsentReason(trimmed);
+  if (fits()) return { ...result, data: trimmed };
+
 
   for (const width of [160, 120, 90, 64, 44]) {
     trimmed = clipDeep(trimmed, width, width > 44) as Record<string, unknown>;
@@ -262,6 +274,18 @@ export function compactResult(result: ToolResult): ToolResult {
     trimmed = shrinkCoaching(trimmed, key, keep);
     if (fits()) return { ...result, data: trimmed };
   }
+
+  /*
+   * The consent hint itself, last of all.
+   *
+   * It is a convenience: `requiredNextAction` at the top level already names
+   * the command that comes next, and the `present_guidance` description already
+   * states which kinds need the player. This field spares the agent joining
+   * those two, and is worth exactly that much — so it is the final thing to go,
+   * after every list in the payload has already given up what it can.
+   */
+  trimmed = dropConsent(trimmed);
+  if (fits()) return { ...result, data: trimmed };
 
   return { ...result, data: trimmed };
 }
@@ -300,6 +324,32 @@ const COACHING_DEEP_CUTS: [string, number][] = [
   ['recentNarration', 0],
   ['moves', 0],
 ];
+
+/** Drops the prose half of the consent hint, keeping the actionable half. */
+function dropConsentReason(data: Record<string, unknown>): Record<string, unknown> {
+  const coaching = data.coaching;
+  if (!coaching || typeof coaching !== 'object') return data;
+
+  const record = coaching as Record<string, unknown>;
+  const consent = record.consent;
+  if (!consent || typeof consent !== 'object') return data;
+  if (!('reason' in (consent as Record<string, unknown>))) return data;
+
+  const { reason: _reason, ...rest } = consent as Record<string, unknown>;
+  return { ...data, coaching: { ...record, consent: rest } };
+}
+
+/** Drops the consent hint outright. Absence already means "nothing pending". */
+function dropConsent(data: Record<string, unknown>): Record<string, unknown> {
+  const coaching = data.coaching;
+  if (!coaching || typeof coaching !== 'object') return data;
+
+  const record = coaching as Record<string, unknown>;
+  if (!('consent' in record)) return data;
+
+  const { consent: _consent, ...rest } = record;
+  return { ...data, coaching: rest };
+}
 
 /** Trims one list inside `coaching`, leaving an explicit truncation count. */
 function shrinkCoaching(

@@ -935,6 +935,42 @@ function appendLog(ctx: GameContext, entry: ToolLogEntry): ToolLogEntry[] {
   return next.length > MAX_TOOL_LOG_ENTRIES ? next.slice(next.length - MAX_TOOL_LOG_ENTRIES) : next;
 }
 
+/**
+ * The control a refused call was aimed at.
+ *
+ * A rejection has a visible region exactly as an accepted call does — the
+ * button that would not run — and the console needs it to put the refusal, what
+ * did not change and the one recovery beside the control the player pressed
+ * rather than in a corner of the page. Read defensively from the raw input,
+ * because a rejection can be a schema failure whose input is any shape at all.
+ */
+function rejectedEffectId(command: GameCommand): string | undefined {
+  const input = (command.input ?? {}) as Record<string, unknown>;
+  const id = (key: string): string | undefined =>
+    typeof input[key] === 'string' ? (input[key] as string) : undefined;
+
+  switch (command.kind) {
+    case 'inspect_artifact': {
+      const artifactId = id('artifactId');
+      return artifactId && `evidence-${artifactId}`;
+    }
+    case 'run_diagnostic': {
+      const diagnosticId = id('diagnosticId');
+      return diagnosticId && `diagnostic-${diagnosticId}`;
+    }
+    case 'take_response_action': {
+      const actionId = id('actionId');
+      return actionId && `action-${actionId}`;
+    }
+    case 'submit_decision': {
+      const decisionId = id('decisionId');
+      return decisionId && `decision-${decisionId}`;
+    }
+    default:
+      return undefined;
+  }
+}
+
 function reject(
   ctx: GameContext,
   command: GameCommand,
@@ -969,6 +1005,7 @@ function reject(
         errorCode: error.code,
         fromVersion: ctx.stateVersion,
         toVersion: ctx.stateVersion,
+        effectId: rejectedEffectId(command),
         summary: `${command.kind} rejected: ${error.code}`,
       }),
     },

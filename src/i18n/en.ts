@@ -505,7 +505,9 @@ export const en = {
   'decision.resolved': 'Decided',
   'decision.your_choice': 'Your choice',
   'decision.learning_goal': 'Learning goal',
-  'decision.progress': 'Decision {index} of {total}',
+  // Subordinate to the incident phase model, and worded so it reads as a tally
+  // rather than as a rival answer to "how far through the case am I?".
+  'decision.progress': '{index}/{total} answered',
   'decision.awaiting': 'No decision is open right now.',
 
   'decision.D1.prompt':
@@ -965,7 +967,6 @@ export const en = {
   'office.headlook.mouse_look': 'Mouse look',
   /* ---------------- guided path (audit contract P0.6) ---------------- */
   'guide.title': 'Next required step',
-  'guide.progress': 'Step {index} of {total}',
   'guide.why': 'Why this step',
   'guide.includes': 'This operation runs',
   'guide.decision_hint': 'Pick one. Both answers continue the case; only one contains it properly.',
@@ -1025,6 +1026,62 @@ export const en = {
   'guide.unblock.title': 'Collect what {decision} is waiting for',
   'guide.unblock.why': 'The next decision stays locked until this evidence is on the table.',
   'guide.unblock.cta': 'Collect the missing evidence',
+
+  /* ---------------- incident phases: the one progress model ---------------- */
+  'evidence.reading': 'On screen',
+
+  /* ---------------- incident phases: the one progress model (cont.) -------- */
+  'phase.triage': 'Triage',
+  'phase.investigate': 'Investigate',
+  'phase.contain': 'Contain',
+  'phase.scope': 'Scope',
+  'phase.close': 'Close',
+  'phase.rail': 'Incident phase',
+  'phase.progress': '{phase} — step {index} of {total}',
+  'phase.position': 'Phase {index} of {total}',
+  'phase.complete': 'Every phase is complete.',
+  'phase.state.done': 'done',
+  'phase.state.active': 'in progress',
+  'phase.state.upcoming': 'not started',
+  'phase.count': '{done}/{total}',
+
+  /* ---------------- one stage at a time ---------------- */
+  'guide.stage.open': 'Open {label}',
+  'guide.stage.run': 'Run {label}',
+  'guide.stage.then': 'Then, separately',
+  'guide.stage.one_at_a_time':
+    'One step at a time. Each of these is a separate action you authorise on its own.',
+  'guide.stage.navigating': 'Opening the record — it is not recorded as read until you can see it.',
+
+  /* ---------------- receipts ---------------- */
+  'receipt.title': 'What just happened',
+  'receipt.result': 'Result',
+  'receipt.changed': 'What changed',
+  'receipt.unchanged': 'What did not change',
+  'receipt.why': 'Why it matters',
+  'receipt.state.done': 'Applied',
+  'receipt.state.partial': 'Partly applied',
+  'receipt.state.failed': 'Refused',
+  'receipt.dismiss': 'Dismiss this receipt',
+  'receipt.failed.title': 'That did not run',
+  'receipt.failed.why':
+    'A refused call changes nothing at all — no score, no findings, no case state.',
+  'receipt.unchanged.state': 'Case state is still v{version}',
+  'receipt.still_open': 'Still open: {finding}',
+  'receipt.evidence_recorded': 'Recorded as read: {artifact}',
+  'receipt.evidence_destroyed': 'Destroyed permanently: {artifact}',
+  'receipt.recovery.corrective': 'Fix it now: {label}',
+  'receipt.recovery.next': 'Continue: {label}',
+  'receipt.recovery.decide': 'Continue: answer the open decision',
+
+  /* ---------------- the corrective path ---------------- */
+  'corrective.title': 'Corrective step',
+  'corrective.intro':
+    'This was not the route you chose, and choosing it does not undo what that cost. It is what still closes the incident.',
+  'corrective.why': 'Your decision did not authorise this, and {finding} is still open.',
+  'corrective.count': '{count} still fixable',
+  'corrective.none': 'Nothing needs correcting.',
+  'corrective.cta': 'Apply {label}',
 
   'guide.optional': 'Optional evidence',
   'guide.explore': 'Explore more',

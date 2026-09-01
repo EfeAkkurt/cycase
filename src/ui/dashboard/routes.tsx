@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   useCommand,
@@ -26,6 +26,7 @@ import {
 import { diagnosticRows, previewEffects, verifyAction } from '../../game/sources';
 import {
   actionAvailability,
+  artifactAvailability,
   artifactsWithState,
   elapsedSeconds,
   formatElapsed,
@@ -39,7 +40,7 @@ import {
   visibleIdentities,
 } from '../../game/selectors';
 import { t, tk } from '../../i18n';
-import type { ArtifactId, ResponseActionId } from '../../game/types';
+import type { ArtifactId, EvidenceView, ResponseActionId, TimelineOriginFilter } from '../../game/types';
 import {
   Badge,
   Button,
@@ -57,6 +58,8 @@ import { TopologyPanel } from '../panels/TopologyPanel';
 import { CaseLogPanel } from './CaseLogPanel';
 import { ContainmentChecklist } from './ContainmentChecklist';
 import { DecisionCard } from './DecisionCard';
+import { openEvidenceRecord } from './flow';
+import { Receipt } from './Receipt';
 
 /* ------------------------------------------------------------------ *
  * Command — the queue, the active incident and what it is costing
@@ -255,25 +258,67 @@ export function InvestigateRoute() {
  * Evidence
  * ------------------------------------------------------------------ */
 
+/**
+ * Evidence: a list, and the record that is actually on screen.
+ *
+ * The important change here is what it means to *open* something. Opening a
+ * record used to be an `inspect_artifact` command, so a control anywhere in the
+ * console could mark evidence read without the reader ever reaching this route
+ * — the guided card did exactly that, and a player could unlock decision D2
+ * from the Command destination without having laid eyes on the phishing
+ * message. The decision the case is teaching was being answered blind.
+ *
+ * So opening is navigation, and the *inspector* is what records the read: when
+ * this panel has the record mounted and available, it issues the command, once.
+ * Anything else in the console that offers to open a record therefore cannot
+ * advance the case on its own — it can only bring the player here.
+ */
 export function EvidenceRoute() {
   const ctx = useGame();
   const runtime = useRuntime();
   const run = useCommand();
-  const [view, setView] = useState<'raw' | 'explained'>('raw');
 
   const items = artifactsWithState(ctx);
   const counts = inspectedCount(ctx);
   const selectedId = ctx.selectedArtifact;
   const selected = selectedId ? ARTIFACT_BY_ID.get(selectedId) : null;
   const selectedInspected = selectedId ? ctx.inspectedArtifacts.includes(selectedId) : false;
+  const selectedAvailability = selectedId ? artifactAvailability(ctx, selectedId) : null;
+  const view = ctx.evidenceView;
+  const setView = (next: EvidenceView) =>
+    runtime.send({ type: 'SET_EVIDENCE_VIEW', view: next });
 
-  const openArtifact = (id: ArtifactId, inspected: boolean) => {
-    if (inspected) {
-      runtime.send({ type: 'SELECT_ARTIFACT', artifactId: id });
-    } else {
-      run((r) => r.inspectArtifact(id));
-    }
-  };
+  /*
+   * Recording the read.
+   *
+   * An effect rather than a click handler, because the claim being made is
+   * "this record was on screen", and only the component that renders it can
+   * make that claim honestly. `attempted` keeps a refusal — a locked or
+   * destroyed record reached by a stale link — from retrying on every render.
+   */
+  const attempted = useRef(new Set<ArtifactId>());
+  useEffect(() => {
+    if (!selectedId || selectedInspected) return;
+    if (selectedAvailability !== 'available') return;
+    if (attempted.current.has(selectedId)) return;
+    attempted.current.add(selectedId);
+    run((r) => r.inspectArtifact(selectedId));
+  }, [selectedId, selectedInspected, selectedAvailability, run]);
+
+  /*
+   * Focus follows the record, not the route.
+   *
+   * A CTA elsewhere in the console sends the player here to read one specific
+   * thing; landing their keyboard on the list they did not ask for would make
+   * them hunt for it. Moving focus only when the *selection* changes is what
+   * keeps that from fighting the scroll position a returning reader left behind.
+   */
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!selectedId) return;
+    headingRef.current?.scrollIntoView({ block: 'nearest' });
+    headingRef.current?.focus();
+  }, [selectedId]);
 
   return (
     <div className="evidence">
@@ -303,7 +348,7 @@ export function EvidenceRoute() {
                   className="evidence__item"
                   aria-current={selectedId === artifact.id ? 'true' : undefined}
                   disabled={locked || destroyed}
-                  onClick={() => openArtifact(artifact.id, inspected)}
+                  onClick={() => openEvidenceRecord(runtime, artifact.id)}
                 >
                   <span className="evidence__item-title">{tk(artifact.titleKey)}</span>
                   <span className="evidence__item-meta">
@@ -344,7 +389,7 @@ export function EvidenceRoute() {
         id="evidence-inspector"
         title={t('evidence.title')}
         actions={
-          selected && selectedInspected ? (
+          selected ? (
             <Tabs
               label={t('evidence.title')}
               value={view}
@@ -357,15 +402,30 @@ export function EvidenceRoute() {
           ) : null
         }
       >
-        {!selected || !selectedInspected ? (
+        {!selected ? (
           <p className="muted">{t('evidence.empty')}</p>
         ) : (
           <>
+            {/*
+             * The record's own name, and the focus target a CTA lands on. The
+             * panel heading says "Evidence"; a reader sent here to read one
+             * specific thing needs to be told which thing they are looking at.
+             */}
+            <h3 className="text-md" id="evidence-record-title" ref={headingRef} tabIndex={-1}>
+              {tk(selected.titleKey)}
+            </h3>
+
             <div className="row">
               <Badge icon="clock">{selected.timestamp}</Badge>
               <span className="muted text-sm">
                 {t('evidence.source')}: <span className="mono">{selected.source}</span>
               </span>
+              <Badge
+                tone={selectedInspected ? 'success' : 'neutral'}
+                icon={selectedInspected ? 'check' : 'eye'}
+              >
+                {selectedInspected ? t('evidence.inspected') : t('evidence.reading')}
+              </Badge>
             </div>
 
             <MaybeUntrusted untrusted={selected.untrusted}>
@@ -382,6 +442,9 @@ export function EvidenceRoute() {
                 <p className="prose">{tk(selected.explanationKey)}</p>
               )}
             </MaybeUntrusted>
+
+            {/* The receipt for the read, beside the record it is about. */}
+            <Receipt anchor={`evidence-${selected.id}`} />
 
             <ChainOfCustody artifactId={selected.id} />
           </>
@@ -502,8 +565,12 @@ function MaybeUntrusted({
 export function TimelineRoute() {
   const ctx = useGame();
   const runtime = useRuntime();
-  const run = useCommand();
-  const [origin, setOrigin] = useState<ChronologyOrigin>('all');
+  // The filter lives in case context so that pivoting to a record and coming
+  // back does not silently reset the chronology to "everything" — see §8 of the
+  // flow work. It is a view selection, so it changes no case state.
+  const origin = ctx.timelineOrigin as ChronologyOrigin;
+  const setOrigin = (next: TimelineOriginFilter) =>
+    runtime.send({ type: 'SET_TIMELINE_ORIGIN', origin: next });
 
   const all = chronology(ctx);
   const counts = chronologyCounts(all);
@@ -526,7 +593,7 @@ export function TimelineRoute() {
               id={`timeline-origin-${id}`}
               variant={origin === id ? 'primary' : 'ghost'}
               aria-pressed={origin === id}
-              onClick={() => setOrigin(id)}
+              onClick={() => setOrigin(id as TimelineOriginFilter)}
             >
               {t('timeline.origin.count', {
                 label: t(`timeline.origin.${id}`),
@@ -572,18 +639,18 @@ export function TimelineRoute() {
                 </span>
                 {entry.artifactId ? (
                   <span>
+                    {/*
+                      * One behaviour, shared with the guided card and the rail:
+                      * open the record. It used to branch on whether the record
+                      * had already been read — inspecting in place when it had
+                      * not, which marked evidence read from a destination that
+                      * cannot show it.
+                      */}
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => {
-                        const id = entry.artifactId!;
-                        if (ctx.inspectedArtifacts.includes(id)) {
-                          runtime.send({ type: 'SELECT_ARTIFACT', artifactId: id });
-                          runtime.send({ type: 'SET_ROUTE', route: 'evidence' });
-                        } else {
-                          run((r) => r.inspectArtifact(id));
-                        }
-                      }}
+                      id={`timeline-open-${entry.artifactId}`}
+                      onClick={() => openEvidenceRecord(runtime, entry.artifactId!)}
                     >
                       <Icon name="eye" size={13} />
                       {t('timeline.open_artifact')}
@@ -693,6 +760,10 @@ export function RespondRoute() {
                   </div>
                 </div>
               ) : null}
+
+              {/* The receipt for this diagnostic, beside the control that ran
+                  it — not 900px down the page in a shared summary block. */}
+              <Receipt anchor={`diagnostic-${diagnostic.id}`} />
             </div>
           );
         })}
@@ -745,6 +816,8 @@ export function RespondRoute() {
               ) : availability.allowed ? (
                 <ConsequencePreview actionId={action.id} />
               ) : null}
+
+              <Receipt anchor={`action-${action.id}`} />
 
               {done ? null : (
                 <div>

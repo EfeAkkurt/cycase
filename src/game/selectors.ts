@@ -25,6 +25,8 @@ import type {
   Asset,
   AssetId,
   BlockedDecisionView,
+  CommandKind,
+  DashboardRoute,
   DecisionId,
   Diagnostic,
   DiagnosticId,
@@ -476,6 +478,34 @@ export function allowedNextActions(ctx: GameContext): AllowedNextAction[] {
  * the contained ending with the full 100 points in eleven interactions.
  */
 
+/* ------------------------------------------------------------------ *
+ * Incident phases — the one progress model
+ * ------------------------------------------------------------------ *
+ *
+ * The console used to make two progress claims at once. The guided card counted
+ * "Step 6 of 11" over a plan whose length is an implementation detail of that
+ * plan, and the decision card counted "Decision 3 of 6" over a different unit
+ * entirely. Both were true, neither agreed with the other, and a player asking
+ * the only question that matters — *how far through this incident am I?* — got
+ * two answers and no way to reconcile them.
+ *
+ * There is now one model, and it is the one an incident actually has:
+ *
+ *   Triage → Investigate → Contain → Scope → Close
+ *
+ * Every guided step belongs to exactly one phase. Steps and decisions still
+ * exist and are still counted, but only *inside* the active phase, where a
+ * count is a position rather than a rival claim about the whole case.
+ */
+
+export const INCIDENT_PHASES = ['triage', 'investigate', 'contain', 'scope', 'close'] as const;
+
+export type IncidentPhase = (typeof INCIDENT_PHASES)[number];
+
+export function phaseLabel(phase: IncidentPhase): string {
+  return t(`phase.${phase}` as StringKey);
+}
+
 export type GuidedCommand =
   | { kind: 'inspect_artifact'; artifactId: ArtifactId }
   | { kind: 'run_diagnostic'; diagnosticId: DiagnosticId }
@@ -484,6 +514,7 @@ export type GuidedCommand =
 export interface GuidedDecisionStep {
   id: string;
   kind: 'decision';
+  phase: IncidentPhase;
   decisionId: DecisionId;
   /** Short imperative headline; the prompt itself carries the detail. */
   titleKey: StringKey;
@@ -493,9 +524,13 @@ export interface GuidedDecisionStep {
 export interface GuidedOperationStep {
   id: string;
   kind: 'operation';
+  phase: IncidentPhase;
   titleKey: StringKey;
   whyKey: StringKey;
-  /** Verb-first label for the single button that runs the whole operation. */
+  /**
+   * Verb-first label for the operation as a whole. Each *stage* of the
+   * operation gets its own control and its own verb; this names the group.
+   */
   ctaKey: StringKey;
   commands: GuidedCommand[];
 }
@@ -505,6 +540,7 @@ export type GuidedPlanStep = GuidedDecisionStep | GuidedOperationStep;
 export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   {
     id: 'd1',
+    phase: 'triage',
     kind: 'decision',
     decisionId: 'D1',
     titleKey: 'guide.d1.title',
@@ -512,6 +548,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'read_report',
+    phase: 'triage',
     kind: 'operation',
     titleKey: 'guide.read_report.title',
     whyKey: 'guide.read_report.why',
@@ -520,6 +557,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'd2',
+    phase: 'triage',
     kind: 'decision',
     decisionId: 'D2',
     titleKey: 'guide.d2.title',
@@ -527,6 +565,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'rebuild_timeline',
+    phase: 'investigate',
     kind: 'operation',
     titleKey: 'guide.rebuild_timeline.title',
     whyKey: 'guide.rebuild_timeline.why',
@@ -538,6 +577,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'd3',
+    phase: 'investigate',
     kind: 'decision',
     decisionId: 'D3',
     titleKey: 'guide.d3.title',
@@ -545,6 +585,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'd4',
+    phase: 'investigate',
     kind: 'decision',
     decisionId: 'D4',
     titleKey: 'guide.d4.title',
@@ -552,6 +593,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'contain',
+    phase: 'contain',
     kind: 'operation',
     titleKey: 'guide.contain.title',
     whyKey: 'guide.contain.why',
@@ -566,6 +608,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'd5',
+    phase: 'scope',
     kind: 'decision',
     decisionId: 'D5',
     titleKey: 'guide.d5.title',
@@ -573,6 +616,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'sweep',
+    phase: 'scope',
     kind: 'operation',
     titleKey: 'guide.sweep.title',
     whyKey: 'guide.sweep.why',
@@ -584,6 +628,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'd6',
+    phase: 'close',
     kind: 'decision',
     decisionId: 'D6',
     titleKey: 'guide.d6.title',
@@ -591,6 +636,7 @@ export const GUIDED_PLAN: readonly GuidedPlanStep[] = [
   },
   {
     id: 'close',
+    phase: 'close',
     kind: 'operation',
     titleKey: 'guide.close.title',
     whyKey: 'guide.close.why',
@@ -685,33 +731,76 @@ export interface GuidedPart {
   key: string;
   label: string;
   done: boolean;
+  /** True for the one part the primary control is about to run. */
+  current: boolean;
+}
+
+/**
+ * One command, presented as the thing the player is about to do.
+ *
+ * A stage is the unit of a click. It exists because the containment step used
+ * to run five commands — a session inventory, two credential operations, an
+ * evidence read and an endpoint isolation — behind a single button and a single
+ * dialog. Five state mutations for one press, four of them invisible until
+ * afterwards, is precisely the "hidden batch" this work removes: the player
+ * could not see what was about to happen, could not stop between the parts, and
+ * could not tell which part failed when one did.
+ *
+ * The stage carries its own consequence flags rather than the step's. A step
+ * whose remaining commands are "run a diagnostic, then revoke every session"
+ * must not warn *destructive* over the diagnostic, and must not demand a
+ * confirmation to run it — the warning belongs to the command it describes.
+ */
+export interface GuidedStage {
+  /** Stable per command; also the anchor a receipt is rendered against. */
+  key: string;
+  command: GuidedCommand;
+  kind: GuidedCommand['kind'];
+  /** The fixture's own name for the artifact, diagnostic or action. */
+  label: string;
+  /** Verb-first label for this stage's single control. */
+  cta: string;
+  /** True only for a destructive response action. */
+  consequential: boolean;
+  /** True only when the fixture marks *this* action as needing confirmation. */
+  requiresConfirmation: boolean;
+  /** The impact sentence to read before authorising. Null when there is none. */
+  impact: string | null;
+  /**
+   * Where this stage takes the player. Reading evidence is a *navigation* —
+   * the record has to be on screen before the case may record it as read — so
+   * the stage says so rather than each caller re-deciding.
+   */
+  navigatesTo: DashboardRoute | null;
 }
 
 export interface NextRequiredStep {
-  /** Position in the guided plan, 1-based, for "step 4 of 11". */
-  index: number;
-  total: number;
   id: string;
   kind: 'decision' | 'operation';
+  /** The one progress model. Never a step-of-eleven count. */
+  phase: IncidentPhase;
   title: string;
   why: string;
   /** Present only for a decision step. */
   decision: OpenDecisionView | null;
-  /** Present only for an operation step. */
+  /** The group label for the whole operation. Stages carry their own verbs. */
   cta: string;
-  /** Commands still outstanding, in plan order. */
+  /**
+   * The single command the primary control will run — never a batch.
+   * Null for a decision step, and null when the step is somehow already done.
+   */
+  stage: GuidedStage | null;
+  /** Commands still outstanding after `stage`, in plan order. */
+  upcoming: GuidedStage[];
+  /** Commands still outstanding, in plan order, including `stage`. */
   pending: GuidedCommand[];
   /** Every command of the step with its current state, for the checklist. */
   parts: GuidedPart[];
-  /** True when any pending command is a consequential response action. */
+  /** True when the *next stage* is a consequential response action. */
   consequential: boolean;
-  /**
-   * True when the fixture marks any pending action as needing confirmation.
-   * Grouping steps must not quietly strip a confirmation the case author put
-   * there: one dialog covers the whole operation, listing every impact.
-   */
+  /** True when the fixture marks the *next stage* as needing confirmation. */
   requiresConfirmation: boolean;
-  /** The impact sentences a player must read before running the operation. */
+  /** The impact sentences for the next stage. At most one, kept as a list. */
   impacts: string[];
 }
 
@@ -727,30 +816,86 @@ export function nextRequiredStep(ctx: GameContext): NextRequiredStep | null {
 
   const index = GUIDED_PLAN.findIndex((step) => !guidedStepDone(ctx, step));
   if (index === -1) return null;
-  return nextRequiredStepFrom(ctx, GUIDED_PLAN[index]!, index);
+  return nextRequiredStepFrom(ctx, GUIDED_PLAN[index]!);
 }
 
-function nextRequiredStepFrom(
-  ctx: GameContext,
-  step: GuidedPlanStep,
-  index: number,
-): NextRequiredStep | null {
-  const base = { index: index + 1, total: GUIDED_PLAN.length, id: step.id };
+/**
+ * Describes one command as the thing about to happen.
+ *
+ * Everything a player needs before pressing a control comes from the fixture:
+ * its own name for the thing, whether the case author called it destructive,
+ * whether the case author asked for a confirmation, and its impact sentence.
+ * Nothing here is inferred from the command's position in a plan, which is why
+ * a stage reads the same run from the guided card, the Playbook or a corrective
+ * detour.
+ */
+export function stageFor(command: GuidedCommand): GuidedStage {
+  const key = guidedCommandKey(command);
+  const label = guidedCommandLabel(command);
 
+  if (command.kind === 'inspect_artifact') {
+    return {
+      key,
+      command,
+      kind: command.kind,
+      label,
+      cta: t('guide.stage.open', { label }),
+      consequential: false,
+      requiresConfirmation: false,
+      impact: null,
+      // Reading evidence is navigation. The record is recorded as read by the
+      // inspector once it is genuinely on screen, never by the control that
+      // sent the player there.
+      navigatesTo: 'evidence',
+    };
+  }
+
+  if (command.kind === 'run_diagnostic') {
+    return {
+      key,
+      command,
+      kind: command.kind,
+      label,
+      cta: t('guide.stage.run', { label }),
+      consequential: false,
+      requiresConfirmation: false,
+      impact: tk(DIAGNOSTIC_BY_ID.get(command.diagnosticId)?.descriptionKey ?? ''),
+      navigatesTo: 'respond',
+    };
+  }
+
+  const action = RESPONSE_ACTION_BY_ID.get(command.actionId);
+  return {
+    key,
+    command,
+    kind: command.kind,
+    label,
+    cta: label,
+    consequential: Boolean(action?.destructive),
+    requiresConfirmation: Boolean(action?.requiresConfirmation),
+    impact: action ? tk(action.impactKey) : null,
+    navigatesTo: 'respond',
+  };
+}
+
+function nextRequiredStepFrom(ctx: GameContext, step: GuidedPlanStep): NextRequiredStep | null {
   if (step.kind === 'decision') {
     // Off the guided path a decision can be reached while still locked (the
     // player answered out of order from the Playbook). Rather than show a dead
     // card, name the evidence that unlocks it.
     const decision = openDecisionId(ctx) === step.decisionId ? openDecisionView(ctx) : null;
-    if (!decision) return unblockingStep(ctx, base);
+    if (!decision) return unblockingStep(ctx, step.phase);
 
     return {
-      ...base,
+      id: step.id,
+      phase: step.phase,
       kind: 'decision',
       title: t(step.titleKey),
       why: t(step.whyKey),
       decision,
       cta: '',
+      stage: null,
+      upcoming: [],
       pending: [],
       parts: [],
       consequential: false,
@@ -761,42 +906,70 @@ function nextRequiredStepFrom(
 
   const applicable = applicableCommands(ctx, step);
   const pending = applicable.filter((command) => !guidedCommandDone(ctx, command));
-  const impacts: string[] = [];
-  let consequential = false;
-  let requiresConfirmation = false;
-  for (const command of pending) {
-    if (command.kind !== 'take_response_action') continue;
-    const action = RESPONSE_ACTION_BY_ID.get(command.actionId);
-    if (!action) continue;
-    if (action.destructive) consequential = true;
-    if (action.requiresConfirmation) requiresConfirmation = true;
-    impacts.push(`${tk(action.labelKey)} — ${tk(action.impactKey)}`);
-  }
 
-  return {
-    ...base,
-    kind: 'operation',
+  return operationStep(ctx, {
+    id: step.id,
+    phase: step.phase,
     title: t(step.titleKey),
     why: t(step.whyKey),
-    decision: null,
     cta: t(step.ctaKey),
-    pending,
-    parts: applicable.map((command) => ({
-      key: guidedCommandKey(command),
-      label: guidedCommandLabel(command),
-      done: guidedCommandDone(ctx, command),
-    })),
-    consequential,
-    requiresConfirmation,
-    impacts,
+    applicable: [...applicable],
+    pending: [...pending],
+  });
+}
+
+/**
+ * Assembles an operation step around its *next* stage.
+ *
+ * The consequence flags describe `pending[0]` and nothing else. Computing them
+ * across every outstanding command is what made the card warn "destructive" and
+ * raise a confirmation dialog over a read-only session inventory, simply
+ * because a revocation was queued behind it — the exact conflation between
+ * ordinary work and consequential work that §4 of this flow work removes.
+ */
+function operationStep(
+  ctx: GameContext,
+  input: {
+    id: string;
+    phase: IncidentPhase;
+    title: string;
+    why: string;
+    cta: string;
+    applicable: GuidedCommand[];
+    pending: GuidedCommand[];
+  },
+): NextRequiredStep {
+  const stages = input.pending.map(stageFor);
+  const stage = stages[0] ?? null;
+
+  return {
+    id: input.id,
+    phase: input.phase,
+    kind: 'operation',
+    title: input.title,
+    why: input.why,
+    decision: null,
+    cta: input.cta,
+    stage,
+    upcoming: stages.slice(1),
+    pending: input.pending,
+    parts: input.applicable.map((command) => {
+      const key = guidedCommandKey(command);
+      return {
+        key,
+        label: guidedCommandLabel(command),
+        done: guidedCommandDone(ctx, command),
+        current: stage?.key === key,
+      };
+    }),
+    consequential: stage?.consequential ?? false,
+    requiresConfirmation: stage?.requiresConfirmation ?? false,
+    impacts: stage?.impact ? [`${stage.label} — ${stage.impact}`] : [],
   };
 }
 
 /** Fallback step: whatever the next decision is actually waiting for. */
-function unblockingStep(
-  ctx: GameContext,
-  base: { index: number; total: number; id: string },
-): NextRequiredStep | null {
+function unblockingStep(ctx: GameContext, phase: IncidentPhase): NextRequiredStep | null {
   const blocked = blockedDecisionView(ctx);
   if (!blocked) return null;
 
@@ -810,24 +983,193 @@ function unblockingStep(
   ];
   if (commands.length === 0) return null;
 
-  return {
-    ...base,
+  return operationStep(ctx, {
     id: `unblock-${blocked.decisionId}`,
-    kind: 'operation',
+    phase,
     title: t('guide.unblock.title', { decision: blocked.decisionId }),
     why: t('guide.unblock.why'),
-    decision: null,
     cta: t('guide.unblock.cta'),
+    applicable: commands,
     pending: commands,
-    parts: commands.map((command) => ({
-      key: guidedCommandKey(command),
-      label: guidedCommandLabel(command),
-      done: false,
-    })),
-    consequential: false,
-    requiresConfirmation: false,
-    impacts: [],
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Phase progress — the single answer to "how far through this am I?"
+ * ------------------------------------------------------------------ */
+
+export type PhaseState = 'done' | 'active' | 'upcoming';
+
+export interface PhaseView {
+  id: IncidentPhase;
+  label: string;
+  state: PhaseState;
+  /** Stages finished and total stages, for this player, in this phase. */
+  done: number;
+  total: number;
+}
+
+export interface PhaseProgress {
+  /** The phase the required next step belongs to. */
+  phase: IncidentPhase;
+  label: string;
+  /** 1-based position of the active phase, for "phase 3 of 5". */
+  index: number;
+  total: number;
+  /** 1-based position of the current stage inside the active phase. */
+  stageIndex: number;
+  stageTotal: number;
+  /** Every phase, for the rail. */
+  phases: PhaseView[];
+  /** True once the case is closed and no phase is active. */
+  complete: boolean;
+}
+
+/**
+ * How many stages this phase asks of *this* player, and how many are done.
+ *
+ * Counted from `applicableCommands`, not from the plan as authored, because a
+ * player whose decision did not authorise an operation is not being asked to
+ * run it. A count that included work the guide will never offer would be a
+ * progress bar that can never fill.
+ */
+function phaseStages(ctx: GameContext, phase: IncidentPhase): { done: number; total: number } {
+  let done = 0;
+  let total = 0;
+
+  for (const step of GUIDED_PLAN) {
+    if (step.phase !== phase) continue;
+    if (step.kind === 'decision') {
+      total += 1;
+      if (ctx.decisions[step.decisionId]) done += 1;
+      continue;
+    }
+    for (const command of applicableCommands(ctx, step)) {
+      total += 1;
+      if (guidedCommandDone(ctx, command)) done += 1;
+    }
+  }
+
+  return { done, total };
+}
+
+export function phaseProgress(ctx: GameContext): PhaseProgress {
+  const step = nextRequiredStep(ctx);
+  const activeIndex = step ? INCIDENT_PHASES.indexOf(step.phase) : -1;
+
+  const phases: PhaseView[] = INCIDENT_PHASES.map((id, index) => {
+    const { done, total } = phaseStages(ctx, id);
+    const state: PhaseState =
+      activeIndex === -1 ? 'done' : index < activeIndex ? 'done' : index === activeIndex ? 'active' : 'upcoming';
+    return { id, label: phaseLabel(id), state, done, total };
+  });
+
+  const active = activeIndex === -1 ? null : phases[activeIndex]!;
+
+  return {
+    phase: step?.phase ?? 'close',
+    label: phaseLabel(step?.phase ?? 'close'),
+    index: activeIndex === -1 ? INCIDENT_PHASES.length : activeIndex + 1,
+    total: INCIDENT_PHASES.length,
+    // Clamped: the last stage of a phase is "n of n", never "n+1 of n".
+    stageIndex: active ? Math.min(active.done + 1, Math.max(active.total, 1)) : 0,
+    stageTotal: active?.total ?? 0,
+    phases,
+    complete: activeIndex === -1,
   };
+}
+
+/* ------------------------------------------------------------------ *
+ * The corrective path
+ * ------------------------------------------------------------------ *
+ *
+ * A wrong decision keeps its cost. Its score entry stands, the debrief still
+ * narrates it, and `applicableCommands` still refuses to walk the player
+ * through an operation they did not authorise — none of that is undone here,
+ * because a consequence that can be erased is not a consequence.
+ *
+ * What was missing is a way *forward*. A player who chose "reset the password
+ * only" watched the guided path step past the revocation for the rest of the
+ * case, with the stolen session live and nothing on screen saying what would
+ * close it. The incident was unfixable for a reason the console never stated.
+ *
+ * So: for every critical finding still open, the operation that would close it,
+ * offered explicitly as a correction rather than folded into the required path.
+ * It is derived, never authored — `FINDINGS` × `RESPONSE_ACTIONS` ×
+ * `actionAvailability` — so it cannot drift from the rules the engine scores
+ * against, and it appears only once the guided plan has genuinely walked past
+ * the action without offering it.
+ */
+
+export interface CorrectiveStep {
+  findingId: FindingId;
+  /** The finding this closes, named. */
+  finding: string;
+  command: GuidedCommand;
+  actionId: ResponseActionId;
+  label: string;
+  impact: string;
+  /** Why the guide is not offering this itself. */
+  why: string;
+  destructive: boolean;
+  requiresConfirmation: boolean;
+}
+
+/** Plan position of every response action the taught route contains. */
+const PLANNED_ACTION_INDEX = new Map<ResponseActionId, number>(
+  GUIDED_PLAN.flatMap((step, index) =>
+    step.kind === 'operation'
+      ? step.commands.flatMap((command) =>
+          command.kind === 'take_response_action'
+            ? ([[command.actionId, index]] as [ResponseActionId, number][])
+            : [],
+        )
+      : [],
+  ),
+);
+
+export function correctivePath(ctx: GameContext): CorrectiveStep[] {
+  if (ctx.caseClosed) return [];
+
+  const open = new Set(unresolvedCriticalFindings(ctx));
+  if (open.size === 0) return [];
+
+  // Where the guided path has got to. An action the plan has not yet reached is
+  // not a gap — it is simply later.
+  const nextIndex = GUIDED_PLAN.findIndex((step) => !guidedStepDone(ctx, step));
+  const frontier = nextIndex === -1 ? GUIDED_PLAN.length : nextIndex;
+  const offered = new Set(recommendedActions(ctx));
+
+  const steps: CorrectiveStep[] = [];
+
+  for (const action of RESPONSE_ACTIONS) {
+    if (offered.has(action.id)) continue;
+    if (!actionAvailability(ctx, action.id).allowed) continue;
+
+    const planIndex = PLANNED_ACTION_INDEX.get(action.id);
+    if (planIndex === undefined || planIndex >= frontier) continue;
+
+    for (const findingId of action.resolvesFindings ?? []) {
+      if (!open.has(findingId)) continue;
+      const finding = findingById(findingId);
+      if (!finding) continue;
+
+      steps.push({
+        findingId,
+        finding: tk(finding.titleKey),
+        command: { kind: 'take_response_action', actionId: action.id },
+        actionId: action.id,
+        label: tk(action.labelKey),
+        impact: tk(action.impactKey),
+        why: t('corrective.why', { finding: tk(finding.titleKey) }),
+        destructive: action.destructive,
+        requiresConfirmation: action.requiresConfirmation,
+      });
+      break; // one entry per action; the first open finding names it
+    }
+  }
+
+  return steps;
 }
 
 /* ------------------------------------------------------------------ *
@@ -993,5 +1335,298 @@ export function lastCompletedStep(ctx: GameContext): StepOutcome | null {
     result: results[results.length - 1] ?? '',
     changed,
     why: whys[whys.length - 1] ?? '',
+  };
+}
+
+
+/* ------------------------------------------------------------------ *
+ * Receipts — what happened, beside the control that did it
+ * ------------------------------------------------------------------ *
+ *
+ * Every decision, diagnostic and response action has to answer three questions
+ * immediately and in the place the player is already looking: what happened,
+ * what changed, and why it mattered. `LastOutcome` answers them for a whole
+ * guided step at the bottom of the workspace, which is the right place for a
+ * summary and the wrong place for feedback — a player who pressed a button in
+ * the Playbook has no reason to look 900px down the page for its result.
+ *
+ * A receipt is that feedback. It is derived from the tool log's last entry, so
+ * it reads identically whether the command came from the guided card, a
+ * destination control or a WebMCP call, and it carries the `anchor` — the DOM
+ * id of the control that issued it — so the console can render it next to that
+ * control rather than in a fixed corner.
+ *
+ * When something fails or half-lands it says what did *not* change, and offers
+ * exactly one way forward. One, deliberately: an error that offers three
+ * recoveries has told the player it does not know which one is right.
+ */
+
+export type ReceiptState = 'done' | 'partial' | 'failed';
+
+export interface ReceiptRecovery {
+  /** The single control's label. */
+  label: string;
+  /** The one command that recovers, when the recovery is something to run. */
+  command: GuidedCommand | null;
+  /** Where the recovery lives, when it is somewhere to go. */
+  route: DashboardRoute | null;
+  /** One sentence naming what it will do. */
+  hint: string;
+}
+
+export interface CommandReceipt {
+  /** Engine sequence of the command. Changes on every call, so it is a key. */
+  seq: number;
+  /** DOM id of the control that issued it — `action-revoke_sessions` etc. */
+  anchor: string;
+  kind: CommandKind;
+  state: ReceiptState;
+  title: string;
+  /** What the system reported back. */
+  result: string;
+  /** Concrete state changes. Empty when nothing moved. */
+  changed: string[];
+  /** What did *not* change. Present on a failure or a partial outcome. */
+  unchanged: string[];
+  /** Why it mattered. */
+  why: string;
+  /** Exactly one way forward, or none when nothing needs recovering. */
+  recovery: ReceiptRecovery | null;
+}
+
+/** Commands that produce a receipt. Reads and narration deliberately do not. */
+const RECEIPTED: readonly CommandKind[] = [
+  'inspect_artifact',
+  'run_diagnostic',
+  'take_response_action',
+  'submit_decision',
+];
+
+/** Score entries this command produced, as display lines. */
+function pointsLine(ctx: GameContext, seq: number): string[] {
+  const delta = ctx.scoreEntries
+    .filter((entry) => entry.seq === seq)
+    .reduce((total, entry) => total + entry.delta, 0);
+  if (delta === 0) return [];
+  return [t('guide.points', { points: delta > 0 ? `+${delta}` : String(delta) })];
+}
+
+/** The one way forward offered after a failure or a partial outcome. */
+function receiptRecovery(ctx: GameContext, hint: string): ReceiptRecovery | null {
+  const corrective = correctivePath(ctx)[0];
+  if (corrective) {
+    return {
+      label: t('receipt.recovery.corrective', { label: corrective.label }),
+      command: corrective.command,
+      route: 'respond',
+      hint: corrective.why,
+    };
+  }
+
+  const step = nextRequiredStep(ctx);
+  if (step?.stage) {
+    return {
+      label: t('receipt.recovery.next', { label: step.stage.label }),
+      // Null on purpose: the guided card owns running the required step. This
+      // control takes the player to it rather than racing it.
+      command: null,
+      route: step.stage.navigatesTo,
+      hint: hint || step.why,
+    };
+  }
+  if (step?.decision) {
+    return {
+      label: t('receipt.recovery.decide'),
+      command: null,
+      route: 'command',
+      hint: hint || step.why,
+    };
+  }
+
+  return null;
+}
+
+/** The critical findings still open, named, capped so a receipt stays readable. */
+function stillOpenLines(ctx: GameContext, limit = 3): string[] {
+  return unresolvedCriticalFindings(ctx)
+    .slice(0, limit)
+    .map((id) => t('receipt.still_open', { finding: tk(findingById(id)?.titleKey ?? id) }));
+}
+
+/**
+ * The receipt for the command the engine most recently ran.
+ *
+ * Returns null for reads, for narration, and before anything has happened —
+ * there is nothing to report about a call that reported nothing.
+ */
+export function commandReceipt(ctx: GameContext): CommandReceipt | null {
+  const entry = ctx.toolLog.at(-1);
+  if (!entry || !RECEIPTED.includes(entry.tool)) return null;
+
+  const failed = !entry.ok;
+  const error = ctx.lastResult && !ctx.lastResult.ok ? ctx.lastResult.error : undefined;
+
+  const base = {
+    seq: entry.seq,
+    anchor: entry.effectId ?? 'next-step',
+    kind: entry.tool,
+  };
+
+  if (failed) {
+    const unchanged = [
+      t('receipt.unchanged.state', { version: ctx.stateVersion }),
+      ...stillOpenLines(ctx),
+    ];
+    // A refused call sometimes still costs efficiency. Saying "nothing changed"
+    // over a score that just moved would be the receipt lying about itself.
+    const points = pointsLine(ctx, entry.seq);
+
+    return {
+      ...base,
+      state: 'failed',
+      title: t('receipt.failed.title'),
+      result: error?.message ?? t('error.action_not_allowed'),
+      changed: points,
+      unchanged,
+      why: t('receipt.failed.why'),
+      recovery: receiptRecovery(ctx, error?.recovery ?? ''),
+    };
+  }
+
+  if (entry.tool === 'submit_decision') return decisionReceipt(ctx, base);
+  if (entry.tool === 'run_diagnostic') return diagnosticReceipt(ctx, base);
+  if (entry.tool === 'take_response_action') return actionReceipt(ctx, base);
+  return artifactReceipt(ctx, base);
+}
+
+type ReceiptBase = { seq: number; anchor: string; kind: CommandKind };
+
+function decisionReceipt(ctx: GameContext, base: ReceiptBase): CommandReceipt | null {
+  const decisionId = base.anchor.replace(/^decision-/, '') as DecisionId;
+  const decision = DECISION_BY_ID.get(decisionId);
+  const record = ctx.decisions[decisionId];
+  const option = decision?.options.find((o) => o.id === record?.optionId);
+  if (!decision || !option) return null;
+
+  const changed = [...pointsLine(ctx, base.seq)];
+  for (const effect of option.stateEffects ?? []) {
+    if (effect.kind === 'reveal_artifact') {
+      changed.push(
+        t('guide.evidence_unlocked', {
+          artifact: tk(ARTIFACT_BY_ID.get(effect.artifactId)?.titleKey ?? effect.artifactId),
+        }),
+      );
+    }
+    if (effect.kind === 'destroy_artifact') {
+      changed.push(
+        t('receipt.evidence_destroyed', {
+          artifact: tk(ARTIFACT_BY_ID.get(effect.artifactId)?.titleKey ?? effect.artifactId),
+        }),
+      );
+    }
+  }
+  changed.push(t('guide.state_version', { version: ctx.stateVersion }));
+
+  // A weaker branch is not an error and is never re-scored. It is reported as
+  // partial so the console can say what it left open and offer the correction.
+  const weak = !option.correct;
+
+  return {
+    ...base,
+    state: weak ? 'partial' : 'done',
+    title: tk(decision.promptKey),
+    result: tk(option.explanationKey),
+    changed,
+    unchanged: weak ? stillOpenLines(ctx) : [],
+    why: tk(decision.learningGoalKey),
+    recovery: weak ? receiptRecovery(ctx, tk(decision.learningGoalKey)) : null,
+  };
+}
+
+function diagnosticReceipt(ctx: GameContext, base: ReceiptBase): CommandReceipt | null {
+  const diagnosticId = base.anchor.replace(/^diagnostic-/, '') as DiagnosticId;
+  const diagnostic = DIAGNOSTIC_BY_ID.get(diagnosticId);
+  if (!diagnostic) return null;
+
+  const changed = [...pointsLine(ctx, base.seq)];
+  for (const artifactId of diagnostic.revealsArtifacts ?? []) {
+    changed.push(
+      t('guide.evidence_unlocked', {
+        artifact: tk(ARTIFACT_BY_ID.get(artifactId)?.titleKey ?? artifactId),
+      }),
+    );
+  }
+  for (const findingId of diagnostic.resolvesFindings ?? []) {
+    const finding = findingById(findingId);
+    if (finding) changed.push(t('guide.finding_resolved', { finding: tk(finding.titleKey) }));
+  }
+  changed.push(t('guide.state_version', { version: ctx.stateVersion }));
+
+  return {
+    ...base,
+    state: 'done',
+    title: tk(diagnostic.titleKey),
+    result: tk(diagnostic.resultKey),
+    changed,
+    unchanged: [],
+    why: tk(diagnostic.descriptionKey),
+    recovery: null,
+  };
+}
+
+function actionReceipt(ctx: GameContext, base: ReceiptBase): CommandReceipt | null {
+  const actionId = base.anchor.replace(/^action-/, '') as ResponseActionId;
+  const action = RESPONSE_ACTION_BY_ID.get(actionId);
+  if (!action) return null;
+
+  const changed = [...pointsLine(ctx, base.seq)];
+  const promised = action.resolvesFindings ?? [];
+  const stillOpen = new Set(unresolvedCriticalFindings(ctx));
+
+  for (const findingId of promised) {
+    const finding = findingById(findingId);
+    if (!finding) continue;
+    if (stillOpen.has(findingId)) continue;
+    changed.push(t('guide.finding_resolved', { finding: tk(finding.titleKey) }));
+  }
+  changed.push(t('guide.state_version', { version: ctx.stateVersion }));
+
+  // Partial means *this operation* did not deliver what it promised — not that
+  // the incident still has other gaps. Conflating the two would mark every
+  // successful containment step as a partial failure until the last one.
+  const outstanding = promised.filter((findingId) => stillOpen.has(findingId));
+
+  return {
+    ...base,
+    state: outstanding.length > 0 ? 'partial' : 'done',
+    title: tk(action.labelKey),
+    result: tk(action.resultKey),
+    changed,
+    unchanged: outstanding.map((findingId) =>
+      t('receipt.still_open', { finding: tk(findingById(findingId)?.titleKey ?? findingId) }),
+    ),
+    why: tk(action.impactKey),
+    recovery: outstanding.length > 0 ? receiptRecovery(ctx, tk(action.impactKey)) : null,
+  };
+}
+
+function artifactReceipt(ctx: GameContext, base: ReceiptBase): CommandReceipt | null {
+  const artifactId = base.anchor.replace(/^evidence-/, '') as ArtifactId;
+  const artifact = ARTIFACT_BY_ID.get(artifactId);
+  if (!artifact) return null;
+
+  return {
+    ...base,
+    state: 'done',
+    title: tk(artifact.titleKey),
+    result: tk(artifact.explanationKey),
+    changed: [
+      ...pointsLine(ctx, base.seq),
+      t('receipt.evidence_recorded', { artifact: tk(artifact.titleKey) }),
+      t('guide.state_version', { version: ctx.stateVersion }),
+    ],
+    unchanged: [],
+    why: t('guide.evidence_why'),
+    recovery: null,
   };
 }

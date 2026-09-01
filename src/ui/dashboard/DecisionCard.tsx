@@ -1,8 +1,10 @@
 import { useGame } from '../../app/gameContext';
-import { DECISIONS, DECISION_BY_ID } from '../../game/fixtures/case001';
+import { DECISION_BY_ID } from '../../game/fixtures/case001';
+import { correctivePath, phaseProgress } from '../../game/selectors';
 import { t, tk } from '../../i18n';
 import type { DecisionId } from '../../game/types';
 import { Badge, Panel } from '../primitives';
+import { Receipt } from './Receipt';
 
 /**
  * The outcome half of the D1–D6 decision layer.
@@ -15,6 +17,12 @@ import { Badge, Panel } from '../primitives';
  * "Next required step" card; this panel keeps the answered one — the choice,
  * its consequence and the transferable lesson — where it can be re-read
  * without pulling attention away from what has to happen next.
+ *
+ * It no longer counts decisions. "Decision 3 of 6" was a second progress model
+ * competing with the guided card's own count, and a player given two different
+ * answers to "how far through this am I?" has effectively been given none.
+ * There is one model — the incident's phases — and this panel reports the phase
+ * the answered decision belongs to rather than inventing a scale of its own.
  *
  * Both surfaces call the identical `submitDecision()` domain function, so a
  * human click and an agent tool call remain indistinguishable.
@@ -30,7 +38,9 @@ export function DecisionCard() {
 
   if (!decision || !chosen) return null;
 
-  const index = DECISIONS.findIndex((d) => d.id === decision.id) + 1;
+  const progress = phaseProgress(ctx);
+  // What a weaker branch actually left open, if anything is still fixable.
+  const corrections = chosen.correct ? [] : correctivePath(ctx);
 
   return (
     <Panel
@@ -42,7 +52,7 @@ export function DecisionCard() {
             {t('decision.resolved')}
           </Badge>
           <span className="muted text-xs">
-            {t('decision.progress', { index, total: DECISIONS.length })}
+            {progress.complete ? t('phase.complete') : progress.label}
           </span>
         </>
       }
@@ -70,7 +80,23 @@ export function DecisionCard() {
             {tk(decision.learningGoalKey)}
           </p>
         </div>
+
+        {/*
+         * A weaker branch keeps its cost — the score entry stands and the
+         * debrief still narrates it. What it gains is a way forward: the
+         * operation that still closes the finding, named here instead of
+         * quietly withheld for the rest of the case.
+         */}
+        {corrections.length > 0 ? (
+          <p className="prose text-sm" id={`decision-corrective-${decision.id}`}>
+            {t('corrective.intro')} {corrections[0]!.why}
+          </p>
+        ) : null}
       </div>
+
+      {/* Only when this panel's own decision was the last command — the guided
+          card owns the receipt for a decision answered from the card. */}
+      <Receipt anchor={`decision-${decision.id}`} />
     </Panel>
   );
 }

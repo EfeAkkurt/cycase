@@ -7,6 +7,7 @@ import { explorations, formatElapsed } from '../../game/selectors';
 import { t } from '../../i18n';
 import { HINT_TOPICS, type ArtifactId, type DiagnosticId, type HintTopic } from '../../game/types';
 import { Badge, Button, Icon, Panel } from '../primitives';
+import { openEvidenceRecord } from './flow';
 import { WebMcpPanel } from '../../webmcp/WebMcpPanel';
 import { NarrationPanel } from '../narration/NarrationPanel';
 
@@ -158,10 +159,19 @@ export function LearningRail({
                     // The same artifact is also listed in the evidence panel,
                     // so this shortcut needs its own accessible name.
                     aria-label={t('guide.explore.open', { label: item.label })}
+                    /*
+                     * The same behaviour as every other "open this record"
+                     * control in the console: navigate to it. This one used to
+                     * inspect first and navigate second, which marked evidence
+                     * read a frame before the reader could possibly have seen
+                     * it — the inspector records the read now, once the record
+                     * is genuinely on screen. Diagnostics are unchanged: they
+                     * are operations, not records, and running one is the
+                     * whole point of pressing it.
+                     */
                     onClick={() => {
                       if (item.kind === 'inspect_artifact') {
-                        run((r) => r.inspectArtifact(item.id as ArtifactId));
-                        runtime.send({ type: 'SET_ROUTE', route: 'evidence' });
+                        openEvidenceRecord(runtime, item.id as ArtifactId);
                       } else {
                         run((r) => r.runDiagnostic(item.id as DiagnosticId));
                         runtime.send({ type: 'SET_ROUTE', route: 'respond' });

@@ -26,6 +26,7 @@ import { computeScore } from '../../src/game/scoring';
 import {
   explorations,
   lastCompletedStep,
+  INCIDENT_PHASES,
   nextRequiredStep,
   unresolvedCriticalFindings,
 } from '../../src/game/selectors';
@@ -598,12 +599,15 @@ function driveGuidedPath(): { ctx: GameContext; interactions: number; steps: str
       continue;
     }
 
-    // One interaction, several commands — but each one is still an ordinary
-    // engine command, issued in plan order.
-    for (const command of step.pending) {
-      ctx = apply(ctx, command.kind, guidedInput(command));
-      expect(ctx.lastResult?.ok, `${command.kind} was rejected inside ${step.id}`).toBe(true);
-    }
+    /*
+     * One interaction is one command. The guided card runs `step.stage` and
+     * nothing queued behind it, so a drive that applied `step.pending` in a
+     * loop would be testing an operation the product no longer offers.
+     */
+    const stage = step.stage;
+    expect(stage, `${step.id} offered no stage`).toBeDefined();
+    ctx = apply(ctx, stage!.command.kind, guidedInput(stage!.command));
+    expect(ctx.lastResult?.ok, `${stage!.key} was rejected inside ${step.id}`).toBe(true);
   }
 
   return { ctx, interactions, steps };
@@ -619,14 +623,64 @@ describe('guided path', () => {
     expect(unresolvedCriticalFindings(ctx)).toEqual([]);
   });
 
-  it('costs between 10 and 14 interactions, the contract band', () => {
+  /*
+   * The interaction count deliberately went up.
+   *
+   * It used to be eleven, and five of those eleven were one press each for a
+   * whole grouped operation — the containment "step" applied a session
+   * inventory, a session revocation, a credential reset, an evidence read and
+   * an endpoint isolation from a single click and a single dialog. A low number
+   * bought that way is not efficiency; it is four state mutations the player
+   * never saw coming and could not stop between.
+   *
+   * Seventeen is six decisions plus eleven single commands, and every one of
+   * the eleven is visible before it runs and receipted after it. What the audit
+   * actually asked for — that a novice can always tell which control advances
+   * the case — is unchanged: there is still exactly one required step, and it
+   * still names exactly one thing.
+   */
+  it('is one command per interaction, with no step ever revisited', () => {
     const { interactions, steps } = driveGuidedPath();
 
-    expect(interactions).toBeGreaterThanOrEqual(10);
-    expect(interactions).toBeLessThanOrEqual(14);
-    // Eleven today: six decisions plus five grouped operations.
-    expect(interactions).toBe(11);
-    expect(new Set(steps).size).toBe(steps.length); // no step is ever revisited
+    // Six decisions + read_report(1) + rebuild_timeline(2) + contain(5)
+    // + sweep(2) + close(1).
+    expect(interactions).toBe(17);
+    // A step spanning several stages is legitimately visited once per stage;
+    // what must never happen is a *completed* step coming back.
+    expect(steps.filter((id) => id === 'contain')).toHaveLength(5);
+    expect(new Set(steps).size).toBe(6 + 5);
+  });
+
+  it('never asks for a confirmation over an ordinary read or diagnostic', () => {
+    let ctx = createInitialContext();
+
+    for (let guard = 0; guard < 40; guard += 1) {
+      const step = nextRequiredStep(ctx);
+      if (!step) break;
+
+      if (step.decision) {
+        const decision = DECISION_BY_ID.get(step.decision.decisionId)!;
+        ctx = apply(ctx, 'submit_decision', {
+          decisionId: decision.id,
+          optionId: decision.options.find((o) => o.correct)!.id,
+        });
+        continue;
+      }
+
+      const stage = step.stage!;
+      // The three flags describe the stage about to run, never the tail of the
+      // operation behind it: a session inventory queued in front of a session
+      // revocation must not inherit the revocation's dialog.
+      if (stage.kind !== 'take_response_action') {
+        expect(stage.consequential, `${stage.key} was marked consequential`).toBe(false);
+        expect(stage.requiresConfirmation, `${stage.key} demanded a confirmation`).toBe(false);
+        expect(step.consequential).toBe(false);
+        expect(step.requiresConfirmation).toBe(false);
+      }
+      ctx = apply(ctx, stage.command.kind, guidedInput(stage.command));
+    }
+
+    expect(ctx.caseClosed).toBe(true);
   });
 
   it('offers exactly one required step at every stage until the case closes', () => {
@@ -639,8 +693,8 @@ describe('guided path', () => {
       // least one outstanding command.
       expect(step.title.length).toBeGreaterThan(0);
       expect(Boolean(step.decision) || step.pending.length > 0).toBe(true);
-      expect(step.index).toBeGreaterThanOrEqual(1);
-      expect(step.index).toBeLessThanOrEqual(step.total);
+      // One progress model, and the step belongs to it.
+      expect(INCIDENT_PHASES).toContain(step.phase);
 
       if (step.decision) {
         const decision = DECISION_BY_ID.get(step.decision.decisionId)!;
@@ -649,9 +703,8 @@ describe('guided path', () => {
           optionId: decision.options.find((o) => o.correct)!.id,
         });
       } else {
-        for (const command of step.pending) {
-          ctx = apply(ctx, command.kind, guidedInput(command));
-        }
+        const stage = step.stage!;
+        ctx = apply(ctx, stage.command.kind, guidedInput(stage.command));
       }
     }
     expect(ctx.caseClosed).toBe(true);
