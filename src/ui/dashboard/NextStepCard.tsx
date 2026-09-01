@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useCommand, useGame, useRuntime } from '../../app/gameContext';
 import {
@@ -16,7 +16,7 @@ import { t } from '../../i18n';
 import { Badge, Button, ConfirmDialog, Icon, UntrustedShell } from '../primitives';
 import { openEvidenceRecord } from './flow';
 import { Receipt, issueCommand } from './Receipt';
-import { claimReceipt } from './receiptClaim';
+import { claimReceipt, resetReceiptClaim } from './receiptClaim';
 import { useMainScrollMemory } from './scrollMemory';
 
 /**
@@ -52,6 +52,14 @@ export function NextStepCard() {
   const [confirming, setConfirming] = useState<GuidedStage | null>(null);
 
   useMainScrollMemory(ctx.route);
+
+  /*
+   * A restart unmounts the console and mounts a fresh one, but the receipt
+   * claim is module state and would survive it — and sequence numbers start
+   * again from one, so the first command of the new run would land on the old
+   * run's claim. Cleared once, on mount.
+   */
+  useEffect(() => resetReceiptClaim(), []);
 
   const step = nextRequiredStep(ctx);
   const progress = phaseProgress(ctx);
@@ -462,7 +470,7 @@ function CorrectivePath({ steps }: { steps: CorrectiveStep[] }) {
       </Button>
       {rest.length > 0 ? (
         <p className="muted text-xs">
-          {t('guide.stage.then')} {rest.map((step) => step.label).join(' · ')}
+          {t('corrective.also', { labels: rest.map((step) => step.label).join(' · ') })}
         </p>
       ) : null}
 

@@ -284,6 +284,7 @@ export function EvidenceRoute() {
   const selected = selectedId ? ARTIFACT_BY_ID.get(selectedId) : null;
   const selectedInspected = selectedId ? ctx.inspectedArtifacts.includes(selectedId) : false;
   const selectedAvailability = selectedId ? artifactAvailability(ctx, selectedId) : null;
+  const stateVersion = ctx.stateVersion;
   const view = ctx.evidenceView;
   const setView = (next: EvidenceView) =>
     runtime.send({ type: 'SET_EVIDENCE_VIEW', view: next });
@@ -293,17 +294,23 @@ export function EvidenceRoute() {
    *
    * An effect rather than a click handler, because the claim being made is
    * "this record was on screen", and only the component that renders it can
-   * make that claim honestly. `attempted` keeps a refusal — a locked or
-   * destroyed record reached by a stale link — from retrying on every render.
+   * make that claim honestly.
+   *
+   * The guard is the record *and the state version it was tried in*, not the
+   * record alone. A refusal must not retry on every render — but it must also
+   * not become permanent: a record refused because its diagnostic had not run
+   * is readable the moment it has, and the state version is exactly the value
+   * that moves when that happens.
    */
-  const attempted = useRef(new Set<ArtifactId>());
+  const attempted = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedId || selectedInspected) return;
     if (selectedAvailability !== 'available') return;
-    if (attempted.current.has(selectedId)) return;
-    attempted.current.add(selectedId);
+    const attempt = `${selectedId}@${stateVersion}`;
+    if (attempted.current === attempt) return;
+    attempted.current = attempt;
     run((r) => r.inspectArtifact(selectedId));
-  }, [selectedId, selectedInspected, selectedAvailability, run]);
+  }, [selectedId, selectedInspected, selectedAvailability, stateVersion, run]);
 
   /*
    * Focus follows the record, not the route.

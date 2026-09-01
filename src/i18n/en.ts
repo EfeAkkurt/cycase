@@ -1051,7 +1051,7 @@ export const en = {
     'One step at a time. Each of these is a separate action you authorise on its own.',
 
   /* ---------------- receipts ---------------- */
-  'receipt.title': 'What just happened',
+  'receipt.title': 'What this did',
   'receipt.result': 'Result',
   'receipt.changed': 'What changed',
   'receipt.unchanged': 'What did not change',
@@ -1086,6 +1086,7 @@ export const en = {
   'corrective.why': 'Your decision did not authorise this, and {finding} is still open.',
   'corrective.count': '{count} still fixable',
   'corrective.cta': 'Apply {label}',
+  'corrective.also': 'Still fixable after that: {labels}',
 
   'guide.optional': 'Optional evidence',
   'guide.explore': 'Explore more',
