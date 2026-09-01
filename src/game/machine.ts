@@ -63,6 +63,7 @@ export type GameEvent =
    */
   | { type: 'SET_EVIDENCE_VIEW'; view: EvidenceView }
   | { type: 'SET_TIMELINE_ORIGIN'; origin: TimelineOriginFilter }
+  | { type: 'SET_SIEM_QUERY'; query: string }
   /** The console-wide time range. One control, several places, one value. */
   | { type: 'SET_TIME_RANGE'; range: TimeRangeId }
   /**
@@ -115,6 +116,9 @@ export const gameMachine = setup({
     setTimelineOrigin: assign(({ event }) =>
       event.type === 'SET_TIMELINE_ORIGIN' ? { timelineOrigin: event.origin } : {},
     ),
+    setSiemQuery: assign(({ event }) =>
+      event.type === 'SET_SIEM_QUERY' ? { siemQuery: event.query } : {},
+    ),
     setTimeRange: assign(({ event }) =>
       event.type === 'SET_TIME_RANGE' ? { timeRange: event.range } : {},
     ),
@@ -163,6 +167,7 @@ export const gameMachine = setup({
     SELECT_ARTIFACT: { actions: 'selectArtifact' },
     SET_EVIDENCE_VIEW: { actions: 'setEvidenceView' },
     SET_TIMELINE_ORIGIN: { actions: 'setTimelineOrigin' },
+    SET_SIEM_QUERY: { actions: 'setSiemQuery' },
     SET_TIME_RANGE: { actions: 'setTimeRange' },
     SET_FOCUS: { actions: 'setFocus' },
     RESTART: { target: '.boot', actions: 'reset' },

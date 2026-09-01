@@ -1093,6 +1093,15 @@ export interface GameContext {
   /** Which attribution the chronology is filtered to, for the same reason. */
   timelineOrigin: TimelineOriginFilter;
   /**
+   * What the SIEM query bar contains.
+   *
+   * Same reason again, and this is the one that cost the most: an analyst who
+   * wrote a query, pivoted to Evidence to read what it turned up and came back
+   * found the bar empty and the results gone. Retyping a query from memory is
+   * how an investigation loses the thread it was following.
+   */
+  siemQuery: string;
+  /**
    * The console-wide time range. Every event-shaped view reads it; inventories
    * report it and correctly decline to filter on it (see `game/investigate.ts`).
    */

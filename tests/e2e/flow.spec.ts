@@ -462,6 +462,22 @@ test.describe('the console remembers where you were', () => {
     await expect(page.locator('#evidence-record-title')).toContainText('Phishing message');
   });
 
+  test('keeps the SIEM query across a round trip', async ({ page }) => {
+    await openDashboard(page);
+    await nav(page, 'Investigate').click();
+
+    const bar = page.locator('#siem-query');
+    await bar.fill('severity:critical');
+    await expect(bar).toHaveValue('severity:critical');
+
+    // Pivot to read what the query turned up, then come back to it.
+    await nav(page, 'Evidence').click();
+    await nav(page, 'Investigate').click();
+
+    // Retyping a query from memory is how an investigation loses its thread.
+    await expect(page.locator('#siem-query')).toHaveValue('severity:critical');
+  });
+
   test('keeps the chronology filter across a round trip', async ({ page }) => {
     await openDashboard(page);
     await nav(page, 'Timeline').click();

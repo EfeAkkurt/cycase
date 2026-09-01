@@ -58,6 +58,7 @@ export function createInitialContext(operatorName = 'Operator'): GameContext {
     // fields has nothing to check the explanation against.
     evidenceView: 'raw',
     timelineOrigin: 'all',
+    siemQuery: '',
     // The whole night, because that is the span of Case 001. Starting narrow
     // would hide the phishing delivery from a fresh case and make the console
     // look empty for a reason nobody chose.

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId } from 'react';
 
 import { useCommand, useGame, useRuntime } from '../../app/gameContext';
 import {
@@ -27,7 +27,18 @@ import { FocusMark, FollowButton, RangeNotice, TimeRangeControl } from './Consol
  */
 export function SiemTool({ mode = 'full' }: { mode?: PanelMode }) {
   const ctx = useGame();
-  const [query, setQuery] = useState('');
+  const runtime = useRuntime();
+  /*
+   * The query lives in case context, not in this component.
+   *
+   * Leaving Investigate unmounts the tool, and with it a `useState` query — so
+   * writing a query, pivoting to Evidence to read what it surfaced and coming
+   * back landed the analyst on an empty bar and a full table. It is still a
+   * view selection: an assign-only machine event, no `stateVersion`, nothing in
+   * the command log, nothing replayed.
+   */
+  const query = ctx.siemQuery;
+  const setQuery = (next: string) => runtime.send({ type: 'SET_SIEM_QUERY', query: next });
   const notesId = useId();
 
   const total = siemEvents(ctx).length;
