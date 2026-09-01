@@ -70,6 +70,88 @@ test.describe('alarm acknowledgement', () => {
     await expect(page.locator('.office3d__surface--alarm')).toHaveCount(0, { timeout: 5_000 });
   });
 
+  test('a drag across the alarm looks around; it does not take the incident', async ({ page }) => {
+    /*
+     * The distinction the whole input layer exists to draw, measured with real
+     * pointer events rather than by calling a handler.
+     *
+     * The drag surface covers the monitor panels — that is the fix for
+     * head-look being unreachable over most of the frame — so the gesture that
+     * turns the room now ends over the very control that acknowledges the
+     * alarm. If the click that follows a drag is not swallowed, looking around
+     * the room takes the incident, which is a state change the player never
+     * asked for and cannot undo.
+     *
+     * The previous guard dropped itself on a `setTimeout(…, 0)`, which is a
+     * race the click can win under load. It is cleared on the next
+     * `pointerdown` now, which the event model orders rather than the scheduler.
+     */
+    await openOffice(page);
+    await expect
+      .poll(async () => page.locator('.office3d__screen').count(), { timeout: 20_000 })
+      .toBe(3);
+    await page.waitForTimeout(800);
+
+    const centre = (await page.locator('.office3d__screen[data-monitor="center"]').boundingBox())!;
+    const from = { x: centre.x + centre.width / 2, y: centre.y + centre.height / 2 };
+
+    // A real drag: press on the alarm panel, travel well past the slop, release
+    // still over it.
+    await page.mouse.move(from.x - 90, from.y);
+    await page.mouse.down();
+    for (let step = 1; step <= 12; step += 1) {
+      await page.mouse.move(from.x - 90 + step * 15, from.y);
+    }
+    await page.mouse.up();
+
+    await page.waitForTimeout(700);
+    await expect(
+      page.locator('.office3d__surface--alarm'),
+      'a drag that ended over the alarm acknowledged it',
+    ).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Open response console' })).toHaveCount(0);
+
+    // And the drag did what it was for.
+    const yaw = await page
+      .locator('.office3d')
+      .evaluate((element) => Number((element as HTMLElement).dataset.yaw));
+    expect(Math.abs(yaw), 'the drag did not turn the head either').toBeGreaterThan(5);
+
+    /*
+     * Now the other half: a plain click on the same control, with no travel,
+     * still acknowledges. A guard that swallowed every click would pass the
+     * assertion above and break the product.
+     */
+    await page.getByRole('button', { name: 'Acknowledge alarm' }).first().click();
+    await expect(page.locator('.office3d__surface--alarm')).toHaveCount(0, { timeout: 5_000 });
+  });
+
+  test('a click with no travel reaches the monitor it was aimed at', async ({ page }) => {
+    /*
+     * The complement of the test above, on the raycast path rather than the DOM
+     * one: the physical bezel click must survive the drag layer sitting over it.
+     * `pointerdown` deliberately never calls `preventDefault` for exactly this
+     * reason — doing so would suppress the click the scene needs.
+     */
+    await openOffice(page);
+    await expect
+      .poll(async () => page.locator('.office3d__screen').count(), { timeout: 20_000 })
+      .toBe(3);
+    await page.waitForTimeout(800);
+
+    const centre = (await page.locator('.office3d__screen[data-monitor="center"]').boundingBox())!;
+
+    // Press and release on the same pixel: under the slop, so not a drag.
+    await page.mouse.move(centre.x + centre.width / 2, centre.y - 8);
+    await page.mouse.down();
+    await page.mouse.up();
+
+    await expect(
+      page.locator('.office3d__surface--alarm'),
+      'a stationary click on the bezel no longer acknowledges — the drag layer ate it',
+    ).toHaveCount(0, { timeout: 5_000 });
+  });
+
   test('reduced motion reaches learn-or-solve without animation waits', async ({ browser }) => {
     const context = await browser.newContext({ reducedMotion: 'reduce' });
     const page = await context.newPage();

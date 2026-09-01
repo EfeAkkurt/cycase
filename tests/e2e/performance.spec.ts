@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { MONITORS } from '../../src/three/layout';
 import { createCamera } from '../../src/three/projection';
 import { installModelContext } from './helpers';
+import type { FrameCost, RenderSample } from '../../src/three/renderDiagnostics';
 
 /**
  * Measured performance gates (delivery plan §7).
@@ -13,9 +14,28 @@ import { installModelContext } from './helpers';
  * budget test that never prints its measurement is indistinguishable from one that never
  * measured anything.
  *
+ * ## One measurement in here was not measuring the thing it named
+ *
+ * "office idle: avg=59.8 FPS" was `requestAnimationFrame` ticks. The office
+ * runs `frameloop="demand"` — frames are *requested*, by a head turn or by
+ * `AnimationDriver`'s 10 Hz ambient pump, not pumped at display rate — so rAF
+ * measures the browser's vsync and not this renderer at all. It would have read
+ * 60 with the canvas black, with every draw call deleted, and with the WebGL
+ * renderer disposed. A budget that cannot fail is not a budget.
+ *
+ * The frame-rate gates are now expressed as **frame cost**, read from
+ * `window.__CYCASE_RENDER__`, which counts real `render()` calls and the time
+ * they take. Cost is the correct budget for a demand-rendered scene: "every
+ * frame the room draws is cheap enough for 60 Hz" is a claim about this
+ * renderer, and it stays true whether the room is drawing ten times a second or
+ * sixty. The old thresholds are carried over as their cost equivalents — 55 FPS
+ * is 18.2 ms, 45 FPS is 22.2 ms — so the bar has not moved, only the quantity
+ * it is applied to.
+ *
  * Budgets, verbatim from the plan:
- *   - desktop average >= 55 FPS at 1440x900
+ *   - desktop average >= 55 FPS at 1440x900   (≤ 18.2 ms per rendered frame)
  *   - no sustained interval below 45 FPS during head-look / arrival
+ *     (no rendered frame costing more than 22.2 ms)
  *   - camera-to-monitor DOM projection alignment <= 2 px after movement settles
  *   - WebMCP mutation visible <= 250 ms after handler return
  *   - no main-thread task > 200 ms during the demo path after asset loading
@@ -24,11 +44,42 @@ import { installModelContext } from './helpers';
 
 const AVG_FPS_MIN = 55;
 const SUSTAINED_FPS_MIN = 45;
+/** The same two budgets, as the per-rendered-frame cost they imply. */
+const MEAN_FRAME_COST_MAX_MS = 1000 / AVG_FPS_MIN;
+const WORST_FRAME_COST_MAX_MS = 1000 / SUSTAINED_FPS_MIN;
 const ALIGNMENT_MAX_PX = 2;
 const MUTATION_VISIBLE_MS = 250;
 const LONG_TASK_MAX_MS = 200;
 
-/** Samples frames for `durationMs`, returning average and worst 250 ms window. */
+/**
+ * Reads what the renderer actually did over the last `windowMs`.
+ *
+ * Fails loudly rather than falling back to rAF when the probe is absent: a
+ * missing probe means the office is not mounted, or the diagnostics module was
+ * tree-shaken out of the build, and either way the honest report is "not
+ * measured" rather than a number from a different clock.
+ */
+async function sampleRenderCost(
+  page: Page,
+  durationMs: number,
+): Promise<{ cost: FrameCost; sample: RenderSample }> {
+  await page.waitForTimeout(durationMs);
+  const reading = await page.evaluate((windowMs) => {
+    const probe = window.__CYCASE_RENDER__;
+    if (!probe?.available()) return null;
+    return { cost: probe.cost(windowMs), sample: probe.sample() };
+  }, durationMs);
+
+  expect(
+    reading,
+    'window.__CYCASE_RENDER__ is unavailable — the office is not mounted, so nothing was measured',
+  ).not.toBeNull();
+  expect(reading!.cost, 'the renderer produced too few frames to measure').not.toBeNull();
+  expect(reading!.sample, 'the renderer reported no statistics').not.toBeNull();
+  return { cost: reading!.cost!, sample: reading!.sample! };
+}
+
+/** Samples rAF for `durationMs`. Browser vsync — NOT this renderer's rate. */
 async function sampleFrameRate(page: Page, durationMs: number) {
   return page.evaluate(async (duration) => {
     const stamps: number[] = [];
@@ -184,34 +235,118 @@ async function openOffice3D(page: Page) {
 test.describe('performance budgets', () => {
   test.slow();
 
-  test('the idle office holds the frame-rate budget at 1440x900', async ({ page }) => {
+  test('the idle office draws cheap frames at 1440x900', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openOffice3D(page);
 
-    const rate = await sampleFrameRate(page, 3000);
+    const { cost, sample } = await sampleRenderCost(page, 3000);
     console.log(
-      `office idle: avg=${rate.average.toFixed(1)} FPS, worst 250ms window=${rate.worstWindow.toFixed(1)} FPS, ${rate.frames} frames`,
+      `office idle: ${cost.frames} rendered frames in ${cost.elapsedMs.toFixed(0)} ms ` +
+        `(mean interval ${cost.meanIntervalMs.toFixed(1)} ms — the demand pump, not a frame rate), ` +
+        `mean cost ${cost.meanCostMs.toFixed(2)} ms, worst ${cost.worstCostMs.toFixed(2)} ms; ` +
+        `${sample.calls} draw calls, ${sample.triangles} triangles, ` +
+        `${sample.geometries} geometries, ${sample.textures} textures, ${sample.programs} programs`,
     );
 
-    expect(rate.frames, 'no frames were produced at all').toBeGreaterThan(30);
-    expect(rate.average).toBeGreaterThanOrEqual(AVG_FPS_MIN);
-    expect(rate.worstWindow).toBeGreaterThanOrEqual(SUSTAINED_FPS_MIN);
+    expect(cost.frames, 'the renderer drew nothing at all').toBeGreaterThan(5);
+    /*
+     * Note the *absence* of an assertion that the idle office renders at 60 Hz.
+     * It deliberately does not — `AnimationDriver` pumps it at 10 Hz when
+     * nothing is moving, which is what `docs/PROJECT_CONTEXT.md` §7 asks for.
+     * What is asserted is that each frame it does draw is inside the 60 Hz
+     * budget, which is the claim that matters when a head turn wakes it up.
+     */
+    expect(cost.meanCostMs).toBeLessThanOrEqual(MEAN_FRAME_COST_MAX_MS);
+  });
+
+  test('rAF is not this renderer\'s frame rate, and the numbers prove it', async ({ page }) => {
+    /*
+     * The evidence for why the two gates above changed shape.
+     *
+     * This is not a product requirement — it is a guard against the measurement
+     * regressing to the thing it used to be. On an idle office `rAF` ticks at
+     * the display's rate while the renderer draws on `AnimationDriver`'s 10 Hz
+     * ambient pump, so the two disagree by roughly six times. Anyone who
+     * reintroduces "avg FPS" from rAF and calls it WebGL performance will find
+     * this test printing both numbers side by side.
+     */
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openOffice3D(page);
+
+    const raf = await sampleFrameRate(page, 2000);
+    const { cost } = await sampleRenderCost(page, 2000);
+    const renderedFps = 1000 / cost.meanIntervalMs;
+
+    console.log(
+      `idle office: requestAnimationFrame ${raf.average.toFixed(1)} Hz (the display), ` +
+        `WebGL render ${renderedFps.toFixed(1)} Hz (the room) — ` +
+        `a factor of ${(raf.average / renderedFps).toFixed(1)}`,
+    );
+
+    expect(raf.average, 'rAF did not run, so this comparison means nothing').toBeGreaterThan(30);
+    expect(
+      renderedFps,
+      'the idle office is rendering at display rate — the demand loop is not demanding, ' +
+        'and the ambient budget in PROJECT_CONTEXT.md §7 is being spent every frame',
+    ).toBeLessThan(raf.average * 0.5);
   });
 
   test('the character arrival never drops below the sustained floor', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openOffice3D(page);
 
-    // Acknowledge, then sample across her walk-in and settle — the heaviest
-    // animation window in the product.
+    /*
+     * Acknowledge, then sample across her walk-in and settle — the heaviest
+     * animation window in the product, and the one window where the demand loop
+     * really is pumping every frame. Here the rendered-frame rate *is* a frame
+     * rate, so both quantities are reported: the rate the room achieved, and
+     * the cost of the frames it drew.
+     */
     await page.getByRole('button', { name: 'Acknowledge alarm' }).first().click();
-    const rate = await sampleFrameRate(page, 5000);
+    const { cost, sample } = await sampleRenderCost(page, 5000);
+    const renderedFps = 1000 / cost.meanIntervalMs;
     console.log(
-      `arrival: avg=${rate.average.toFixed(1)} FPS, worst 250ms window=${rate.worstWindow.toFixed(1)} FPS, ${rate.frames} frames`,
+      `arrival: ${cost.frames} rendered frames, ${renderedFps.toFixed(1)} rendered FPS, ` +
+        `mean cost ${cost.meanCostMs.toFixed(2)} ms, worst ${cost.worstCostMs.toFixed(2)} ms, ` +
+        `longest gap ${cost.worstIntervalMs.toFixed(1)} ms; ` +
+        `${sample.calls} draw calls, ${sample.triangles} triangles`,
     );
 
-    expect(rate.average).toBeGreaterThanOrEqual(AVG_FPS_MIN);
-    expect(rate.worstWindow).toBeGreaterThanOrEqual(SUSTAINED_FPS_MIN);
+    expect(renderedFps).toBeGreaterThanOrEqual(AVG_FPS_MIN);
+    expect(cost.meanCostMs).toBeLessThanOrEqual(MEAN_FRAME_COST_MAX_MS);
+    expect(
+      cost.worstCostMs,
+      'a single rendered frame cost more than the sustained-rate budget allows',
+    ).toBeLessThanOrEqual(WORST_FRAME_COST_MAX_MS);
+  });
+
+  test('a head-look sweep stays inside the frame budget', async ({ page }) => {
+    /*
+     * The other window where the room genuinely renders every frame, and the
+     * one the widened ±120° cone changed: a full sweep now brings the rear
+     * wall, the breakout table, the credenza run and the neighbouring pod into
+     * frame, none of which existed when this budget was last measured.
+     */
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openOffice3D(page);
+
+    await page.locator('.office3d__canvas').focus();
+    const sweep = page.keyboard.press('ArrowLeft');
+    await sweep;
+    for (let press = 0; press < 30; press += 1) {
+      await page.keyboard.press('ArrowLeft');
+      await page.waitForTimeout(60);
+    }
+
+    const { cost, sample } = await sampleRenderCost(page, 2000);
+    console.log(
+      `head-look sweep to the yaw clamp: ${cost.frames} rendered frames, ` +
+        `mean cost ${cost.meanCostMs.toFixed(2)} ms, worst ${cost.worstCostMs.toFixed(2)} ms; ` +
+        `${sample.calls} draw calls, ${sample.triangles} triangles`,
+    );
+
+    expect(cost.meanCostMs).toBeLessThanOrEqual(MEAN_FRAME_COST_MAX_MS);
+    expect(cost.worstCostMs).toBeLessThanOrEqual(WORST_FRAME_COST_MAX_MS);
   });
 
   test('no main-thread task exceeds the budget on the demo path', async ({ page }) => {

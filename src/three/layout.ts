@@ -327,13 +327,104 @@ export const BACKDROP = {
    * belongs at the top of a wall, not down it.
    */
   acoustic: { count: 3, size: 0.34, top: 2.24 },
+  /**
+   * The rest of the floor, for the three views the widened cone opened up.
+   *
+   * Until the head-look cone became a chair swivel, everything in this file was
+   * staged for one shot: the seated forward view and about 55° either side of
+   * it. Nothing was ever placed behind the operator because nothing could ever
+   * be seen there — and the room's *front* wall was not drawn at all, so a
+   * player who turned far enough was looking at the clear colour through a hole
+   * where the fourth wall should be.
+   *
+   * Each of the three new views is composed in three layers rather than
+   * decorated, because a wall with one object against it reads as a wall with
+   * one object against it. Distances are from the seat at (0, 1.18, 0.8):
+   *
+   *   foreground   0.8 - 1.6 m   things at the edge of the desk island
+   *   midground    1.6 - 2.6 m   the neighbouring pod, the credenza, the table
+   *   background   2.6 - 3.6 m   the walls and what is fixed to them
+   */
+  rear: {
+    /** Glazing band in the rear wall, with the floor beyond it lit. */
+    glazing: { bottom: 0.98, top: 2.02, inset: 0.06 },
+    /** The rear doorway, off to the left so it does not sit on the view axis. */
+    door: { x: -1.62, width: 0.94, height: 2.04 },
+    /** Wall-mounted status board: dark glass with a few live rows on it. */
+    board: { position: [1.05, 1.62] as [number, number], width: 1.34, height: 0.78, rows: 7 },
+    /** The clock every operations room has, and the only round thing in here. */
+    clock: { position: [-0.15, 1.94] as [number, number], radius: 0.16 },
+    /** Breakout table and its two chairs, the rear midground. */
+    table: { position: [-0.35, 2.25] as [number, number], rotationY: 0.18 },
+    /** Coat stand: a vertical in the rear-left, where the frame is otherwise flat. */
+    coatStand: { position: [-2.22, 1.95] as [number, number], height: 1.72 },
+  },
+  /**
+   * The left-hand wall: a credenza run with storage boxes and binders on it.
+   *
+   * The left wall carried nothing below the acoustic band, and the acoustic
+   * band stops 1.1 m from the back wall — so from about 60° of yaw leftward the
+   * player was looking at four metres of bare plaster.
+   */
+  credenza: {
+    units: [
+      { position: [-2.24, 0.42] as [number, number], rotationY: Math.PI / 2 },
+      { position: [-2.24, 1.34] as [number, number], rotationY: Math.PI / 2 },
+    ],
+    /**
+     * A floor plant between the seat and the run, and the only thing in the
+     * left-hand view inside 1.7 m.
+     *
+     * Placed by measurement rather than by eye. Sweeping the left half of the
+     * floor against `createCamera` at yaw 70 — square on to that wall — the
+     * whole near-floor band projects *below* the frame: at the seated camera's
+     * −3.75° base pitch nothing shorter than about 0.9 m is in shot inside
+     * 1.7 m. So the left foreground had to be tall as well as close, which a
+     * 1.15 m plant is and a bin, a box or another low cabinet would not have
+     * been. Without it the left view is midground and background only, which is
+     * the flat read this pass exists to remove.
+     */
+    plant: { position: [-1.62, 0.62] as [number, number], height: 1.15 },
+    /** Archive boxes stacked on top, so the run has a broken silhouette. */
+    boxes: [
+      { position: [-2.22, 0.98, 0.22] as [number, number, number], scale: 0.3 },
+      { position: [-2.2, 0.98, 0.62] as [number, number, number], scale: 0.26 },
+      { position: [-2.24, 1.26, 0.24] as [number, number, number], scale: 0.24 },
+      { position: [-2.21, 0.98, 1.5] as [number, number, number], scale: 0.28 },
+    ],
+  },
+  /**
+   * The neighbouring workstation, on the right.
+   *
+   * A second desk with a dark, unlit display on it and its chair pushed back —
+   * the operator's colleague is standing at *their* desk, not sitting at this
+   * one, which is the small piece of story that keeps it from being furniture.
+   */
+  pod: {
+    desk: { position: [2.08, 0.72] as [number, number], rotationY: -Math.PI / 2 },
+    chair: { position: [1.52, 0.82] as [number, number], rotationY: -1.9 },
+    display: { position: [2.24, 1.06, 0.72] as [number, number, number], width: 0.5, height: 0.3 },
+    plant: { position: [2.16, 1.86] as [number, number] },
+  },
   /** Suspended ceiling: T-bar grid, two troffers, one cable tray. */
   ceiling: {
     tileX: 4,
     tileZ: 6,
+    /*
+     * A third fixture, over the rear half of the room.
+     *
+     * Lit, and it is an emissive plane rather than a light: a `MeshBasicMaterial`
+     * costs nothing per fragment, whereas every real light in the scene is paid
+     * for by every PBR material in it. The rear of the room needed a *source* in
+     * frame — a ceiling with two unlit fixtures over an area the player can now
+     * look at reads as a room with the lights off — and it needed one without
+     * spending 17% more shading on a frame-rate budget that is already measured.
+     * `Lighting` adds exactly one real point light back there to go with it.
+     */
     troffers: [
       { position: [0, -0.62] as [number, number], lit: true },
       { position: [1.2, -1.72] as [number, number], lit: false },
+      { position: [-0.3, 1.62] as [number, number], lit: true },
     ],
     trayZ: -1.3,
   },

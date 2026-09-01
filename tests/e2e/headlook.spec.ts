@@ -19,14 +19,28 @@ import { createCamera } from '../../src/three/projection';
  * The clamps are read straight off the office, which publishes the live rig
  * pose as `data-yaw` / `data-pitch` in degrees and `data-settled` while the
  * easing is still running.
+ *
+ * ## The cone is wider than the contract's, deliberately
+ *
+ * ±55° is the range of a head turning on a fixed neck, and at that range the
+ * side walls are still at the edge of the picture while the room behind the
+ * seat has never been on screen at all — "look around the office" resolved to
+ * "look slightly to one side of your monitors". The cone is a chair swivel now.
+ * `CAMERA.fov` is deliberately unchanged, so the projection at yaw 0 is
+ * byte-identical and the 2 px overlay budget is untouched by the widening; what
+ * changed is only where the camera is allowed to point.
+ *
+ * The contract's four views still have to show real room geometry, and they now
+ * have four *more* metres of room to show — which is why `Room` finally draws a
+ * fourth wall and `BACKDROP.rear` exists.
  */
 
-/** The contract's cone, in degrees. */
-const YAW_LIMIT = 55;
-const PITCH_UP_LIMIT = 25;
-const PITCH_DOWN_LIMIT = 20;
+/** The cone, in degrees. A chair swivel rather than a neck. */
+const YAW_LIMIT = 120;
+const PITCH_UP_LIMIT = 32;
+const PITCH_DOWN_LIMIT = 38;
 
-/** One key press, in degrees. Fourteen presses reach either yaw clamp. */
+/** One key press, in degrees. Thirty presses reach either yaw clamp. */
 const KEY_STEP = 4;
 
 /**
@@ -269,8 +283,8 @@ test.describe('seated head-look input (P0.1)', () => {
      * not by the app — the same interaction is instant on a GPU.
      *
      * Press counts are the minimum that provably exceeds each clamp at the 4°
-     * key step (25/4 -> 7 up, 20/4 -> 5 down, 55/4 -> 14 across), plus a margin,
-     * rather than round numbers chosen for comfort.
+     * key step (32/4 -> 8 up, 38/4 -> 10 down, 120/4 -> 30 across), plus a
+     * margin, rather than round numbers chosen for comfort.
      */
     test.setTimeout(240_000);
     await openOffice(page);
@@ -306,14 +320,14 @@ test.describe('seated head-look input (P0.1)', () => {
     await page.getByRole('button', { name: 'Recenter view' }).click();
     await settleAt(page, 0, 0);
 
-    // W and S carry the pitch, and clamp asymmetrically: +25 up, -20 down.
+    // W and S carry the pitch, and clamp asymmetrically: +32 up, -38 down.
     /*
-     * The contract's requirement here is the CLAMP — "+25 up, -20 down" — not
+     * The contract's requirement here is the CLAMP — the asymmetric pair — not
      * an exact arithmetic of discrete presses. Driven far past each limit, the
      * head must move in the right direction and stop at the bound; how many of a
      * rapid burst the harness manages to deliver is not the product's promise.
-     * (Driven by hand with a frame between presses, nine ArrowUps land exactly
-     * on 25.00.)
+     * (Driven by hand with a frame between presses, eight ArrowUps land exactly
+     * on the up clamp.)
      */
     await look(page, 'ArrowUp', 12);
     let rest = await restingPose(page);
@@ -452,13 +466,266 @@ test.describe('seated head-look input (P0.1)', () => {
  * player to be able to see. "Rear limit" is the deepest of those reaches — the
  * yaw clamp on the doorway side, taken to the pitch clamp as well.
  */
+/**
+ * The interaction defects reported against the shipped office, each measured
+ * with real input rather than by calling a handler.
+ *
+ * The theme they share is that the previous implementation was correct about
+ * the element it was attached to and wrong about the element the player
+ * touches. Head-look was bound to the canvas host, one layer *below*
+ * `.office3d__overlay` — and the three projected monitor surfaces are
+ * `pointer-events: auto` and cover most of the picture, so whether looking
+ * around worked at all depended on where in the frame you happened to grab.
+ */
+test.describe('head-look works wherever the player actually grabs', () => {
+  test.slow();
+
+  /** The centre of a monitor surface, which is where a player naturally drags. */
+  async function monitorCentre(page: Page, id: 'left' | 'center' | 'right') {
+    const box = (await page.locator(`.office3d__screen[data-monitor="${id}"]`).boundingBox())!;
+    expect(box, `the ${id} monitor surface is not on screen`).toBeTruthy();
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }
+
+  test('a drag that starts on a monitor surface still turns the room', async ({ page }) => {
+    /*
+     * The headline defect. This gesture moved the head by exactly zero degrees
+     * before the listeners were re-bound to the whole office region: the
+     * `pointerdown` landed on `.office3d__screen`, which sits above the element
+     * the listener was on, so the drag never began.
+     */
+    await openOffice(page);
+    expect(await pose(page)).toMatchObject({ yaw: 0, pitch: 0 });
+
+    const start = await monitorCentre(page, 'right');
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    for (let step = 1; step <= 10; step += 1) {
+      await page.mouse.move(start.x + step * 14, start.y);
+    }
+    await page.mouse.up();
+
+    const turned = await restingPose(page);
+    expect(
+      turned.yaw,
+      'a drag starting on a monitor surface did not turn the head — the drag ' +
+        'listener is below the overlay again',
+    ).toBeGreaterThan(10);
+  });
+
+  test('a drag starting on the left and centre surfaces works too', async ({ page }) => {
+    await openOffice(page);
+
+    for (const id of ['left', 'center'] as const) {
+      await page.getByRole('button', { name: 'Recenter view' }).click();
+      await settleAt(page, 0, 0);
+
+      const start = await monitorCentre(page, id);
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      for (let step = 1; step <= 8; step += 1) {
+        await page.mouse.move(start.x - step * 14, start.y);
+      }
+      await page.mouse.up();
+
+      const turned = await restingPose(page);
+      expect(turned.yaw, `a drag on the ${id} monitor did not turn the head`).toBeLessThan(-8);
+    }
+  });
+
+  test('a touch drag turns the room, and does not scroll the page', async ({ page }) => {
+    /*
+     * Touch is the third input path the contract names and the one with a
+     * silent failure mode: without `touch-action: none` on the element the
+     * gesture starts on, the browser claims the drag as a scroll and the room
+     * never moves. That declaration used to be on the canvas host only, so a
+     * touch drag beginning on a monitor panel — most of the picture — scrolled.
+     */
+    await openOffice(page);
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+
+    const start = await monitorCentre(page, 'center');
+    await page.touchscreen.tap(start.x, start.y);
+
+    /*
+     * Playwright's `touchscreen` has no move primitive, so the gesture is
+     * dispatched as real `PointerEvent`s of `pointerType: 'touch'` — which is
+     * exactly what the input layer branches on — rather than simulated with a
+     * mouse, which would prove nothing about the touch path.
+     */
+    await page.evaluate(
+      async ({ x, y }) => {
+        const target = document.elementFromPoint(x, y);
+        if (!target) throw new Error('nothing at the gesture point');
+        const fire = (type: string, clientX: number, clientY: number) => {
+          target.dispatchEvent(
+            new PointerEvent(type, {
+              pointerId: 1,
+              pointerType: 'touch',
+              isPrimary: true,
+              bubbles: true,
+              cancelable: true,
+              clientX,
+              clientY,
+              button: 0,
+            }),
+          );
+        };
+        fire('pointerdown', x, y);
+        for (let step = 1; step <= 10; step += 1) {
+          fire('pointermove', x + step * 15, y);
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+        fire('pointerup', x + 150, y);
+      },
+      start,
+    );
+
+    const turned = await restingPose(page);
+    expect(turned.yaw, 'a touch drag did not turn the head').toBeGreaterThan(10);
+    expect(await page.evaluate(() => window.scrollY), 'the touch drag scrolled the page').toBe(
+      scrollBefore,
+    );
+  });
+
+  test('camera keys stay out of the controls, and Recenter hands them back', async ({ page }) => {
+    /*
+     * Two halves of one contract, and they pull against each other — which is
+     * why they are asserted together.
+     *
+     * Camera keys must not fire while a control has focus: ArrowLeft on the
+     * volume slider belongs to the slider. But the Recenter control is a button,
+     * so clicking it left focus on a button and silently killed arrow and WASD
+     * look until the player clicked the room again. Recenter now hands focus
+     * back to the room, which is what makes both halves true at once.
+     */
+    await openOffice(page);
+
+    // Turn the head first, so "did not move" is distinguishable from "started
+    // at zero and stayed there".
+    await look(page, 'ArrowLeft', 4);
+    const turned = await restingPose(page);
+    expect(turned.yaw).toBeGreaterThan(KEY_STEP);
+
+    // With focus on a real control, the camera keys are that control's.
+    const volume = page.getByRole('slider', { name: /volume/i });
+    await volume.focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await page.waitForTimeout(400);
+    expect(
+      (await restingPose(page)).yaw,
+      'ArrowLeft moved the camera while the volume slider had focus',
+    ).toBeCloseTo(turned.yaw, 1);
+
+    // Recentre, then keep looking — with no click on the room in between.
+    await page.getByRole('button', { name: 'Recenter view' }).click();
+    await settleAt(page, 0, 0);
+
+    await expect
+      .poll(async () => page.evaluate(() => document.activeElement?.id ?? ''), { timeout: 5000 })
+      .toBe('office-look-surface');
+
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    const after = await restingPose(page);
+    expect(
+      after.yaw,
+      'arrow keys stopped working after Recenter — focus was left on the button',
+    ).toBeLessThan(-KEY_STEP / 2);
+  });
+
+  test('the first-run help names the gestures, then stands down and stays reachable', async ({
+    page,
+  }) => {
+    /*
+     * Head-look is the one interaction in the office with no visible
+     * affordance: the room looks like a picture, and nothing about a picture
+     * says it can be pulled sideways. So a first visit is told, and a visit
+     * after the player has demonstrated they know is not.
+     */
+    await page.context().clearCookies();
+    await page.addInitScript(() => window.localStorage.removeItem('cycase.office.headlook-used'));
+    await openOffice(page);
+
+    const panel = page.locator('#office-help-panel');
+    await expect(panel, 'a first-time player got no hint that the room can be looked around').toBeVisible();
+    await expect(panel).toContainText(/drag/i);
+    await expect(panel).toContainText(/WASD/i);
+    await expect(panel).toContainText(/home/i);
+
+    // One successful look is the signal that it has been understood.
+    await look(page, 'ArrowLeft', 2);
+    await expect(panel, 'the hint stayed up after the player used it').toBeHidden();
+
+    // Gone, but not lost.
+    const reopen = page.getByRole('button', { name: 'Look controls' });
+    await expect(reopen).toBeVisible();
+    await reopen.click();
+    await expect(panel).toBeVisible();
+  });
+
+  test('mouse look says how to get the pointer back', async ({ page }) => {
+    /*
+     * Pointer Lock hides the cursor and swallows every mouse event on the page.
+     * A player who does not know that Escape releases it has lost control of
+     * the window, and the only previous indication was `aria-pressed` on a
+     * button they can no longer click.
+     */
+    await openOffice(page);
+    const status = page.locator('.office3d__status');
+    await expect(status).toBeEmpty();
+
+    await page.getByRole('button', { name: 'Mouse look' }).click();
+
+    /*
+     * Pointer Lock needs a real user gesture and a browser willing to grant it,
+     * and a headed Chrome under automation is not guaranteed to be. Both
+     * outcomes are legitimate; what is asserted is that neither is silent.
+     */
+    await expect
+      .poll(async () => (await status.textContent())?.trim() ?? '', { timeout: 5000 })
+      .not.toBe('');
+
+    const locked = await page.evaluate(() => document.pointerLockElement !== null);
+    const message = (await status.textContent())!;
+    console.log(`pointer lock ${locked ? 'granted' : 'refused'}: "${message.trim()}"`);
+
+    if (locked) {
+      expect(message).toMatch(/esc/i);
+      await page.keyboard.press('Escape');
+      await expect
+        .poll(async () => page.evaluate(() => document.pointerLockElement !== null), {
+          timeout: 5000,
+        })
+        .toBe(false);
+    } else {
+      // A refusal must say so rather than leaving a button that appears dead.
+      expect(message).toMatch(/pointer|capture|arrow keys/i);
+    }
+  });
+});
+
 test.describe('the four contract views (P0.1)', () => {
   test.slow();
 
   test('front, left, right and rear limits all show real room geometry', async ({ page }) => {
-    // Four poses, each settled, captured at 1440x900 and decoded pixel by pixel
-    // in Node. It is the most expensive test in the suite by a wide margin.
-    test.setTimeout(240_000);
+    /*
+     * Four poses, each settled, captured at 1440x900 and decoded pixel by pixel
+     * in Node. It is the most expensive test in the suite by a wide margin, and
+     * the widened cone made it more so: sweeping from the left clamp to the
+     * right one is now 240° rather than 110°, which is 72 discrete key presses
+     * with a frame awaited between each.
+     *
+     * It also became a far stronger test. At ±55° "left" and "right" were still
+     * looking at the back wall from an angle; at ±120° they are square on to the
+     * side walls, and the "rear" view is genuinely behind the operator — where,
+     * until this pass, there was no wall at all and the room ended in the
+     * renderer's clear colour. The luminance and banding thresholds are
+     * unchanged, so what these four captures have to survive is strictly harder
+     * than what they survived before.
+     */
+    test.setTimeout(360_000);
     await page.setViewportSize({ width: 1440, height: 900 });
     await openOffice(page);
     /*
@@ -488,19 +755,22 @@ test.describe('the four contract views (P0.1)', () => {
         name: 'left',
         yaw: YAW_LIMIT,
         pitch: 0,
-        drive: async () => look(page, 'ArrowLeft', 20),
+        // 30 presses reach the clamp at 4° each; 38 is that with a margin, so
+        // a coalesced press cannot leave the view short of the limit.
+        drive: async () => look(page, 'ArrowLeft', 38),
       },
       {
         name: 'right',
         yaw: -YAW_LIMIT,
         pitch: 0,
-        drive: async () => look(page, 'ArrowRight', 40),
+        // From the left clamp to the right one is the full 240° of the cone.
+        drive: async () => look(page, 'ArrowRight', 72),
       },
       {
         name: 'rear',
         yaw: -YAW_LIMIT,
         pitch: -PITCH_DOWN_LIMIT,
-        drive: async () => look(page, 'ArrowDown', 10),
+        drive: async () => look(page, 'ArrowDown', 14),
       },
     ];
 

@@ -163,6 +163,8 @@ export function Backdrop() {
       <Whiteboard materials={materials} />
       <AcousticTreatment materials={materials} />
       <SuspendedCeiling materials={materials} />
+      <RearWall materials={materials} />
+      <LeftWallRun materials={materials} />
     </group>
   );
 }
@@ -708,3 +710,138 @@ function SuspendedCeiling({ materials }: { materials: Materials }) {
 }
 
 export { UNIT_PLANE };
+
+/* ------------------------------------------------------------------ *
+ * The rear wall, and the left-hand run
+ *
+ * Both exist for the widened head-look cone. Everything above this line was
+ * composed for the seated forward view and about 55° either side of it; a chair
+ * swivel reaches 120°, which puts the back of the room and four metres of the
+ * left wall on screen for the first time.
+ *
+ * The rule these follow is the one `BACKDROP.rear` states: three depth layers
+ * per view, never one object against a flat surface. A wall with a single
+ * poster on it and a bin in front of it is not a background, it is a wall with
+ * a poster and a bin.
+ * ------------------------------------------------------------------ */
+
+/**
+ * What the operator sees when they turn all the way round: a glazed partition
+ * onto the lit floor beyond, a status board, a clock, and a doorway.
+ *
+ * The glazing does the same job the doorway's corridor does on the back wall —
+ * it gives the rear depth rather than terminating it. Without it the rear view
+ * is a correctly-lit flat plane, which is better than the hole that was there
+ * before and still reads as the end of a set.
+ */
+function RearWall({ materials }: { materials: Materials }) {
+  const spec = BACKDROP.rear;
+  const z = ROOM.frontZ;
+  const halfWidth = ROOM.width / 2;
+
+  const { mullions, boardRows, boardColors } = useMemo(() => {
+    const bars: Placement[] = [];
+    const glazingHeight = spec.glazing.top - spec.glazing.bottom;
+    const midY = (spec.glazing.top + spec.glazing.bottom) / 2;
+
+    // Head and cill of the glazed band.
+    for (const y of [spec.glazing.bottom, spec.glazing.top]) {
+      bars.push({ position: [0, y, z - 0.04], scale: [ROOM.width, 0.05, 0.08] });
+    }
+    // Vertical mullions every 0.86 m, which is what makes it read as glazing
+    // rather than as a lighter stripe of paint.
+    for (let x = -halfWidth + 0.43; x < halfWidth; x += 0.86) {
+      bars.push({ position: [x, midY, z - 0.04], scale: [0.05, glazingHeight, 0.08] });
+    }
+
+    /*
+     * The status board's live rows. Warm-neutral values only: the palette gate
+     * in `tests/e2e/palette.spec.ts` fires on `b - r > 18`, and a wall of cool
+     * blue "monitoring" rows is exactly the thing that would trip it.
+     */
+    const rows: Placement[] = [];
+    const colors: THREE.Color[] = [];
+    const live = new THREE.Color(PALETTE.ledLive);
+    const dim = new THREE.Color(PALETTE.ledDim);
+    for (let row = 0; row < spec.board.rows; row += 1) {
+      const y = spec.board.position[1] - spec.board.height / 2 + 0.09 + row * 0.09;
+      const width = spec.board.width * (0.28 + ((row * 7) % 5) * 0.12);
+      rows.push({
+        position: [spec.board.position[0] - spec.board.width / 2 + width / 2 + 0.08, y, z - 0.085],
+        scale: [width, 0.026, 0.004],
+      });
+      colors.push(row % 3 === 1 ? live : dim);
+    }
+
+    return { mullions: bars, boardRows: rows, boardColors: colors };
+  }, [spec, z, halfWidth]);
+
+  return (
+    <group>
+      {/*
+        The floor beyond the glazing, and beyond the doorway.
+
+        One emissive plane set back from the wall rather than a modelled space:
+        it is 2.6 m behind the seat and read through mullions, so what it has to
+        supply is a value and a suggestion of depth, not a room.
+      */}
+      <mesh position={[0, 1.5, z + 0.36]} rotation={[0, Math.PI, 0]} material={materials.corridorWall}>
+        <planeGeometry args={[ROOM.width, 2.6]} />
+      </mesh>
+      <mesh position={[0, 1.62, z + 0.3]} rotation={[0, Math.PI, 0]} material={materials.corridor}>
+        <planeGeometry args={[ROOM.width * 0.82, 0.5]} />
+      </mesh>
+
+      <Boxes placements={mullions} material={materials.frame} />
+
+      {/* the status board: dark glass in a frame, with its rows lit */}
+      <mesh position={[spec.board.position[0], spec.board.position[1], z - 0.06]} rotation={[0, Math.PI, 0]} material={materials.frame}>
+        <planeGeometry args={[spec.board.width + 0.05, spec.board.height + 0.05]} />
+      </mesh>
+      <mesh position={[spec.board.position[0], spec.board.position[1], z - 0.07]} rotation={[0, Math.PI, 0]} material={materials.slat}>
+        <planeGeometry args={[spec.board.width, spec.board.height]} />
+      </mesh>
+      <Boxes placements={boardRows} material={materials.led} colors={boardColors} />
+
+      {/* the clock */}
+      <mesh position={[spec.clock.position[0], spec.clock.position[1], z - 0.06]} rotation={[0, Math.PI, 0]} material={materials.board}>
+        <circleGeometry args={[spec.clock.radius, 24]} />
+      </mesh>
+      <mesh position={[spec.clock.position[0], spec.clock.position[1], z - 0.07]} rotation={[0, Math.PI, 0]} material={materials.frame}>
+        <ringGeometry args={[spec.clock.radius * 0.92, spec.clock.radius, 24]} />
+      </mesh>
+      {/* two hands, so it reads as a clock rather than as a white disc */}
+      <mesh position={[spec.clock.position[0], spec.clock.position[1] + 0.04, z - 0.08]} material={materials.marker}>
+        <boxGeometry args={[0.012, 0.09, 0.004]} />
+      </mesh>
+      <mesh
+        position={[spec.clock.position[0] + 0.045, spec.clock.position[1], z - 0.08]}
+        rotation={[0, 0, Math.PI / 2]}
+        material={materials.marker}
+      >
+        <boxGeometry args={[0.01, 0.1, 0.004]} />
+      </mesh>
+    </group>
+  );
+}
+
+/**
+ * The credenza run along the left wall, with archive boxes on top.
+ *
+ * The units themselves are `drawer_cabinet.glb` placed by `Furniture` in
+ * `Room.tsx` — this owns the part that gives the run a silhouette, because a
+ * row of identical cabinets is as flat as the wall it is hiding.
+ */
+function LeftWallRun({ materials }: { materials: Materials }) {
+  const boxes = useMemo(
+    () =>
+      BACKDROP.credenza.boxes.map((box) => ({
+        position: box.position,
+        scale: [box.scale, box.scale * 0.72, box.scale * 1.2] as [number, number, number],
+        rotation: [0, box.position[2] * 0.4, 0] as [number, number, number],
+      })),
+    [],
+  );
+
+  return <Boxes placements={boxes} material={materials.shelf} />;
+}

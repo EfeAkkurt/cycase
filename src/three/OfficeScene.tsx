@@ -521,6 +521,30 @@ function Lighting({ alert, colleagueLit }: { alert: boolean; colleagueLit: boole
       <pointLight position={[-0.4, 1.35, -1.9]} intensity={3.4} distance={3.4} decay={2} color={LIGHTS.hemiSky} />
 
       {/*
+       * The rear of the room, and the only light added for the widened cone.
+       *
+       * One, deliberately. The chair swivel put the rear wall, the breakout
+       * table and the left-hand credenza run on screen, and none of them had
+       * any light at all — the nearest term before this was the floor bounce at
+       * z = 0.5, two metres short of the rear wall. The honest fix is a fixture
+       * where the ceiling now shows one, and the third troffer in
+       * `BACKDROP.ceiling` is that fixture's visible half.
+       *
+       * It is a single light rather than the symmetric pair the front of the
+       * room gets, because every light here is paid for by every PBR material
+       * in the scene and the frame-rate budget is measured rather than assumed.
+       * A wide `distance` and a modest intensity covers the whole rear third
+       * from one position.
+       */}
+      <pointLight
+        position={[-0.3, ROOM.height - 0.18, 1.62]}
+        intensity={5.6}
+        distance={5.4}
+        decay={2}
+        color={LIGHTS.ceilingPanel}
+      />
+
+      {/*
        * The colleague's key and rim — the audit's own prescription: "Give her a
        * rim or key light and readable material values — she is currently almost
        * a silhouette."

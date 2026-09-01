@@ -179,6 +179,188 @@ test.describe('3D fallbacks', () => {
     await expect(page.locator('canvas')).toHaveCount(0);
     await expect(page.locator('.monitors')).toBeVisible();
   });
+
+  /**
+   * Why the flat wall is on screen, said out loud.
+   *
+   * Arriving in 2D with no explanation reads as the 3D office having failed to
+   * load — even when it was the player's own preference — and, when it really
+   * has failed, leaves them unsure whether the case they are looking at is
+   * still intact. It is: nothing about the incident has ever lived in the
+   * canvas. The note says both things.
+   */
+  test('the flat wall says why it is there, to the screen reader as well', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 800 });
+    await openOffice(page);
+
+    const note = page.locator('.monitors__reason');
+    await expect(note, 'the 2D fallback gave no reason at all').toBeVisible();
+    await expect(note).toHaveAttribute('role', 'status');
+    await expect(note).toHaveAttribute('aria-live', 'polite');
+    await expect(note, 'the narrow-viewport reason is not the one shown').toContainText(/narrow/i);
+    await expect(note, 'the note does not say the case survived').toContainText(/full case is playable/i);
+  });
+
+  test('turning 3D off gives the preference reason, not a failure one', async ({ page }) => {
+    await openOffice(page);
+    await page.getByRole('button', { name: /3D office/ }).click();
+
+    const note = page.locator('.monitors__reason');
+    await expect(note).toBeVisible();
+    await expect(
+      note,
+      'a deliberate preference is being reported as though something broke',
+    ).toContainText(/you turned the 3D office off/i);
+    // Nothing failed, so nothing is offered to retry.
+    await expect(page.getByRole('button', { name: /Try the 3D office again/ })).toHaveCount(0);
+  });
+
+  test('a lost WebGL context falls to the wall, keeps the case, and offers a retry', async ({
+    page,
+  }) => {
+    /*
+     * The failure this used to handle by doing nothing at all: the canvas went
+     * black, the room never came back, and the case carried on underneath with
+     * no way for the player to know what had happened.
+     *
+     * `WEBGL_lose_context` is the standard extension for provoking it, and it
+     * is the only honest way to test this — a mocked event would prove the
+     * handler runs, not that the renderer's own loss path reaches it.
+     */
+    await openOffice(page);
+    await expect(page.locator('canvas')).toHaveCount(1);
+
+    // Get the case moving first, so "the case survived" is a real claim.
+    await page.getByRole('button', { name: 'Acknowledge alarm' }).first().click();
+    await expect(page.getByRole('button', { name: 'Open response console' })).toBeVisible({
+      timeout: 30_000,
+    });
+
+    const provoked = await page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      const gl =
+        canvas?.getContext('webgl2') ?? canvas?.getContext('webgl');
+      const extension = gl?.getExtension('WEBGL_lose_context');
+      if (!extension) return false;
+      extension.loseContext();
+      return true;
+    });
+    test.skip(!provoked, 'WEBGL_lose_context is unavailable in this browser');
+
+    // The room is gone and the wall is up, with the reason on screen.
+    await expect(page.locator('canvas')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator('.monitors')).toBeVisible();
+    await expect(page.locator('.monitors__reason')).toContainText(/graphics context was lost/i);
+    await expect(page.locator('.monitors__reason')).toContainText(/nothing about the case has been lost/i);
+
+    /*
+     * And the case really is intact — not merely claimed to be. The briefing
+     * choice the player had reached is still the beat they are on, and taking
+     * it still opens the console.
+     */
+    await page.getByRole('button', { name: 'Open response console' }).click({ timeout: 30_000 });
+    await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
+  });
+
+  test('the case can be played from the alarm to a decision after a context loss', async ({
+    page,
+  }) => {
+    /*
+     * The acceptance criterion in full: "the case is playable start to finish
+     * with the 2D fallback". The test above proves the fallback preserves state
+     * mid-case; this one proves the fallback is a complete way to play, entered
+     * before the player has done anything at all.
+     */
+    await openOffice(page);
+    const provoked = await page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      const gl = canvas?.getContext('webgl2') ?? canvas?.getContext('webgl');
+      const extension = gl?.getExtension('WEBGL_lose_context');
+      if (!extension) return false;
+      extension.loseContext();
+      return true;
+    });
+    test.skip(!provoked, 'WEBGL_lose_context is unavailable in this browser');
+
+    await expect(page.locator('.monitors')).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: 'Acknowledge alarm' }).first().click();
+    await page.getByRole('button', { name: 'Open response console' }).click({ timeout: 30_000 });
+    await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
+    await page.locator('#decision-option-D1_preserve_and_inspect').click();
+    await expect(page.locator('#decision-D1')).toContainText('Your choice');
+  });
+
+  /**
+   * The rig outlives the room, which is what made this a bug.
+   *
+   * `cameraRig` is a module singleton. Turning 3D off and on again, or dragging
+   * the window narrow enough to cross the 3D threshold and back, unmounts and
+   * remounts the office while the rig keeps whatever pose it was left in — so
+   * the room used to come back facing a side wall, and the player had to find
+   * Recenter to get their monitors back.
+   */
+  test('the room comes back facing the monitors after a 3D toggle', async ({ page }) => {
+    await openOffice(page);
+
+    await page.locator('.office3d__canvas').focus();
+    for (let press = 0; press < 6; press += 1) {
+      await page.keyboard.press('ArrowLeft');
+      await page.waitForTimeout(80);
+    }
+    await page.waitForTimeout(600);
+    const turned = await page
+      .locator('.office3d')
+      .evaluate((element) => Number((element as HTMLElement).dataset.yaw));
+    expect(Math.abs(turned), 'the head never turned, so the reset proves nothing').toBeGreaterThan(5);
+
+    await page.getByRole('button', { name: /3D office/ }).click();
+    await expect(page.locator('canvas')).toHaveCount(0);
+    await page.getByRole('button', { name: /3D office/ }).click();
+    await expect(page.locator('canvas')).toHaveCount(1);
+
+    await expect
+      .poll(
+        async () =>
+          page
+            .locator('.office3d')
+            .evaluate((element) => Number((element as HTMLElement).dataset.yaw)),
+        { timeout: 10_000 },
+      )
+      .toBeCloseTo(0, 1);
+  });
+
+  test('the room comes back facing the monitors after the viewport narrows and widens', async ({
+    page,
+  }) => {
+    await openOffice(page);
+
+    await page.locator('.office3d__canvas').focus();
+    for (let press = 0; press < 6; press += 1) {
+      await page.keyboard.press('ArrowRight');
+      await page.waitForTimeout(80);
+    }
+    await page.waitForTimeout(600);
+
+    // Below MIN_3D_WIDTH: the office unmounts entirely.
+    await page.setViewportSize({ width: 900, height: 800 });
+    await expect(page.locator('canvas')).toHaveCount(0);
+    await expect(page.locator('.monitors')).toBeVisible();
+
+    // And back.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.locator('canvas')).toHaveCount(1, { timeout: 15_000 });
+
+    await expect
+      .poll(
+        async () =>
+          page
+            .locator('.office3d')
+            .evaluate((element) => Number((element as HTMLElement).dataset.yaw)),
+        { timeout: 10_000 },
+      )
+      .toBeCloseTo(0, 1);
+  });
 });
 
 test.describe('audio controls', () => {
