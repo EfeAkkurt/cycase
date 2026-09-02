@@ -124,32 +124,32 @@
  * ------------------------------------------------------------------ */
 
 /*
- * The workbench fills the room that is actually left, rather than a room
- * measured once and hard-coded.
+ * One screen's worth, and the page still scrolls.
  *
- * The first attempt capped it at `calc(100dvh - 268px)`, which is the console
- * chrome measured at 1440x900. It was wrong by exactly the guided step card:
- * `#destination-content` starts 415px down at *both* review sizes, so a 632px
- * workbench ran 147px past the bottom of a 900px screen and the inspector's
- * lower half was unreachable without scrolling — the very thing the cap
- * existed to prevent.
+ * Two versions of this were wrong before this one, and both are worth keeping
+ * written down because they fail in opposite directions.
  *
- * `.workspace` is a flex column whose children are all `flex: none`, so the
- * destination is content-height by default and nothing knows how much room is
- * left. This lets exactly one destination stretch instead: the `:has()` is what
- * keeps it scoped to Evidence, so Command, Investigate, Respond and Timeline
- * keep scrolling as a page the way they always have.
+ * The first capped at `calc(100dvh - 268px)` — the console chrome measured at
+ * 1440x900, which missed the guided step card entirely. `#destination-content`
+ * starts 415px down at both review sizes, so a 632px workbench ran 147px past
+ * the bottom of a 900px screen: the exact failure the cap existed to prevent.
+ *
+ * The second stretched `#destination-content` with `:has()` so the workbench
+ * filled whatever was left. That fixed the overflow and broke something worse
+ * — with the destination no longer taller than its scroller, `.workspace` had
+ * nothing to scroll, so an evidence row inside the list's own scroller at
+ * y=946 was unreachable on a 900px screen and three `completion.spec` journeys
+ * timed out clicking it. Making a page stop scrolling is a much bigger change
+ * than it looks.
+ *
+ * So: a cap, sized to the space the guided card actually leaves, and the page
+ * scrolls exactly as it always has. 430px is that card plus the top bar and the
+ * workspace padding, measured rather than assumed; the clamp keeps it sane on a
+ * short laptop and on a tall external monitor.
  */
-.workspace > #destination-content:has(.evidence--workbench) {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
 .evidence--workbench {
   align-items: stretch;
-  /* Fills its stretched parent; the two columns scroll inside themselves. */
-  height: 100%;
-  min-height: 320px;
+  max-height: clamp(300px, calc(100dvh - 430px), 760px);
 }
 
 .evidence--workbench > .panel {

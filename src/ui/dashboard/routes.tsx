@@ -881,11 +881,19 @@ export function TimelineRouteWithLog() {
  * 1. **Exactly one step is expanded**: the next thing to do. For diagnostics
  *    that is the first one not yet run; for actions it is the recommended one
  *    the case has unlocked, or failing that the first allowed one.
- * 2. **Everything else is a row** — title, state, and the control — inside a
- *    disclosure that says how many it holds.
+ * 2. **Everything else is a row, and stays on screen** — title, state and the
+ *    control, at row weight rather than card weight.
  * 3. **The two big tables open on request**: prerequisites and the effect diff
  *    are `<details>` of their own, closed by default, and nothing opens more
  *    than one of them for you.
+ *
+ * Rule 2 was a collapsed group in the first version of this, and that was
+ * wrong twice over. It read the brief's "others summarised" as "others
+ * hidden" — a summary is still on screen — and it put every operation except
+ * one behind a click, so `#action-close_case` had no reachable control and
+ * `flow.spec.ts`'s refusal test could not find the button it asserts is
+ * disabled. Collapsing a control is not the same as de-emphasising it; only
+ * the detail collapses now.
  *
  * The tables are unchanged; what changed is that they are no longer all on
  * screen simultaneously.
@@ -931,17 +939,12 @@ export function RespondRoute() {
         )}
 
         {otherDiagnostics.length > 0 ? (
-          <Disclosure
-            id="playbook-diagnostics-rest"
-            summary={t('playbook.diagnostics.rest')}
-            count={t('playbook.rest_count', { count: otherDiagnostics.length })}
-          >
-            <div className="respond-group">
-              {otherDiagnostics.map((diagnostic) => (
-                <DiagnosticStep key={diagnostic.id} diagnostic={diagnostic} isNext={false} />
-              ))}
-            </div>
-          </Disclosure>
+          <div className="respond-group" id="playbook-diagnostics-rest">
+            <p className="eyebrow">{t('playbook.diagnostics.rest')}</p>
+            {otherDiagnostics.map((diagnostic) => (
+              <DiagnosticStep key={diagnostic.id} diagnostic={diagnostic} isNext={false} />
+            ))}
+          </div>
         ) : null}
       </Panel>
 
@@ -958,23 +961,18 @@ export function RespondRoute() {
         )}
 
         {otherActions.length > 0 ? (
-          <Disclosure
-            id="playbook-actions-rest"
-            summary={t('playbook.actions.rest')}
-            count={t('playbook.rest_count', { count: otherActions.length })}
-          >
-            <div className="respond-group">
-              {otherActions.map((action) => (
-                <ActionStep
-                  key={action.id}
-                  action={action}
-                  isNext={false}
-                  isRecommended={recommended.has(action.id)}
-                  onConfirmNeeded={setPending}
-                />
-              ))}
-            </div>
-          </Disclosure>
+          <div className="respond-group" id="playbook-actions-rest">
+            <p className="eyebrow">{t('playbook.actions.rest')}</p>
+            {otherActions.map((action) => (
+              <ActionStep
+                key={action.id}
+                action={action}
+                isNext={false}
+                isRecommended={recommended.has(action.id)}
+                onConfirmNeeded={setPending}
+              />
+            ))}
+          </div>
         ) : null}
       </Panel>
 

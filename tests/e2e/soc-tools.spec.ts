@@ -350,13 +350,21 @@ test.describe('the respond playbook', () => {
      */
     await expect(page.locator('.respond-step--next')).toHaveCount(2);
 
+    /*
+     * And every other operation is still *on screen* — at row weight, not
+     * hidden. The first version of this collapsed them into a `<details>`,
+     * which read the brief's "others summarised" as "others hidden" and left
+     * `#action-close_case` with no reachable control. A summary is still a
+     * thing you can see.
+     */
     for (const id of ['#playbook-diagnostics-rest', '#playbook-actions-rest']) {
-      const group = page.locator(id);
-      if ((await group.count()) === 0) continue;
-      expect(
-        await group.evaluate((el) => (el as HTMLDetailsElement).open),
-        `${id} is expanded on arrival — the stack is back`,
-      ).toBe(false);
+      await expect(page.locator(id)).toBeVisible();
+    }
+    for (const action of ['close_case', 'revoke_sessions']) {
+      await expect(
+        page.locator(`#action-${action}`).getByRole('button').first(),
+        `${action} has no control an operator can reach`,
+      ).toBeVisible();
     }
   });
 
@@ -374,25 +382,40 @@ test.describe('the respond playbook', () => {
       .count();
     expect(open, `${open} disclosures are open on arrival`).toBeLessThanOrEqual(2);
 
-    // And they really do open when asked.
-    const first = page.locator('details.disclosure').first();
-    await first.locator('summary').click();
-    expect(await first.evaluate((el) => (el as HTMLDetailsElement).open)).toBe(true);
+    /*
+     * And a closed one really does open when asked.
+     *
+     * Deliberately `:not([open])`: the next step pre-opens its own preview, and
+     * clicking *that* summary closes it — which is correct behaviour and a
+     * useless assertion.
+     */
+    const handle = await page.locator('details.disclosure:not([open])').first().elementHandle();
+    expect(handle, 'every disclosure was already open').not.toBeNull();
+    /*
+     * An element *handle*, not a locator. `details.disclosure:not([open])`
+     * re-resolves on every use, so reading `open` back through the same locator
+     * after the click finds the *next* still-closed disclosure and reports
+     * false — the assertion would fail no matter how well the product worked.
+     */
+    await handle!.evaluate((el) => (el as HTMLElement).querySelector('summary')!.click());
+    expect(
+      await handle!.evaluate((el) => (el as HTMLDetailsElement).open),
+      'a disclosure did not open when its summary was clicked',
+    ).toBe(true);
   });
 
-  test('a collapsed operation still carries its control', async ({ page }) => {
+  test('a de-emphasised operation still carries its control', async ({ page }) => {
     await openRespond(page);
     const rest = page.locator('#playbook-actions-rest');
-    await rest.locator('summary').first().click();
 
     /*
-     * Collapsing must not mean disabling. A reader who opens the group has to
-     * be able to act from there — otherwise the disclosure has moved the work
-     * rather than reduced it.
+     * De-emphasis must not mean removal. Every operation the case offers has
+     * to stay actionable from the route it lives on — otherwise the hierarchy
+     * has moved the work rather than reduced it.
      */
     const steps = rest.locator('.respond-step');
     expect(await steps.count()).toBeGreaterThan(0);
-    await expect(steps.first().locator('button')).toHaveCount(1);
+    await expect(steps.first().locator('.respond-step__actions button')).toHaveCount(1);
   });
 });
 
