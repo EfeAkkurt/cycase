@@ -40,7 +40,14 @@ const SIZES = [
  * settle failed rather than quietly recapturing the review set at a framing
  * nobody chose. */
 const YAW_LIMIT = 120;
-const PITCH_DOWN_LIMIT = 20;
+/*
+ * 38, not 20. The same widening that turned the yaw cone into a chair swivel
+ * deepened the downward clamp, and this file's copy said 20 — so the rear
+ * capture settled on a pitch the rig no longer stops at. Kept as a local copy
+ * for the reason above: a drifted constant fails the settle instead of
+ * recapturing the review set at a framing nobody chose.
+ */
+const PITCH_DOWN_LIMIT = 38;
 
 /**
  * Degrees per arrow press, and the presses it takes to reach a clamp.
@@ -171,7 +178,7 @@ for (const size of SIZES) {
     await settleAt(page, -YAW_LIMIT, 0);
     await capture(page, size.label, '03-look-right');
 
-    await look(page, 'ArrowDown', 10);
+    await look(page, 'ArrowDown', Math.ceil(PITCH_DOWN_LIMIT / KEY_STEP_DEG) + 2);
     await settleAt(page, -YAW_LIMIT, -PITCH_DOWN_LIMIT);
     await capture(page, size.label, '04-look-rear');
 

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { consoleNarrationToggle, openConsoleSettings } from './helpers';
+
 /**
  * The office layer: WebGL room, projected DOM monitors, audio controls, and the
  * fallbacks that have to keep the case playable when any of that is missing.
@@ -583,6 +585,12 @@ test.describe('monitors as tools', () => {
       'true',
     );
     await expect(page.locator('#state-version')).toContainText('v1');
-    await expect(page.getByRole('button', { name: 'Narration off' })).toBeVisible();
+    /*
+     * The console keeps narration inside the top bar's Settings disclosure, so
+     * the preference is read the way a player reads it rather than asserted
+     * against the office's inline control. It is one press away, not gone.
+     */
+    await openConsoleSettings(page);
+    await expect(consoleNarrationToggle(page)).toHaveText('Narration off');
   });
 });

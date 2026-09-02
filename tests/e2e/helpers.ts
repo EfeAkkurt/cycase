@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 /**
  * A fake `document.modelContext` installed before the app boots.
@@ -279,4 +279,50 @@ export function collectPageProblems(page: Page): {
   });
 
   return { errors, pageErrors, failed };
+}
+
+/* ------------------------------------------------------------------ *
+ * The narration surfaces, which the office and the console render
+ * differently. Shared, because office.spec.ts asserted the console's toggle
+ * directly and went red the moment the shell put it behind a disclosure —
+ * two specs describing one control is how that drift happens.
+ * ------------------------------------------------------------------ */
+
+/**
+ * The office's narration toggle, which is on screen beside mute and volume.
+ *
+ * Scoped to `main.office` rather than left global because the office and the
+ * console are both mounted during the crossfade, and both mount a
+ * `VoiceSettings` — an unscoped `.voice-settings__toggle` is a strict-mode
+ * violation waiting for a frame where the two overlap, not merely an imprecise
+ * locator.
+ */
+export function officeNarrationToggle(page: Page) {
+  return page.locator('.office .voice-settings__toggle');
+}
+
+/**
+ * The console's narration toggle, which is behind a press.
+ *
+ * The shell branch consolidated the dashboard's narration, voice and
+ * operating-system list into one Settings surface in the top bar —
+ * `Dashboard.tsx` renders `<VoiceSettings surface="menu" />`, and that surface
+ * keeps its body inside a disclosure so Pause and Return stay visible in a
+ * 48px band. The control the office shows inline is therefore one press away
+ * on the console; it is not gone, and it is not in the rail.
+ *
+ * So the reading is done the way a player does it: open Settings, then read the
+ * toggle. The disclosure is component state, so it is closed again on every
+ * mount — each leg of the round trip opens it for itself, which is also the
+ * point, since a console that had rebuilt its settings state would open on the
+ * default rather than on the preference the player set.
+ */
+export async function openConsoleSettings(page: Page): Promise<void> {
+  const settings = page.locator('.voice-settings--menu').getByRole('button', { name: 'Settings' });
+  await settings.click();
+  await expect(settings).toHaveAttribute('aria-expanded', 'true');
+}
+
+export function consoleNarrationToggle(page: Page) {
+  return page.locator('.voice-settings__panel .voice-settings__toggle');
 }

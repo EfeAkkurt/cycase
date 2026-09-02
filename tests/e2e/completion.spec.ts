@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { PERFECT_RUN } from './helpers';
+import {
+  PERFECT_RUN,
+  consoleNarrationToggle,
+  officeNarrationToggle,
+  openConsoleSettings,
+} from './helpers';
 
 /**
  * Four ways to finish Case 001, each proven to the Debrief.
@@ -135,44 +140,7 @@ async function playStepWithPointer(
   }
 }
 
-/**
- * The office's narration toggle, which is on screen beside mute and volume.
- *
- * Scoped to `main.office` rather than left global because the office and the
- * console are both mounted during the crossfade, and both mount a
- * `VoiceSettings` — an unscoped `.voice-settings__toggle` is a strict-mode
- * violation waiting for a frame where the two overlap, not merely an imprecise
- * locator.
- */
-function officeNarrationToggle(page: Page) {
-  return page.locator('.office .voice-settings__toggle');
-}
 
-/**
- * The console's narration toggle, which is behind a press.
- *
- * The shell branch consolidated the dashboard's narration, voice and
- * operating-system list into one Settings surface in the top bar —
- * `Dashboard.tsx` renders `<VoiceSettings surface="menu" />`, and that surface
- * keeps its body inside a disclosure so Pause and Return stay visible in a
- * 48px band. The control the office shows inline is therefore one press away
- * on the console; it is not gone, and it is not in the rail.
- *
- * So the reading is done the way a player does it: open Settings, then read the
- * toggle. The disclosure is component state, so it is closed again on every
- * mount — each leg of the round trip opens it for itself, which is also the
- * point, since a console that had rebuilt its settings state would open on the
- * default rather than on the preference the player set.
- */
-async function openConsoleSettings(page: Page): Promise<void> {
-  const settings = page.locator('.voice-settings--menu').getByRole('button', { name: 'Settings' });
-  await settings.click();
-  await expect(settings).toHaveAttribute('aria-expanded', 'true');
-}
-
-function consoleNarrationToggle(page: Page) {
-  return page.locator('.voice-settings__panel .voice-settings__toggle');
-}
 
 /** The whole canonical run, with the pointer, from wherever the console is open. */
 async function playCaseWithPointer(page: Page): Promise<void> {
