@@ -24,8 +24,10 @@ describe('describePage', () => {
 
   it('follows the office choreography', () => {
     expect(describePage('office', 'alarmUnacknowledged').awaiting).toBe('acknowledge_alarm');
+    // Only the walk-in has nothing for the player to do; from her report
+    // onward both controls are on screen alongside it.
     expect(describePage('office', 'acknowledged').awaiting).toBe('briefing');
-    expect(describePage('office', 'assistantReporting').awaiting).toBe('briefing');
+    expect(describePage('office', 'assistantReporting').awaiting).toBe('briefing_choice');
     expect(describePage('office', 'briefingChoice').awaiting).toBe('briefing_choice');
     expect(describePage('office', 'explained').awaiting).toBe('briefing_choice');
     expect(describePage('office', 'resume').awaiting).toBe('briefing_choice');

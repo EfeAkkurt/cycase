@@ -69,3 +69,84 @@ test('names every state it can report in the tool description', async ({ page })
     expect(incident?.description).toContain(state);
   }
 });
+
+test.describe('the office hands over when the agent starts working', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('cycase.office3d', 'false');
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Skip intro' }).first().click();
+    await page.getByRole('button', { name: 'Acknowledge alarm' }).first().click();
+    await page.getByRole('button', { name: 'Open response console' }).waitFor({ timeout: 30_000 });
+    await expect
+      .poll(async () => (await callTool<Incident>(page, 'get_incident', {})).data?.page)
+      .toBe('briefing_choice');
+  });
+
+  test('a case call opens the console so a proposal has somewhere to land', async ({ page }) => {
+    const read = await callTool<Incident>(page, 'get_incident', {});
+    expect(read.data?.page).toBe('briefing_choice');
+
+    const decision = await callTool(page, 'submit_decision', {
+      decisionId: 'D1',
+      optionId: 'D1_preserve_and_inspect',
+      stateVersion: read.stateVersion,
+      idempotencyKey: 'handover-d1',
+    });
+    expect(decision.ok).toBe(true);
+
+    await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible({
+      timeout: 15_000,
+    });
+    const after = await callTool<Incident>(page, 'get_incident', {});
+    expect(after.data?.page).toBe('console_ready');
+  });
+
+  test('a read leaves the player where they are', async ({ page }) => {
+    await callTool(page, 'get_incident', {});
+    await callTool(page, 'request_hint', { topic: 'evidence' });
+    await page.waitForTimeout(1000);
+
+    await expect(page.getByRole('button', { name: 'Open response console' })).toBeVisible();
+    const still = await callTool<Incident>(page, 'get_incident', {});
+    expect(still.data?.page).toBe('briefing_choice');
+  });
+
+  test('a refused call leaves the player where they are', async ({ page }) => {
+    const bad = await callTool(page, 'take_response_action', {
+      actionId: 'close_case',
+      stateVersion: 0,
+      idempotencyKey: 'too-early',
+    });
+    expect(bad.ok).toBe(false);
+    await page.waitForTimeout(700);
+
+    const still = await callTool<Incident>(page, 'get_incident', {});
+    expect(still.data?.page).toBe('briefing_choice');
+  });
+});
+
+test('never skips the alarm the player has not acknowledged', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('cycase.office3d', 'false');
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Skip intro' }).first().click();
+  await page.getByRole('button', { name: 'Acknowledge alarm' }).first().waitFor();
+
+  const read = await callTool<Incident>(page, 'get_incident', {});
+  const decision = await callTool(page, 'submit_decision', {
+    decisionId: 'D1',
+    optionId: 'D1_preserve_and_inspect',
+    stateVersion: read.stateVersion,
+    idempotencyKey: 'before-alarm',
+  });
+  // The case moves; the player does not.
+  expect(decision.ok).toBe(true);
+  await page.waitForTimeout(1000);
+
+  const still = await callTool<Incident>(page, 'get_incident', {});
+  expect(still.data?.page).toBe('acknowledge_alarm');
+  await expect(page.getByRole('button', { name: 'Acknowledge alarm' }).first()).toBeVisible();
+});

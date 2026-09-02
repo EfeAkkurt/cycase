@@ -55,9 +55,13 @@ export function describePage(scene: SceneId, officeSub: OfficeSubScene | null): 
   else if (scene === 'debrief') awaiting = 'debrief';
   else if (scene === 'office') {
     if (officeSub === 'alarmUnacknowledged') awaiting = 'acknowledge_alarm';
-    else if (officeSub === 'acknowledged' || officeSub === 'assistantReporting') {
-      awaiting = 'briefing';
-    } else awaiting = 'briefing_choice';
+    // `acknowledged` is the only beat with nothing for the player to do: VERA is
+    // still walking in. From `assistantReporting` onward her report and both
+    // controls are on screen together — the auto-advance is gone — so the two
+    // beats are one moment as far as the player, and therefore the agent, is
+    // concerned.
+    else if (officeSub === 'acknowledged') awaiting = 'briefing';
+    else awaiting = 'briefing_choice';
   } else awaiting = 'console_ready';
 
   return { scene, awaiting };
