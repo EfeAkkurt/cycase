@@ -14,6 +14,20 @@ export const en = {
   'app.enter': 'Enter Simulation',
   'app.enter_hint': 'Audio starts only after you choose to enter.',
   'app.language': 'Language',
+  'prompt.title': 'Start with your agent',
+  'prompt.body': 'Paste this into the chat beside the page. The decisions stay with you.',
+  'prompt.mode': 'Mode',
+  'prompt.mode.learn': 'Learn',
+  'prompt.mode.solve': 'Solve',
+  'prompt.mode.learn_detail': 'The agent explains each step and proposes; you approve.',
+  'prompt.mode.solve_detail':
+    'The agent runs the reads itself and still proposes anything consequential.',
+  'prompt.text_label': 'Starting prompt for the agent',
+  'prompt.copy': 'Copy prompt',
+  'prompt.site_tools_hint':
+    'In the ChatGPT desktop browser, Site tools in the address bar lists the seven tools.',
+  'prompt.unavailable':
+    'No site tools in this browser. Open this page in the ChatGPT desktop app’s browser, or in Chrome 149+ with WebMCP enabled, to play with an agent. The full case is playable by hand here.',
   'app.lang.en': 'English',
   'app.lang.tr': 'Türkçe',
   'app.loading': 'Loading…',
@@ -1032,9 +1046,6 @@ export const en = {
   'webmcp.effect': 'Visible effect',
   'webmcp.copy_prompt': 'Copy an example agent prompt',
   'webmcp.copied': 'Copied',
-  'webmcp.example_prompt':
-    'You are helping me run a security incident on this page. Call get_incident, then inspect the phishing message, rebuild the authentication timeline, and tell me whether a password reset alone would contain this.',
-
   /* ---------------- fallback / responsive ---------------- */
   'fallback.title': '2D mode',
   'fallback.body':

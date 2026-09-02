@@ -2425,6 +2425,60 @@ svg {
   max-width: 58ch;
 }
 
+/*
+ * The lobby's one piece of setup: the prompt a player pastes into the chat.
+ * The page cannot send it, so it is offered with a copy button.
+ */
+.prompt-card {
+  width: 100%;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  text-align: left;
+}
+
+.prompt-card__head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.prompt-card__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.prompt-card__group {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.prompt-card__text {
+  width: 100%;
+  resize: vertical;
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  color: var(--text-primary);
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh);
+}
+
+.prompt-card__text:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.prompt-card__actions {
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .scene__title {
   font-size: 40px;
   line-height: 48px;
