@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { PERFECT_RUN, installModelContext, runSequence } from './helpers';
+import { PERFECT_RUN, continueToDebrief, installModelContext, runSequence } from './helpers';
 
 /**
  * The eight captures, at both review sizes.
@@ -102,7 +102,7 @@ for (const size of SIZES) {
 
     // 7 — successful containment
     await runSequence(page, PERFECT_RUN.slice(8));
-    await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
+    await continueToDebrief(page);
     await shot(page, size.label, '07-contained');
 
     // 8 — partial-containment debrief
@@ -121,6 +121,7 @@ for (const size of SIZES) {
       { tool: 'submit_decision', input: { decisionId: 'D6', optionId: 'D6_close_without_verifying' } },
       { tool: 'take_response_action', input: { actionId: 'close_case' } },
     ]);
+    await continueToDebrief(page);
     await expect(page.locator('#debrief-outcome')).toContainText('Partial containment');
     await shot(page, size.label, '08-partial-debrief');
   });

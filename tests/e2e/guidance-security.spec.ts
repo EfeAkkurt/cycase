@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   PERFECT_RUN,
   callTool,
+  continueToDebrief,
   installModelContext,
   listTools,
   openDashboard,
@@ -402,7 +403,9 @@ test.describe('the case is unmoved by narration', () => {
       expect(result!.ok, `${step.tool} failed alongside narration`).toBe(true);
     }
 
-    // The score and ending the human sees are the ones that matter.
+    // The score and ending the human sees are the ones that matter — and the
+    // human is the one who opens the screen they are on.
+    await continueToDebrief(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
     await expect(page.locator('#debrief-outcome')).toContainText('Contained');
     await expect(page.locator('#debrief-outcome')).toContainText('100');

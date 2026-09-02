@@ -18,6 +18,8 @@ import type {
   Asset,
   AssetId,
   Decision,
+  DecisionHint,
+  DecisionId,
   Diagnostic,
   DiagnosticId,
   Finding,
@@ -25,6 +27,7 @@ import type {
   Identity,
   IdentityId,
   ResponseAction,
+  SupportingSource,
   TimelineEvent,
 } from '../types';
 
@@ -511,6 +514,7 @@ export const DECISIONS: Decision[] = [
   {
     id: 'D1',
     promptKey: 'decision.D1.prompt',
+    topic: 'evidence',
     learningGoalKey: 'decision.D1.goal',
     prerequisite: {},
     options: [
@@ -536,6 +540,7 @@ export const DECISIONS: Decision[] = [
   {
     id: 'D2',
     promptKey: 'decision.D2.prompt',
+    topic: 'evidence',
     learningGoalKey: 'decision.D2.goal',
     prerequisite: { decisionsResolved: ['D1'], artifactsInspected: ['art_email_001'] },
     options: [
@@ -559,6 +564,7 @@ export const DECISIONS: Decision[] = [
   {
     id: 'D3',
     promptKey: 'decision.D3.prompt',
+    topic: 'identity',
     learningGoalKey: 'decision.D3.goal',
     prerequisite: { decisionsResolved: ['D2'], diagnosticsRun: ['auth_timeline'] },
     options: [
@@ -584,6 +590,7 @@ export const DECISIONS: Decision[] = [
   {
     id: 'D4',
     promptKey: 'decision.D4.prompt',
+    topic: 'containment',
     learningGoalKey: 'decision.D4.goal',
     prerequisite: { decisionsResolved: ['D3'] },
     options: [
@@ -609,6 +616,7 @@ export const DECISIONS: Decision[] = [
   {
     id: 'D5',
     promptKey: 'decision.D5.prompt',
+    topic: 'scope',
     learningGoalKey: 'decision.D5.goal',
     prerequisite: { decisionsResolved: ['D4'] },
     options: [
@@ -633,6 +641,7 @@ export const DECISIONS: Decision[] = [
   {
     id: 'D6',
     promptKey: 'decision.D6.prompt',
+    topic: 'scope',
     learningGoalKey: 'decision.D6.goal',
     prerequisite: { decisionsResolved: ['D5'] },
     options: [
@@ -782,6 +791,152 @@ export const HINTS: Hint[] = [
     predicate: { fallback: true },
   },
 ];
+
+/* ------------------------------------------------------------------ *
+ * Per-decision pointers — three rungs, never the answer
+ * ------------------------------------------------------------------ *
+ *
+ * The topic hints above are keyed by area and answer "what is still undone".
+ * They are the right shape for an analyst who knows what they are doing and has
+ * lost the thread. They are the wrong shape for a novice, who is not lost in the
+ * case, they are stuck on the one decision in front of them and cannot see why
+ * it is a decision at all.
+ *
+ * So each of D1..D6 carries a ladder. Three rules held every line below:
+ *
+ *  - level 1 names a surface and a record and stops. Naming the decisive field
+ *    at level 1 would hand over the finding, and a finding you were handed is
+ *    not a finding you can repeat next week;
+ *  - level 2 is written to survive being carried out of this case. "A password
+ *    proves who you are once, a token carries that proof afterwards" is true of
+ *    every identity system, and it is what the player should still have in a
+ *    year when Case 001's fixture ids are long gone;
+ *  - level 3 walks the whole inference — what the evidence shows, what that
+ *    rules out, what therefore follows — and then stops one step short. The last
+ *    step is the only part that is actually theirs.
+ *
+ * None of this is VERA's voice and none of it is generated. It is the console
+ * reading its own case state back, which is why it is written in the second
+ * person about the dashboard rather than as something a person in the room said.
+ */
+
+export const DECISION_HINTS: DecisionHint[] = [
+  { decisionId: 'D1', level: 1, textKey: 'hint.D1.l1' },
+  { decisionId: 'D1', level: 2, textKey: 'hint.D1.l2' },
+  { decisionId: 'D1', level: 3, textKey: 'hint.D1.l3' },
+  { decisionId: 'D2', level: 1, textKey: 'hint.D2.l1' },
+  { decisionId: 'D2', level: 2, textKey: 'hint.D2.l2' },
+  { decisionId: 'D2', level: 3, textKey: 'hint.D2.l3' },
+  { decisionId: 'D3', level: 1, textKey: 'hint.D3.l1' },
+  { decisionId: 'D3', level: 2, textKey: 'hint.D3.l2' },
+  { decisionId: 'D3', level: 3, textKey: 'hint.D3.l3' },
+  { decisionId: 'D4', level: 1, textKey: 'hint.D4.l1' },
+  { decisionId: 'D4', level: 2, textKey: 'hint.D4.l2' },
+  { decisionId: 'D4', level: 3, textKey: 'hint.D4.l3' },
+  { decisionId: 'D5', level: 1, textKey: 'hint.D5.l1' },
+  { decisionId: 'D5', level: 2, textKey: 'hint.D5.l2' },
+  { decisionId: 'D5', level: 3, textKey: 'hint.D5.l3' },
+  { decisionId: 'D6', level: 1, textKey: 'hint.D6.l1' },
+  { decisionId: 'D6', level: 2, textKey: 'hint.D6.l2' },
+  { decisionId: 'D6', level: 3, textKey: 'hint.D6.l3' },
+];
+
+/** `D1` -> its three rungs, indexed by level. Built once; the ladder is static. */
+export const DECISION_HINTS_BY_DECISION = new Map<DecisionId, DecisionHint[]>(
+  DECISIONS.map((decision) => [
+    decision.id,
+    DECISION_HINTS.filter((hint) => hint.decisionId === decision.id).sort(
+      (a, b) => a.level - b.level,
+    ),
+  ]),
+);
+
+/* ------------------------------------------------------------------ *
+ * Supporting sources — shown only after a decision is answered
+ * ------------------------------------------------------------------ *
+ *
+ * One or two per decision, and every id below is a record that already exists
+ * in this file. That constraint is the point: a "supporting source" the case
+ * cannot open is a citation to nothing, which is a worse habit to teach than
+ * having no citation at all. `learning.test.ts` resolves every id here against
+ * `ARTIFACT_BY_ID` and `DIAGNOSTIC_BY_ID` and fails if one drifts.
+ *
+ * They are withheld until the decision is answered. Before the answer they
+ * *are* the answer — pointing at the token telemetry while D3 is open tells the
+ * player which branch is right without their having reasoned to it. After the
+ * answer they do the opposite job: they turn "I picked the careful-sounding
+ * one" into "I picked it, and here is the field it rests on".
+ */
+
+export const SUPPORTING_SOURCES: SupportingSource[] = [
+  {
+    decisionId: 'D1',
+    ref: { kind: 'artifact', id: 'art_email_001' },
+    whyKey: 'support.D1.email',
+  },
+  {
+    decisionId: 'D1',
+    ref: { kind: 'artifact', id: 'art_url_001' },
+    whyKey: 'support.D1.url',
+  },
+  {
+    decisionId: 'D2',
+    ref: { kind: 'artifact', id: 'art_email_001' },
+    whyKey: 'support.D2.email',
+  },
+  {
+    decisionId: 'D2',
+    ref: { kind: 'diagnostic', id: 'auth_timeline' },
+    whyKey: 'support.D2.auth_timeline',
+  },
+  {
+    decisionId: 'D3',
+    ref: { kind: 'artifact', id: 'art_cookie_001' },
+    whyKey: 'support.D3.cookie',
+  },
+  {
+    decisionId: 'D3',
+    ref: { kind: 'diagnostic', id: 'session_inventory' },
+    whyKey: 'support.D3.session_inventory',
+  },
+  {
+    decisionId: 'D4',
+    ref: { kind: 'artifact', id: 'art_edr_001' },
+    whyKey: 'support.D4.edr',
+  },
+  {
+    decisionId: 'D4',
+    ref: { kind: 'artifact', id: 'art_url_001' },
+    whyKey: 'support.D4.url',
+  },
+  {
+    decisionId: 'D5',
+    ref: { kind: 'diagnostic', id: 'indicator_scope' },
+    whyKey: 'support.D5.indicator_scope',
+  },
+  {
+    decisionId: 'D5',
+    ref: { kind: 'artifact', id: 'art_dlp_001' },
+    whyKey: 'support.D5.dlp',
+  },
+  {
+    decisionId: 'D6',
+    ref: { kind: 'artifact', id: 'art_session_001' },
+    whyKey: 'support.D6.session',
+  },
+  {
+    decisionId: 'D6',
+    ref: { kind: 'diagnostic', id: 'indicator_scope' },
+    whyKey: 'support.D6.indicator_scope',
+  },
+];
+
+export const SUPPORTING_SOURCES_BY_DECISION = new Map<DecisionId, SupportingSource[]>(
+  DECISIONS.map((decision) => [
+    decision.id,
+    SUPPORTING_SOURCES.filter((source) => source.decisionId === decision.id),
+  ]),
+);
 
 /* ------------------------------------------------------------------ *
  * Incident summary content

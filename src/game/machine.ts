@@ -304,7 +304,22 @@ export const gameMachine = setup({
       },
     },
 
-    /** The real SOC dashboard. */
+    /**
+     * The real SOC dashboard.
+     *
+     * Closing the case does not leave it. An `always: { target: 'debrief',
+     * guard: 'caseClosed' }` used to sit here, and it spent the player's last
+     * action on a scene change: the receipt for the command they had just
+     * authorised, the outcome under it and the evidence they had spent the
+     * whole case verifying all left the screen in the frame that completed
+     * them. Closing is a beat now — the console stays, VERA confirms the case
+     * is off the board, and the player opens the debrief when they are ready.
+     *
+     * `OPEN_DEBRIEF` carries the same guard the automatic transition did, so
+     * the destination is still unreachable while the case is open; what is gone
+     * is the console deciding, on the player's behalf, that they were finished
+     * looking.
+     */
     dashboard: {
       on: {
         // P0.7: back to the same seated view and the same case state, without
@@ -312,7 +327,6 @@ export const gameMachine = setup({
         RETURN_TO_OFFICE: { target: '#cycase.office.resume' },
         OPEN_DEBRIEF: { target: 'debrief', guard: 'caseClosed' },
       },
-      always: { target: 'debrief', guard: 'caseClosed' },
     },
 
     /** Scored debrief. */

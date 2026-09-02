@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-import { installModelContext, openDashboard, runSequence } from './helpers';
+import { continueToDebrief, installModelContext, openDashboard, runSequence } from './helpers';
 
 /**
  * Acceptance criterion 6: "The case is completable with keyboard, muted audio,
@@ -86,6 +86,7 @@ test.describe('axe', () => {
       { tool: 'take_response_action', input: { actionId: 'close_case' } },
     ]);
 
+    await continueToDebrief(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
     expect(serious(await scan(page))).toEqual([]);
   });

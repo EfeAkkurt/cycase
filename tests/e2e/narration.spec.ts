@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { installModelContext, openDashboard, PERFECT_RUN } from './helpers';
+import { continueToDebrief, installModelContext, openDashboard, PERFECT_RUN } from './helpers';
 
 /**
  * Dynamic narration, proven the way the audit demands it.
@@ -639,7 +639,9 @@ test.describe('narration is complete without sound or motion', () => {
       });
     }
 
-    // The case reaches the same deterministic ending it reaches with sound on.
+    // The case reaches the same deterministic ending it reaches with sound on,
+    // by way of the close beat the player presses through.
+    await continueToDebrief(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
     await expect(page.locator('#debrief-outcome')).toContainText('Contained');
     await expect(page.locator('#debrief-outcome')).toContainText('100/100');

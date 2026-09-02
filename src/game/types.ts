@@ -335,6 +335,16 @@ export interface Decision {
   id: DecisionId;
   /** i18n key for the decision prompt. */
   promptKey: string;
+  /**
+   * The area of the case this decision lives in.
+   *
+   * It exists so the per-decision pointer ladder climbs only when the ask was
+   * about this decision. Without it every `request_hint` advanced the ladder
+   * whatever it asked about, so a player exploring all four topics burned all
+   * three rungs having never once asked for the decision in front of them —
+   * and then met "there is no deeper pointer" on their first real ask.
+   */
+  topic: HintTopic;
   /** i18n key for the learning goal shown in the debrief. */
   learningGoalKey: string;
   options: [DecisionOption, DecisionOption];
@@ -406,6 +416,65 @@ export interface HintPredicate {
   flagsSet?: FlagId[];
   /** Always matches; use as the trailing fallback for a topic. */
   fallback?: boolean;
+}
+
+/* ------------------------------------------------------------------ *
+ * The learning layer — a second hint axis, per decision
+ * ------------------------------------------------------------------ */
+
+/**
+ * The three levels a per-decision pointer escalates through.
+ *
+ * The topic hints above answer "what is left undone in this area". They cannot
+ * answer "why is this decision the shape it is", because a topic has no
+ * decision attached and a novice asking for help is almost always stuck on the
+ * decision in front of them, not on an area of the case.
+ *
+ * So this is a second axis, not a replacement, and it is deliberately a ladder
+ * rather than one paragraph:
+ *
+ *   1. WHERE TO LOOK — names the surface and the record. It must not name the
+ *      tell, because a player who is handed the tell has read nothing.
+ *   2. WHICH CONCEPT MATTERS — the idea the decision turns on, phrased so it
+ *      survives being carried to an incident that is not this one.
+ *   3. A REASONING SCAFFOLD — what the evidence shows, what that rules out,
+ *      what therefore follows. It walks the whole inference and still stops
+ *      short of the option, because the last step is the only part of this
+ *      that is actually the player's learning.
+ *
+ * Level 3 is the floor. There is no level 4 and asking again must say so
+ * plainly rather than replaying level 3 as though it were new — a pointer that
+ * repeats itself teaches a player that asking is free noise.
+ */
+export type DecisionHintLevel = 1 | 2 | 3;
+
+export const DECISION_HINT_LEVELS: readonly DecisionHintLevel[] = [1, 2, 3] as const;
+
+export const DECISION_HINT_MAX_LEVEL = 3;
+
+export interface DecisionHint {
+  decisionId: DecisionId;
+  level: DecisionHintLevel;
+  /** i18n key for the pointer text at this level. */
+  textKey: string;
+}
+
+/**
+ * One record that backs the correct reading of a decision, shown only *after*
+ * the decision is answered.
+ *
+ * Before the answer this would be the answer: pointing at the token telemetry
+ * while D3 is open tells the player which branch is right without their having
+ * reasoned to it. After the answer it is the opposite — it is the thing that
+ * turns "I picked the one that sounded careful" into "I picked it and here is
+ * the field it rests on", which is the difference between a guess that scored
+ * and a judgement that transfers.
+ */
+export interface SupportingSource {
+  decisionId: DecisionId;
+  ref: { kind: 'artifact'; id: ArtifactId } | { kind: 'diagnostic'; id: DiagnosticId };
+  /** i18n key: what this record actually shows, and why it settles the reading. */
+  whyKey: string;
 }
 
 /* ------------------------------------------------------------------ *
@@ -996,6 +1065,172 @@ export interface HintView {
   hint: string;
   /** Hints never change score. Stated explicitly so the agent does not hesitate. */
   affectsScore: false;
+  /**
+   * The per-decision axis, present whenever the case still has an unanswered
+   * decision. Additive on purpose: `hint` keeps its original meaning — the
+   * topic pointer — because surfaces and tests that predate this field read it,
+   * and quietly changing what an existing field means is how a contract rots.
+   */
+  decision?: DecisionHintView;
+}
+
+/**
+ * One rung of the per-decision ladder, as the console and the agent see it.
+ *
+ * `exhausted` is a fact about the *request*, not about the text: when it is
+ * true the player has already spent level 3 and `text` is the plain statement
+ * that there is nothing deeper, not a third replay of the scaffold.
+ */
+export interface DecisionHintView {
+  decisionId: DecisionId;
+  /** Which rung this ask landed on. Stays at 3 once the ladder is spent. */
+  level: DecisionHintLevel;
+  levelsTotal: number;
+  /** Short label for the rung: where to look / the idea / reason it through. */
+  levelLabel: string;
+  text: string;
+  /** True when the ladder was already spent before this ask. */
+  exhausted: boolean;
+  /** True when the decision is answerable now rather than still blocked. */
+  open: boolean;
+}
+
+/* ------------------------------------------------------------------ *
+ * The learning layer — supporting sources, debrief analytics, retrieval
+ * ------------------------------------------------------------------ *
+ *
+ * Everything below is *derived*, never stored. Two consequences that are the
+ * whole reason these live here rather than in a component:
+ *
+ *  - the same `GameContext` always produces the same text, so a debrief can be
+ *    reproduced from a command log by anyone holding it;
+ *  - none of it can be reached from `executeCommand`, so none of it can touch
+ *    the score. There is no command that asks for a supporting source, an
+ *    analytic or a retrieval question; they are reads over state the engine
+ *    already wrote.
+ */
+
+/** A supporting record resolved against live state, ready to render. */
+export interface SupportingSourceView {
+  decisionId: DecisionId;
+  kind: 'artifact' | 'diagnostic';
+  /** The real fixture id. Every one of these exists; `sources` tests assert it. */
+  id: ArtifactId | DiagnosticId;
+  title: string;
+  /** What the record shows and why it settles the reading. */
+  why: string;
+  /**
+   * Whether the reader can actually open it right now.
+   *
+   * Honest rather than optimistic: D2 can be answered before `auth_timeline`
+   * has run, which leaves its telemetry source `locked`, and answering D4 the
+   * wrong way destroys the reported message, which leaves D1's first source
+   * `destroyed`. A link to a record that is not there is worse than a line
+   * saying why it is not there.
+   */
+  availability: 'available' | 'locked' | 'destroyed';
+  /** For `locked` artifacts: the diagnostic that would reveal it. */
+  revealedBy?: DiagnosticId;
+  /** True once the reader has already collected this record. */
+  inspected: boolean;
+}
+
+/**
+ * Where a run's own reasoning is anchored, so a debrief line can offer a way
+ * back into the record instead of only asserting something about it.
+ */
+export interface DebriefAnchor {
+  kind: 'decision' | 'artifact' | 'diagnostic' | 'action' | 'finding';
+  id: string;
+  label: string;
+}
+
+/**
+ * One derived observation about how the run was played.
+ *
+ * Deliberately not a score restatement. Score says how many points a move was
+ * worth; these say what the move *was* — an ordering the player chose, a record
+ * they had read before they acted, an assumption they left in place. Those are
+ * claims a points total cannot make, and they are the ones a novice can act on.
+ */
+export interface DebriefObservation {
+  /** Stable id, so a surface can key and test on it without matching prose. */
+  id: string;
+  headline: string;
+  body: string;
+  anchor: DebriefAnchor | null;
+}
+
+/** One link in the decision chain, in the order the run answered them. */
+export interface DecisionChainLink {
+  decisionId: DecisionId;
+  prompt: string;
+  answered: boolean;
+  optionId?: DecisionOptionId;
+  optionLabel?: string;
+  correct?: boolean;
+  /** Command sequence number, so the chain can be ordered by what happened. */
+  seq?: number;
+  /** Simulated incident clock at the moment it was answered. */
+  at?: string;
+  /** True on the first wrong answer only: the place the run changed direction. */
+  pivot: boolean;
+}
+
+/**
+ * The two clocks, side by side.
+ *
+ * Real time is not stored a second time. It is recovered from `clockSec` and
+ * the command log by `playSeconds()` in `game/live.ts`, which is the one place
+ * the arithmetic lives (`incident = play x multiplier + operation cost`). A
+ * second copy of that arithmetic is exactly how the two readouts drifted apart
+ * before P0.6 split them.
+ */
+export interface TimeComparison {
+  /** Real seconds the player spent at the desk. */
+  realSec: number;
+  /** Simulated incident seconds the case advanced. */
+  simulatedSec: number;
+  /** How much of the incident clock was charged by issued operations. */
+  operationCostSec: number;
+  /** Simulated seconds per real second while the case runs unpaused. */
+  multiplier: number;
+  realLabel: string;
+  simulatedLabel: string;
+}
+
+export interface DebriefAnalytics {
+  strongest: DebriefObservation;
+  improve: DebriefObservation;
+  lesson: DebriefObservation;
+  time: TimeComparison;
+  chain: DecisionChainLink[];
+  /** Index into `chain` of the first wrong answer, or -1 when none turned. */
+  pivotIndex: number;
+  /** i18n-resolved replay goal: a concrete thing to practise, never "try again". */
+  replayGoal: string;
+}
+
+/**
+ * One optional retrieval-practice question, chosen from what the run actually
+ * contains.
+ *
+ * It is optional in the strong sense: it is a pure selector, it is not a
+ * `CommandKind`, `dispatch` cannot reach it, and it produces no `ScoreEntry`.
+ * Answering it, ignoring it and revealing the model answer are indistinguishable
+ * to the engine, which is what makes it safe to put in front of somebody who
+ * has just been scored.
+ */
+export interface RetrievalQuestion {
+  /** Stable id for tests and for the surface's disclosure state. */
+  id: string;
+  question: string;
+  /** Revealed only on request. */
+  modelAnswer: string;
+  /** The record or decision the question is drawn from. */
+  anchor: DebriefAnchor | null;
+  /** Always false. Stated as a field so a surface can render the promise. */
+  affectsScore: false;
 }
 
 /* ------------------------------------------------------------------ *
@@ -1050,6 +1285,23 @@ export interface GameContext {
    */
   commandLog: LoggedCommand[];
   hintsRequested: number;
+  /**
+   * How deep the per-decision pointer ladder has been walked, per decision.
+   *
+   * It lives in the context rather than in a component because the escalation
+   * has to be *state-derived*: a level held in React state would reset on the
+   * office/dashboard round trip, would not survive `replay()`, and would be a
+   * piece of the learning layer the engine cannot see. `request_hint` is
+   * recorded in `commandLog` like every other non-read command, so replaying a
+   * run reconstructs exactly the ladder position the run reached.
+   *
+   * Optional for the same reason `narrativeSequence` is: `createInitialContext`
+   * is owned elsewhere, and a run that has never asked for a pointer is
+   * `undefined`, which `decisionHintLevel()` in `selectors.ts` reads as 0. Read
+   * it through that accessor, never directly — it also clamps, so a value that
+   * somehow grew past the top rung cannot produce a level 4 that has no text.
+   */
+  decisionHintLevels?: Partial<Record<DecisionId, number>>;
   /** Gates the wall-clock tick only. Never touches `stateVersion`. */
   paused: boolean;
 

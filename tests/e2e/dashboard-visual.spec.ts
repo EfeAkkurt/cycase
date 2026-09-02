@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 
-import { PERFECT_RUN, installModelContext, runSequence } from './helpers';
+import { PERFECT_RUN, continueToDebrief, installModelContext, runSequence } from './helpers';
 
 /**
  * The review set for the dashboard destinations and for the rewired office.
@@ -334,7 +334,7 @@ for (const size of SIZES) {
      * is also the only way its score and action history contain anything.
      */
     await runSequence(page, PERFECT_RUN.slice(7));
-    await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
+    await continueToDebrief(page);
     await capture(page, 'dashboard', size.label, '08-debrief');
   });
 }

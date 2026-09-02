@@ -18,18 +18,18 @@ import { navItemA11y } from '../../src/ui/dashboard/shell';
  * The other was `DebriefLockedRoute`, a panel mounted on
  * `ctx.route === 'debrief'` — which no player could ever produce. The nav row
  * is the only control that offers the destination, it is disabled until the
- * case closes, and when it is not disabled it sends `OPEN_DEBRIEF` rather than
- * `SET_ROUTE`; meanwhile the dashboard state leaves for the debrief scene the
- * moment `caseClosed` turns true. The panel was dead in both directions.
+ * case closes, and when it is not disabled it sends `OPEN_DEBRIEF` — which
+ * changes the scene rather than the destination, so nothing that reaches the
+ * debrief ever renders here. The panel was dead in both directions.
  *
  * It is gone. These tests hold the answer that is left, and the two facts that
  * keep it the only one: the row that says why, the event that refuses while the
  * case is open, and no caller anywhere routing to `debrief` behind the guard's
  * back.
  *
- * The other end of the pair — that closing the case lands on the debrief scene
- * on its own — is `tests/unit/runtime.test.ts`, "moves to the debrief scene as
- * soon as the case closes", and is not duplicated here.
+ * The other end of the pair — that closing the case keeps the console on screen,
+ * and that `OPEN_DEBRIEF` then moves it — is `tests/unit/runtime.test.ts`,
+ * "closing the case", and is not duplicated here.
  */
 
 const SRC = path.resolve(__dirname, '../../src');

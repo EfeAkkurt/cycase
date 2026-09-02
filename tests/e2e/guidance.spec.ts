@@ -127,6 +127,16 @@ async function playGuidedPath(page: Page): Promise<Interactions> {
   await expect(page.locator(CARD)).toContainText('Close the case');
   await press(page, clicks, true);
 
+  /*
+   * And out. The console no longer swaps itself for the debrief the moment the
+   * case closes — it stays, with the closing receipt and the finished sources
+   * on it — so the last interaction of the golden path is the player deciding
+   * they have finished looking. It is counted like every other press, because
+   * it is one.
+   */
+  await clicks.click(page.locator('#close-continue'));
+  await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
+
   return clicks;
 }
 
@@ -313,9 +323,12 @@ test.describe('the golden path fits the session', () => {
     const clicks = await playGuidedPath(page);
 
     // Logged so a reviewer can see the number rather than take the assertion's
-    // word for it. Six decisions, eleven stages, four confirmations.
+    // word for it. Six decisions, eleven stages, four confirmations, and the
+    // one press that leaves the closed case for the debrief — twenty-one until
+    // the close became a beat instead of a cut, and the twenty-second is the
+    // player's own move rather than another operation on the incident.
     console.log(`guided golden path completed in ${clicks.count} interactions`);
-    expect(clicks.count).toBe(21);
+    expect(clicks.count).toBe(22);
     expect(clicks.count).toBeLessThanOrEqual(24);
 
     // And it is still the same case, scored the same way.

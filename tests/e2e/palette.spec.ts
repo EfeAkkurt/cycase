@@ -1,7 +1,7 @@
 import { PNG } from 'pngjs';
 import { expect, test, type Page } from '@playwright/test';
 
-import { PERFECT_RUN, installModelContext, runSequence } from './helpers';
+import { PERFECT_RUN, continueToDebrief, installModelContext, runSequence } from './helpers';
 
 /**
  * Audit contract P0.4: "Restore the warm-neutral, red-for-incident
@@ -137,7 +137,7 @@ test.describe('palette gate', () => {
     }
 
     await runSequence(page, PERFECT_RUN.slice(2));
-    await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
+    await continueToDebrief(page);
     await reviewPixels(page, `${size.label} debrief`);
   });
   }

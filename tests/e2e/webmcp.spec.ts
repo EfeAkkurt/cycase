@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import {
   PERFECT_RUN,
+  continueToDebrief,
   callTool,
   installModelContext,
   listTools,
@@ -89,6 +90,10 @@ test.describe('agent completes the case', () => {
     expect(close.data.ending).toBe('contained');
     expect(close.data.score.total).toBe(100);
     expect(close.data.unresolvedCriticalFindings).toEqual([]);
+
+    // The agent closed the case; the console is still up with the closing
+    // receipt on it, so the person at the desk opens the debrief.
+    await continueToDebrief(page);
 
     // The human-visible debrief must agree with the agent's own result.
     await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();

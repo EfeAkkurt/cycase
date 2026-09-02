@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   PERFECT_RUN,
   collectPageProblems,
+  continueToDebrief,
   openRailTab,
 } from './helpers';
 
@@ -340,7 +341,10 @@ test.describe('native WebMCP in installed Chrome', () => {
     }
 
     // The agent-driven run must land on the same deterministic result as the
-    // human-driven run in manual.spec.ts.
+    // human-driven run in manual.spec.ts — including the last press, which the
+    // agent cannot make: closing the case leaves the console up, and a person
+    // opens the debrief.
+    await continueToDebrief(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
     await expect(page.locator('#debrief-outcome')).toContainText('Contained');
     await expect(page.locator('#debrief-outcome')).toContainText('100/100');

@@ -228,8 +228,24 @@ describe('restart', () => {
   });
 });
 
-describe('automatic debrief', () => {
-  it('moves to the debrief scene as soon as the case closes', () => {
+/**
+ * Closing the case is a beat, not a cut.
+ *
+ * The dashboard used to carry `always: { target: 'debrief', guard: 'caseClosed'
+ * }`, which took the console away in the same frame the case closed — so the
+ * player never saw the result of the last thing they did, and the sources they
+ * had spent the case verifying left the screen at the moment they were finally
+ * complete. The transition is gone; the guarded `OPEN_DEBRIEF` that the nav row
+ * and the close beat both send is what moves the scene now, and only a person
+ * can send it.
+ *
+ * Two claims, because either one alone can pass while the beat is broken: that
+ * the console survives the close, and that the debrief is still one press away.
+ */
+describe('closing the case', () => {
+  /** A complete run, closed. The options are the fast ones, not the good ones —
+   *  what is under test is where the console ends up, not what it scores. */
+  function closedRun(): GameRuntime {
     const runtime = boot();
     runtime.send({ type: 'SKIP_INTRO' });
     runtime.send({ type: 'DEBUG' });
@@ -247,6 +263,22 @@ describe('automatic debrief', () => {
     runtime.takeResponseAction('close_case');
 
     expect(runtime.context.caseClosed).toBe(true);
+    return runtime;
+  }
+
+  it('leaves the console on the dashboard', () => {
+    const runtime = closedRun();
+
+    // The whole point: the closing receipt, the outcome under it and the
+    // verified sources are all still on the surface the player is looking at.
+    expect(runtime.scene).toBe('dashboard');
+  });
+
+  it('opens the debrief when the player asks for it', () => {
+    const runtime = closedRun();
+
+    runtime.send({ type: 'OPEN_DEBRIEF' });
+
     expect(runtime.scene).toBe('debrief');
   });
 });

@@ -1383,6 +1383,192 @@ export const en = {
   'monitor.tool.identity': 'the Identity tool',
   'monitor.tool.endpoint': 'the Endpoint tool',
   'monitor.open': 'Open {tool} in the console',
+  /* ---------------- per-decision pointers (the three rungs) ----------------
+   *
+   * `DECISION_HINTS` in the Case 001 fixture names every key below, so a
+   * missing one renders as an empty pointer rather than as a failure. The
+   * ladder's rules are written out beside that array and each line here was
+   * held to them: level 1 names a surface and a record and stops, level 2 is
+   * an idea that survives being carried to a different incident, level 3 walks
+   * the inference and stops one step short of the option.
+   *
+   * The register is deliberately not VERA's and not the generated channel's.
+   * A pointer is the console reading its own case state back to you, which is
+   * why every line is in the second person about the dashboard. Nothing here
+   * may be spoken, attributed or narrated.
+   */
+  'hint.D1.l1':
+    'Two things are one click away: the reported message in the evidence list, and the account controls in the response console. Only one of the two changes the estate.',
+  'hint.D1.l2':
+    'Evidence is perishable and containment is never free. An action that changes the estate can also change what the estate is still able to tell you, so the order you do them in is itself a decision.',
+  'hint.D1.l3':
+    'The export was stopped before it finished, so nothing further is leaving in the next minute — the pressure you feel is not coming from the clock. What is still in front of you is the route the intrusion took: headers, the link, the delivery path, all of it held in records that an action against the account can disturb. So "act now, read later" is not a free choice here, it is a trade of one thing for the other. What is left is deciding which of the two is still there in five minutes if you leave it alone.',
+
+  'hint.D2.l1':
+    'Open the message record and read the header block rather than the body. The sender is listed there as more than one field, and the authentication timeline in diagnostics covers the same minutes.',
+  'hint.D2.l2':
+    'Every mail carries two kinds of sender: the part a human types and the part a server proves. Only one of them was tested by anything before it reached you, and telling them apart transfers to every message you will ever triage.',
+  'hint.D2.l3':
+    'The message presents itself as internal and the body reads exactly like the service desk. But the fields a receiving server actually checked — the authenticated sender, and the three results recorded next to it — disagree with the fields a person typed in. One of those two sets was chosen freely by whoever sent the mail; the other was tested against a published record and failed. That leaves the friendly reading of this header with nothing behind it. What is left is deciding which of the two sets you are willing to treat as evidence.',
+
+  'hint.D3.l1':
+    'The session inventory in diagnostics and the token telemetry record both describe the account you are about to write a containment plan for.',
+  'hint.D3.l2':
+    'A credential proves who you are once. The token issued afterwards carries that proof around for as long as it lives, and it is presented on its own without the credential being asked for again. Two different things, cancelled by two different acts.',
+  'hint.D3.l3':
+    'The session in question was issued at 03:02 with no password event behind it, and the same cookie has since been presented from a device this account has never used. It is bearer-only: whoever holds it is treated as the user, and nothing re-checks the credential while it is alive. So replacing the secret changes what a future sign-in has to supply and leaves everything already issued exactly where it stands. That rules out treating the credential as the whole of containment. What is left is naming what else has to be cancelled, and which of the two you do first.',
+
+  'hint.D4.l1':
+    'The endpoint report for WKS-114 is in the evidence list. The controls that act on a host live in the response console, and the report is what says what such a control would be acting on.',
+  'hint.D4.l2':
+    'A symptom is the part of an intrusion you were shown. A mechanism is the part that keeps working after the symptom is gone. Removing the first is visible and satisfying and changes nothing, which is why the question is always which of the two you are looking at.',
+  'hint.D4.l3':
+    'The message reached the user once and has already done its work. The endpoint report finds no malware and names something else instead: an extension in the browser holding permission to read cookies on every site, surviving a restart and unaffected by anything you do to the account. So the thing still producing access lives on the host, not in the mailbox — and taking that host off the network also changes what it can still tell you. Tidying the visible item and calling the incident handled is therefore not on the table. What is left is ordering the two: what you need off that host, and the moment you cut it off.',
+
+  'hint.D5.l1':
+    'Diagnostics holds a query that takes indicators as its input, and the indicators are already in the case: the sender domain, the address the session came from, the name of the extension.',
+  'hint.D5.l2':
+    'An alert reports what one detection happened to see, not how far the thing reached. Those are two different numbers, and the second one is only ever produced by going and looking for the same markers everywhere else.',
+  'hint.D5.l3':
+    'Every marker in this case is reusable: a domain delivers to more than one mailbox, an extension installs on more than one machine, an address talks to more than one system. An alert, though, only ever reports the account its detection fired on, and says nothing about the others in either direction. So from where you are sitting a genuinely clean estate and an unexamined one look identical. The alert cannot be read as a measurement of reach. What is left is choosing whether you produce that measurement before you act on it.',
+
+  'hint.D6.l1':
+    'The containment checklist is on the incident summary, beside the response list. It reads the state of each source system back to you, rather than the list of operations you submitted.',
+  'hint.D6.l2':
+    'An operation that was submitted and an outcome that was verified are two different facts, and only the second is safe to hand to somebody else. Closing a case is a handover, so it is the second one that closure should rest on.',
+  'hint.D6.l3':
+    'An operation reports success at the moment you run it, and that moment is all the response list records. The sources themselves are what say whether a session is still alive, whether an indicator is still reachable, whether a host is still on the network — and all three are readable right now, at no cost and with no effect on the estate. Closing writes the case shut against whichever of the two you looked at last. So "I ran the steps" is not an answer to "is it contained". What is left is deciding whether you look before you write it shut.',
+
+  /* ---------------- supporting sources (shown only after the answer) -------
+   *
+   * One sentence each, and each one says what the record shows rather than what
+   * the player did. `art_url_001` is revealed by D1's correct branch only, so a
+   * player who disabled the account first never opened it; a line that said "as
+   * you saw" would be false for exactly the player who most needs to read it.
+   */
+  'support.D1.email':
+    'The message record is the only place the headers, the delivery path and the live link survive together — the whole account of how the intrusion arrived, held in one record and nowhere else.',
+  'support.D1.url':
+    'The cloned portal took the session cookie alongside the password and the code, which is why the intrusion never needed the credential a second time.',
+  'support.D2.email':
+    'The display name and the authenticated sender in this record disagree, and SPF, DKIM and DMARC all failed: every field that any server actually tested says the mail came from outside.',
+  'support.D2.auth_timeline':
+    'The timeline puts a credential entry on an off-domain page at 02:44 and a cookie presented from a new device at 03:02 with no password event in between — sender identity and sign-in behaviour telling one story.',
+  'support.D3.cookie':
+    'The same cy_sso cookie was issued to the registered laptop and later presented from an unregistered one, and the record states outright that a password change does not invalidate it.',
+  'support.D3.session_inventory':
+    'The inventory lists SES-8842 as still active on an unregistered device and closes with the line that resetting the password terminates none of the sessions above it.',
+  'support.D4.edr':
+    'The report finds no malware and names the actual mechanism instead: a sideloaded extension with permission to read cookies on every site, surviving both a browser restart and a password change.',
+  'support.D4.url':
+    'The portal record shows the cookie was the prize the first time, which is what makes an extension able to read cookies the part of this incident that is still working.',
+  'support.D5.indicator_scope':
+    'The sweep found the same sender domain delivered to a second mailbox and the same extension installed on a second machine — reach that no single-account reading of the alert could have produced.',
+  'support.D5.dlp':
+    'The export was blocked at 62%, so part of it left the estate: that is what makes the difference between measured reach and assumed reach a difference in exposure rather than in tidiness.',
+  'support.D6.session':
+    'The session record is the source system answering, in its own words, whether the stolen access is still alive — which is the fact a closure rests on, not the report that a revocation was submitted.',
+  'support.D6.indicator_scope':
+    'The sweep is what turns "nothing else was reported" into a stated blast radius, so the next shift inherits a measured boundary instead of your assumption.',
+
+  /* ---------------- pointer controls ---------------- */
+  /* The rung labels say what the rung does, in the order the ladder climbs:
+   * where to look, the idea underneath, the reasoning walked through. */
+  'hint.level.1': 'Where to look',
+  'hint.level.2': 'The idea it turns on',
+  'hint.level.3': 'Reason it through',
+  'hint.exhausted':
+    'That is the last pointer for this decision. There is nothing deeper behind it — the step still missing is the one that is yours.',
+  /* Said plainly because a novice assumes otherwise and then refuses the help
+   * they were built the ladder for. */
+  'hint.free':
+    'Pointers are free. They never touch your score, and the debrief does not count how many you opened.',
+
+  /* ---------------- first-arrival explainer: who is talking ----------------
+   *
+   * Read once, on first arrival. The failure it exists to prevent is a novice
+   * hearing a generated line, believing the room said it, and treating it as
+   * fact — so each line below names one of the three and says what kind of
+   * thing it produces. `learning.intro.codex` describes the channel by the label
+   * the player actually sees on it, `narration.generated`, because the model's
+   * name appears nowhere on screen.
+   *
+   * It deliberately does NOT say that "Case guidance" is written by a model. It
+   * is not: `guidance.channel` carries what the console derives from case state
+   * — the last pointer, the last decision's explanation, or the welcome line —
+   * and it is there whether or not an agent is connected. Saying otherwise
+   * taught the player to read deterministic console text as model output, which
+   * is the exact confusion these three lines exist to prevent.
+   */
+  'learning.intro.title': 'Three things talk to you here',
+  'learning.intro.vera':
+    'VERA is the operations assistant at the desk with you. She reports what is happening in the estate — operational fact, as she has it, at the moment she has it.',
+  'learning.intro.codex':
+    'When an agent is connected it can teach alongside you, and every line it writes is labelled "Generated guidance". It comes from outside the incident: nobody in the room said it, and it cannot change the case. Anything headed "Case guidance" is the console explaining itself, not a model.',
+  'learning.intro.dashboard':
+    'The dashboard is the source of truth. Where a record and a spoken line disagree, the record wins — and the record is what your result is read from.',
+  'learning.intro.dismiss': 'Got it',
+
+  /* ---------------- what the clocks do, and do not, mean ----------------
+   *
+   * A player who believes a wall clock is running against them rushes, and
+   * rushing is the opposite of the habit this case teaches. `clock.explainer`
+   * above states the same multiplier relationship for an analyst reading the
+   * two clocks; these are the novice-facing form of that one fact, plus the two
+   * reassurances the explainer does not make.
+   */
+  'clock.explain': 'How time works here',
+  'clock.accelerated':
+    'Incident time is accelerated: minutes pass on the incident clock while seconds pass at your desk, and each operation you run adds its own incident cost on top.',
+  'clock.pause_safe':
+    'Pause stops both clocks. Nothing advances behind it, nothing expires while it is held, and nothing about your case is lost.',
+  'clock.no_deadline':
+    'There is no hidden deadline. No wall clock is running against you and nothing is scored on how long you take, so reading a record twice costs you nothing.',
+
+  /* ---------------- raw form of a feed row ---------------- */
+  /* The disclosure that shows the untranslated technical line behind a rendered
+   * feed row. Kept as a disclosure because the raw line is what a working
+   * analyst eventually reads, and a novice who never sees one learns a console
+   * that does not exist. */
+  'activity.raw': 'Raw event line',
+  'activity.raw_show': 'Show the raw event line',
+
+  /* ---------------- closing the case ---------------- */
+  /* VERA's register: what happened to the case record, and nothing else. No
+   * teaching, no verdict, no number — the debrief does all three, and it does
+   * them only when the player chooses to open it. */
+  'close.confirm': 'That is the case closed. It is off the live board and the record is written as it stands.',
+  'close.continue': 'Open the debrief when you are ready',
+
+  /* ---------------- debrief: the teaching pass ---------------- */
+  'debrief.strongest': 'Your strongest decision',
+  /* The body `strongestObservation` falls back to on a run with nothing decided
+   * and nothing read, and the defensive fallback `lessonObservation` uses for
+   * the same emptiness. It has to read under either headline. */
+  'debrief.strongest.none':
+    'This run has not produced one yet — nothing has been decided and no record has been read.',
+  'debrief.improve': 'The one to work on',
+  'debrief.lesson': 'What it teaches',
+  'debrief.time.real': 'Time at the desk',
+  'debrief.time.sim': 'Time in the incident',
+  'debrief.time.why':
+    'The two differ because incident time runs faster than time at the desk, and every operation you ran added its own incident cost. Neither number is scored.',
+  'debrief.chain': 'How your decisions led into each other',
+  /* {goal} is the learning goal of the decision that most needs practice, which
+   * the engine resolves into `DebriefAnalytics.replayGoal`. Naming it is the
+   * whole point: "try again" sends a player back to repeat the same run. */
+  'debrief.replay_goal': 'Run the case again. The one thing to get right this time: {goal}',
+
+  /* ---------------- retrieval practice ---------------- */
+  /* Optional in the strong sense, and said twice because it is offered directly
+   * after a score: answering, ignoring and revealing are indistinguishable to
+   * the engine, and a player who suspects otherwise will not answer honestly. */
+  'retrieval.title': 'Check yourself',
+  'retrieval.optional':
+    'Optional, and not scored. Nothing you do here changes your result — it is here because answering from memory is what makes a thing stay learned.',
+  'retrieval.reveal': 'Show the answer',
+  'retrieval.answer': 'Answer',
+
 } as const;
 
 export type StringKey = keyof typeof en;

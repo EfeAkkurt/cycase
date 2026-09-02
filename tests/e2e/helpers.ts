@@ -171,6 +171,21 @@ export async function openDashboard(page: Page): Promise<void> {
 }
 
 /**
+ * Presses through the close beat, the way a player does.
+ *
+ * Closing the case used to replace the console with the debrief in the same
+ * frame, so a spec that closed the case simply found itself on the debrief.
+ * It does not any more: the dashboard stays so the closing receipt and the
+ * verified sources are still readable, VERA confirms the case is off the board,
+ * and the player opens the debrief themselves. Every spec that ends on the
+ * debrief therefore presses the control a person presses.
+ */
+export async function continueToDebrief(page: Page): Promise<void> {
+  await page.locator('#close-continue').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
+}
+
+/**
  * Plays the office choreography for specs that test it: acknowledge the alarm,
  * wait through the colleague's entrance and report, and land on the briefing
  * choice.

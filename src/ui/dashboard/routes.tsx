@@ -1469,11 +1469,18 @@ function Prerequisites({ actionId }: { actionId: ResponseActionId }) {
  * opened. Nothing in the product could render it. `SideNav` disables the
  * Debrief row while the case is open, and when it is enabled it sends
  * `OPEN_DEBRIEF` rather than `SET_ROUTE`; no other caller anywhere sets the
- * route to `debrief`; and the dashboard state's
- * `always: { target: 'debrief', guard: 'caseClosed' }` takes the player out of
- * this scene the instant the case closes. `ctx.route === 'debrief'` was
- * therefore a branch with no path into it — a panel that read as coverage of
- * the locked state and had never once been on screen.
+ * route to `debrief`; and `OPEN_DEBRIEF` moves the *scene*, never the
+ * destination, so a player who takes it is out of this file entirely.
+ * `ctx.route === 'debrief'` was therefore a branch with no path into it — a
+ * panel that read as coverage of the locked state and had never once been on
+ * screen.
+ *
+ * That last reason used to be blunter: the dashboard state carried
+ * `always: { target: 'debrief', guard: 'caseClosed' }` and took the player out
+ * of the console the instant the case closed. It does not any more — closing is
+ * a beat the player presses through — and the branch stays unreachable for the
+ * reason that did the real work, which is that nothing sets the destination to
+ * the sixth one.
  *
  * The locked state does have a UI. It is the nav row itself: disabled, with
  * `nav.debrief.locked` carried in its accessible name, which is the honest

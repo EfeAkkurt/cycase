@@ -8,6 +8,7 @@ import {
   CONDITIONAL_FACTS,
   DECISIONS,
   DECISION_BY_ID,
+  DECISION_HINTS_BY_DECISION,
   DIAGNOSTICS,
   DIAGNOSTIC_BY_ID,
   FINDINGS,
@@ -16,8 +17,15 @@ import {
   OPEN_QUESTIONS,
   RESPONSE_ACTIONS,
   RESPONSE_ACTION_BY_ID,
+  SUPPORTING_SOURCES_BY_DECISION,
   TIMELINE,
 } from './fixtures/case001';
+// `live.ts` owns the one copy of the two-clock arithmetic and imports this
+// module for `formatClock`. The cycle is function-level in both directions —
+// neither module calls the other while it is being evaluated — so it resolves,
+// and it is far cheaper than a second copy of the arithmetic that drifts.
+import { clocks } from './live';
+import { DECISION_HINT_MAX_LEVEL } from './types';
 import type {
   AllowedNextAction,
   Artifact,
@@ -27,7 +35,14 @@ import type {
   BlockedDecisionView,
   CommandKind,
   DashboardRoute,
+  DebriefAnalytics,
+  DebriefAnchor,
+  DebriefObservation,
+  DecisionChainLink,
+  DecisionHintLevel,
+  DecisionHintView,
   DecisionId,
+  DecisionRecord,
   GuidanceProposal,
   Diagnostic,
   DiagnosticId,
@@ -37,6 +52,9 @@ import type {
   Identity,
   OpenDecisionView,
   ResponseActionId,
+  RetrievalQuestion,
+  SupportingSourceView,
+  TimeComparison,
   TimelineEvent,
 } from './types';
 
@@ -1715,5 +1733,471 @@ function artifactReceipt(ctx: GameContext, base: ReceiptBase): CommandReceipt | 
     unchanged: [],
     why: t('guide.evidence_why'),
     recovery: null,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * The learning layer — pointers, sources, analytics, retrieval
+ * ------------------------------------------------------------------ *
+ *
+ * Everything below is a pure read over `GameContext`. No clock is sampled, no
+ * random is drawn, nothing is stored: the same context always produces the same
+ * text, which is what lets a debrief be reproduced from a command log by anyone
+ * holding it, and what keeps every line here off the score.
+ *
+ * New copy resolves through `tk` rather than `t` on purpose. The keys these
+ * functions name are authored in `i18n/en.ts` by a different hand than the one
+ * that wrote the selector, and `tk` renders the key itself when the table has
+ * not caught up — a visible gap rather than a build that will not compile or a
+ * node that silently renders empty.
+ */
+
+/**
+ * How deep this decision's pointer ladder has been walked, clamped.
+ *
+ * The clamp is the reason this exists at all. `decisionHintLevels` is an
+ * optional bag of plain numbers that survives `replay()` and arrives from
+ * storage, so nothing structurally stops it holding 4 — and level 4 has no
+ * text, so a caller reading the bag directly would render an empty pointer at
+ * exactly the moment a stuck player asked for help. Every reader goes through
+ * here.
+ */
+export function decisionHintLevel(ctx: GameContext, decisionId: DecisionId): number {
+  const raw = ctx.decisionHintLevels?.[decisionId] ?? 0;
+  if (!Number.isFinite(raw)) return 0;
+  return Math.min(Math.max(0, Math.floor(raw)), DECISION_HINT_MAX_LEVEL);
+}
+
+/** Short label for a rung: where to look / which idea / reason it through. */
+function hintLevelLabel(level: DecisionHintLevel): string {
+  return tk(`hint.level.${level}`);
+}
+
+/**
+ * The rung an ask about this decision would land on, without advancing it.
+ *
+ * Once the ladder is spent this reports level 3 with `exhausted: true` and the
+ * plain statement that there is nothing deeper. Replaying rung 3 as though it
+ * were new would teach the player that asking is free noise, which is the one
+ * habit a pointer must not build.
+ */
+export function nextDecisionHint(ctx: GameContext, decisionId: DecisionId): DecisionHintView {
+  const current = decisionHintLevel(ctx, decisionId);
+  const exhausted = current >= DECISION_HINT_MAX_LEVEL;
+  const level = (exhausted ? DECISION_HINT_MAX_LEVEL : current + 1) as DecisionHintLevel;
+  const rung = DECISION_HINTS_BY_DECISION.get(decisionId)?.find((hint) => hint.level === level);
+
+  return {
+    decisionId,
+    level,
+    levelsTotal: DECISION_HINT_MAX_LEVEL,
+    levelLabel: hintLevelLabel(level),
+    text: exhausted ? tk('hint.exhausted') : tk(rung?.textKey ?? 'hint.exhausted'),
+    exhausted,
+    // Answerable *now*, not merely unanswered: a player stuck in front of a
+    // greyed-out card is stuck on its prerequisite, and a view that claimed the
+    // decision was open would be lying about the thing they are stuck on.
+    open: !ctx.decisions[decisionId] && isDecisionUnlocked(ctx, decisionId),
+  };
+}
+
+/**
+ * The decision a pointer request is about: the next one the run has not
+ * answered, whether or not its prerequisite has landed yet.
+ *
+ * Deliberately not `openDecisionId`, which returns null while the next decision
+ * is blocked. A blocked decision is precisely when level 1 — *where to look* —
+ * is worth most, and returning nothing there would withhold help at the moment
+ * it was asked for.
+ */
+export function hintedDecisionId(ctx: GameContext): DecisionId | null {
+  return DECISIONS.find((decision) => !ctx.decisions[decision.id])?.id ?? null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Supporting sources
+ * ------------------------------------------------------------------ */
+
+/**
+ * The one or two records that back the correct reading of a decision — empty
+ * until the decision is answered.
+ *
+ * Before the answer these *are* the answer: naming the token telemetry while D3
+ * is open hands over the branch without the player having reasoned to it. The
+ * gate is a single `ctx.decisions[decisionId]` check and it is the whole reason
+ * this function is not just a fixture lookup.
+ *
+ * Availability is reported honestly rather than optimistically. D2 can be
+ * answered before `auth_timeline` has run, which leaves its telemetry source
+ * locked; answering D4 by deleting the message destroys `art_email_001`, which
+ * leaves D1's first source destroyed. A line saying why a record is not there
+ * beats a link to a record that is not there.
+ */
+export function supportingSources(ctx: GameContext, decisionId: DecisionId): SupportingSourceView[] {
+  if (!ctx.decisions[decisionId]) return [];
+
+  const views: SupportingSourceView[] = [];
+
+  for (const source of SUPPORTING_SOURCES_BY_DECISION.get(decisionId) ?? []) {
+    if (source.ref.kind === 'artifact') {
+      const artifact = ARTIFACT_BY_ID.get(source.ref.id);
+      if (!artifact) continue;
+      views.push({
+        decisionId,
+        kind: 'artifact',
+        id: artifact.id,
+        title: tk(artifact.titleKey),
+        why: tk(source.whyKey),
+        availability: artifactAvailability(ctx, artifact.id),
+        ...(artifact.revealedBy ? { revealedBy: artifact.revealedBy } : {}),
+        inspected: ctx.inspectedArtifacts.includes(artifact.id),
+      });
+      continue;
+    }
+
+    const diagnostic = DIAGNOSTIC_BY_ID.get(source.ref.id);
+    if (!diagnostic) continue;
+    const run = ctx.ranDiagnostics.includes(diagnostic.id);
+    views.push({
+      decisionId,
+      kind: 'diagnostic',
+      id: diagnostic.id,
+      title: tk(diagnostic.titleKey),
+      why: tk(source.whyKey),
+      // A query nobody ran has no result to read, so it is locked rather than
+      // available. Diagnostics are never destroyed, only un-run.
+      availability: run ? 'available' : 'locked',
+      inspected: run,
+    });
+  }
+
+  return views;
+}
+
+/* ------------------------------------------------------------------ *
+ * Debrief analytics
+ * ------------------------------------------------------------------ *
+ *
+ * None of these lines restates the score. The score says how many points a move
+ * was worth; these say what the move *was* — the order the run chose, whether
+ * the records backing a call had been read before the call was made, which
+ * assumption was left standing. A points total cannot make those claims, and
+ * they are the ones a novice can act on next week.
+ */
+
+/** Position of a command in the append-only log, or -1. Gives a total order. */
+function issuedAt(ctx: GameContext, kind: CommandKind, field: string, value: string): number {
+  return ctx.commandLog.findIndex(
+    (entry) =>
+      entry.kind === kind && (entry.input as Record<string, unknown> | null)?.[field] === value,
+  );
+}
+
+/**
+ * Whether every record backing this decision had already been collected when
+ * the decision was submitted.
+ *
+ * The command log is the only ordering the context keeps — `inspectedArtifacts`
+ * is a membership list and cannot say *when* — so "had you read it before you
+ * acted" is answerable here and nowhere else.
+ */
+function answeredFromTheRecord(ctx: GameContext, decisionId: DecisionId): boolean {
+  const answeredAt = issuedAt(ctx, 'submit_decision', 'decisionId', decisionId);
+  if (answeredAt === -1) return false;
+
+  const sources = SUPPORTING_SOURCES_BY_DECISION.get(decisionId) ?? [];
+  if (sources.length === 0) return false;
+
+  return sources.every((source) => {
+    const collectedAt =
+      source.ref.kind === 'artifact'
+        ? issuedAt(ctx, 'inspect_artifact', 'artifactId', source.ref.id)
+        : issuedAt(ctx, 'run_diagnostic', 'diagnosticId', source.ref.id);
+    return collectedAt !== -1 && collectedAt < answeredAt;
+  });
+}
+
+function decisionAnchor(decisionId: DecisionId): DebriefAnchor | null {
+  const decision = DECISION_BY_ID.get(decisionId);
+  if (!decision) return null;
+  return { kind: 'decision', id: decisionId, label: tk(decision.promptKey) };
+}
+
+/** Decisions the run answered, in the order it answered them. */
+function answeredInOrder(ctx: GameContext): DecisionRecord[] {
+  return DECISIONS.map((decision) => ctx.decisions[decision.id])
+    .filter((record): record is DecisionRecord => Boolean(record))
+    .sort((a, b) => a.seq - b.seq);
+}
+
+function optionOf(record: DecisionRecord) {
+  return DECISION_BY_ID.get(record.decisionId)?.options.find((o) => o.id === record.optionId);
+}
+
+/** The first wrong answer — the place the run changed direction, if it did. */
+function firstWrong(ctx: GameContext): DecisionRecord | null {
+  return answeredInOrder(ctx).find((record) => !record.correct) ?? null;
+}
+
+/**
+ * The strongest move, preferring a correct call the run had actually earned.
+ *
+ * "Earned" is the ordering claim, not the points: the latest correct decision
+ * whose supporting records were already collected when it was submitted. A
+ * player who read the records and then decided did something a player who
+ * guessed right did not, and only the command log can tell them apart. Failing
+ * that it names the first correct call, and failing that the last record read —
+ * because on a run with no decisions the strongest thing done was still real.
+ */
+function strongestObservation(ctx: GameContext): DebriefObservation {
+  const correct = answeredInOrder(ctx).filter((record) => record.correct);
+
+  const backed = [...correct].reverse().find((record) => answeredFromTheRecord(ctx, record.decisionId));
+  const chosen = backed ?? correct[0];
+
+  if (chosen) {
+    const option = optionOf(chosen);
+    return {
+      id: 'strongest',
+      headline: tk('debrief.strongest'),
+      body: tk(option?.explanationKey ?? 'debrief.strongest.none'),
+      anchor: decisionAnchor(chosen.decisionId),
+    };
+  }
+
+  const lastRead = ctx.inspectedArtifacts[ctx.inspectedArtifacts.length - 1];
+  const artifact = lastRead ? ARTIFACT_BY_ID.get(lastRead) : undefined;
+  if (artifact) {
+    return {
+      id: 'strongest',
+      headline: tk('debrief.strongest'),
+      body: tk(artifact.explanationKey),
+      anchor: { kind: 'artifact', id: artifact.id, label: tk(artifact.titleKey) },
+    };
+  }
+
+  return {
+    id: 'strongest',
+    headline: tk('debrief.strongest'),
+    body: tk('debrief.strongest.none'),
+    anchor: null,
+  };
+}
+
+/**
+ * The biggest thing to improve, phrased as the next thing to *do*.
+ *
+ * The order matters and is the whole design. A wrong call is named first, and
+ * named by the option the run should have taken — a verb-first label is already
+ * an action, where "you were wrong about D3" is only a verdict. After that come
+ * containment steps still open, then reachable evidence never read. A run with
+ * none of those has nothing to improve, and saying so plainly beats inventing a
+ * criticism to fill the slot.
+ */
+function improveObservation(ctx: GameContext): DebriefObservation {
+  const wrong = firstWrong(ctx);
+  if (wrong) {
+    const decision = DECISION_BY_ID.get(wrong.decisionId);
+    const right = decision?.options.find((o) => o.correct);
+    return {
+      id: 'improve',
+      headline: tk('debrief.improve'),
+      body: tk(right?.explanationKey ?? 'debrief.nothing_missed'),
+      anchor: right
+        ? { kind: 'decision', id: wrong.decisionId, label: tk(right.labelKey) }
+        : decisionAnchor(wrong.decisionId),
+    };
+  }
+
+  const corrective = correctivePath(ctx)[0];
+  if (corrective) {
+    return {
+      id: 'improve',
+      headline: tk('debrief.improve'),
+      body: corrective.impact,
+      anchor: { kind: 'action', id: corrective.actionId, label: corrective.label },
+    };
+  }
+
+  const unread = explorations(ctx)[0];
+  if (unread) {
+    return {
+      id: 'improve',
+      headline: tk('debrief.improve'),
+      body: unread.note,
+      anchor: {
+        kind: unread.kind === 'inspect_artifact' ? 'artifact' : 'diagnostic',
+        id: unread.id,
+        label: unread.label,
+      },
+    };
+  }
+
+  return {
+    id: 'improve',
+    headline: tk('debrief.improve'),
+    body: tk('debrief.nothing_missed'),
+    anchor: null,
+  };
+}
+
+/**
+ * One lesson written to survive leaving this case.
+ *
+ * Drawn from `learningGoalKey`, which is the fixture's own statement of what a
+ * decision teaches rather than what it scored. The wrong call is preferred
+ * because that is where the lesson has not landed yet; with no wrong call it
+ * follows the last decision answered, and on an untouched case it states what
+ * the case is about to teach.
+ */
+function lessonObservation(ctx: GameContext): DebriefObservation {
+  const answered = answeredInOrder(ctx);
+  const source = firstWrong(ctx) ?? answered[answered.length - 1];
+  const decision = source ? DECISION_BY_ID.get(source.decisionId) : DECISIONS[0];
+
+  return {
+    id: 'lesson',
+    headline: tk('debrief.lesson'),
+    body: tk(decision?.learningGoalKey ?? 'debrief.strongest.none'),
+    anchor: decision ? decisionAnchor(decision.id) : null,
+  };
+}
+
+/**
+ * The two clocks, side by side.
+ *
+ * Every number comes from `clocks()` in `game/live.ts`, which owns the
+ * `incident = play x multiplier + operation cost` arithmetic. Re-deriving real
+ * time here — or reaching for `Date.now()` — is exactly how the two readouts
+ * drifted apart before P0.6, so this function does arithmetic on nothing.
+ */
+function timeComparison(ctx: GameContext): TimeComparison {
+  const readout = clocks(ctx);
+  return {
+    realSec: readout.playSec,
+    simulatedSec: readout.incidentSec,
+    operationCostSec: readout.operationCostSec,
+    multiplier: readout.multiplier,
+    realLabel: formatElapsed(readout.playSec),
+    simulatedLabel: formatElapsed(readout.incidentSec),
+  };
+}
+
+/**
+ * The decision chain in the order the run answered it, unanswered decisions
+ * kept in fixture order at the end so the chain is always six links long and a
+ * surface never has to explain a gap.
+ */
+function decisionChain(ctx: GameContext): DecisionChainLink[] {
+  const answered = answeredInOrder(ctx);
+  const seen = new Set(answered.map((record) => record.decisionId));
+  let pivotTaken = false;
+
+  const links: DecisionChainLink[] = answered.map((record) => {
+    const decision = DECISION_BY_ID.get(record.decisionId);
+    const option = optionOf(record);
+    // Only the first wrong answer is the pivot. Later mistakes are consequences
+    // of the turn, not the turn itself, and marking them all would hide it.
+    const pivot = !record.correct && !pivotTaken;
+    if (pivot) pivotTaken = true;
+    return {
+      decisionId: record.decisionId,
+      prompt: tk(decision?.promptKey ?? record.decisionId),
+      answered: true,
+      optionId: record.optionId,
+      optionLabel: tk(option?.labelKey ?? record.optionId),
+      correct: record.correct,
+      seq: record.seq,
+      at: record.at,
+      pivot,
+    };
+  });
+
+  for (const decision of DECISIONS) {
+    if (seen.has(decision.id)) continue;
+    links.push({
+      decisionId: decision.id,
+      prompt: tk(decision.promptKey),
+      answered: false,
+      pivot: false,
+    });
+  }
+
+  return links;
+}
+
+/**
+ * Something concrete to practise on a second run.
+ *
+ * Never "try again": that is a restatement of the outcome dressed as advice.
+ * The correct option's verb-first label for the call that turned the run, the
+ * next unanswered prompt when nothing turned, and otherwise the last decision's
+ * learning goal — each of them is a thing a player can go and do.
+ */
+function replayGoal(ctx: GameContext): string {
+  const wrong = firstWrong(ctx);
+  if (wrong) {
+    const right = DECISION_BY_ID.get(wrong.decisionId)?.options.find((o) => o.correct);
+    if (right) return tk(right.labelKey);
+  }
+
+  const unanswered = hintedDecisionId(ctx);
+  if (unanswered) return tk(DECISION_BY_ID.get(unanswered)?.promptKey ?? unanswered);
+
+  const answered = answeredInOrder(ctx);
+  const last = answered[answered.length - 1];
+  const decision = last ? DECISION_BY_ID.get(last.decisionId) : DECISIONS[DECISIONS.length - 1];
+  return tk(decision?.learningGoalKey ?? 'debrief.strongest.none');
+}
+
+export function debriefAnalytics(ctx: GameContext): DebriefAnalytics {
+  const chain = decisionChain(ctx);
+  return {
+    strongest: strongestObservation(ctx),
+    improve: improveObservation(ctx),
+    lesson: lessonObservation(ctx),
+    time: timeComparison(ctx),
+    chain,
+    pivotIndex: chain.findIndex((link) => link.pivot),
+    replayGoal: replayGoal(ctx),
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Retrieval practice
+ * ------------------------------------------------------------------ */
+
+/**
+ * One optional question, drawn from what this run actually contains.
+ *
+ * The selection rule is written down because "deterministic" is otherwise
+ * unverifiable: the first wrong decision if the run turned, otherwise the last
+ * decision it answered, otherwise null. Fixture order breaks every tie, and no
+ * clock or counter enters.
+ *
+ * It cannot touch the score, and that is structural rather than promised: this
+ * is a selector, there is no `retrieval` member of `CommandKind`, so `dispatch`
+ * has no arm that reaches it, and it returns no `ScoreEntry` for `computeScore`
+ * to sum. Asking it, ignoring it and revealing the answer are indistinguishable
+ * to the engine — which is what makes it safe to put in front of somebody who
+ * has just been scored.
+ */
+export function retrievalQuestion(ctx: GameContext): RetrievalQuestion | null {
+  const answered = answeredInOrder(ctx);
+  const source = firstWrong(ctx) ?? answered[answered.length - 1];
+  if (!source) return null;
+
+  const decision = DECISION_BY_ID.get(source.decisionId);
+  if (!decision) return null;
+  const right = decision.options.find((o) => o.correct);
+
+  return {
+    id: `retrieval-${decision.id}`,
+    // Re-asking the decision's own question is the retrieval: the player states
+    // the reading again from memory instead of recognising it in a list.
+    question: tk(decision.promptKey),
+    modelAnswer: tk(right?.explanationKey ?? decision.learningGoalKey),
+    anchor: decisionAnchor(decision.id),
+    affectsScore: false,
   };
 }

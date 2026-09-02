@@ -1,6 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { collectPageProblems, openDashboard, PERFECT_RUN, readStateVersion } from './helpers';
+import {
+  collectPageProblems,
+  continueToDebrief,
+  openDashboard,
+  PERFECT_RUN,
+  readStateVersion,
+} from './helpers';
 
 /**
  * Acceptance criterion 1: "The player can complete Case 001 manually."
@@ -69,7 +75,9 @@ test('a player completes the case with visible controls only', async ({ page }) 
   await decide(page, 'Review the containment checklist, then close');
   await respond(page, 'close_case');
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
+  // The console stays up on the close, so the run ends the way a player ends
+  // it: read the receipt, then open the debrief.
+  await continueToDebrief(page);
   await expect(page.locator('#debrief-outcome')).toContainText('Contained');
   await expect(page.locator('#debrief-outcome')).toContainText('100/100');
   await expect(page.locator('#debrief-missed')).toContainText('Nothing critical was left open');
@@ -104,9 +112,11 @@ test('closing with open findings produces the partial ending and explains the co
   const chosen: string[] = [];
 
   for (let move = 0; move < 40; move += 1) {
-    // Check for the ending FIRST: closing the case replaces the dashboard with
-    // the debrief, and the navigation goes with it.
-    if (await page.locator('#debrief-outcome').count()) break;
+    // Check for the ending FIRST: once the case is closed there is no next
+    // required step to press, and what stands in the card's place is the close
+    // beat. The loop stops there and the debrief is opened below, deliberately
+    // outside the loop — leaving the console is not one of the moves.
+    if (await page.locator('#close-continue').count()) break;
     await nav(page, 'Command').click();
 
     const options = await page.locator('[id^="decision-option-"]').all();
@@ -138,6 +148,7 @@ test('closing with open findings produces the partial ending and explains the co
   // Every decision was answered, and answered badly.
   expect(chosen.length, `wrong options taken: ${chosen.join(', ')}`).toBe(perfectOptions.size);
 
+  await continueToDebrief(page);
   await expect(page.locator('#debrief-outcome')).toContainText('Partial containment');
   await expect(page.locator('#debrief-missed')).toContainText('Stolen session still active');
   await expect(page.locator('#debrief-missed')).toContainText('Endpoint still leaking cookies');
@@ -214,7 +225,7 @@ test('the entire golden path produces zero console errors, zero page errors and 
   await respond(page, 'block_indicator', false);
   await decide(page, 'Review the containment checklist, then close');
   await respond(page, 'close_case');
-  await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
+  await continueToDebrief(page);
 
   // Visit every dashboard artifact of the run before judging.
   expect(pageErrors, pageErrors.join('\n')).toEqual([]);
@@ -273,7 +284,7 @@ test('local mode is the default and makes zero backend requests', async ({ page 
   await decide(page, 'Review the containment checklist, then close');
   await respond(page, 'close_case');
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
+  await continueToDebrief(page);
   await expect(page.locator('#debrief-outcome')).toContainText('100/100');
 
   expect(apiCalls, `unexpected backend calls:\n${apiCalls.join('\n')}`).toEqual([]);

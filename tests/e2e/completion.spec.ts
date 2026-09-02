@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import {
   PERFECT_RUN,
+  continueToDebrief,
   consoleNarrationToggle,
   officeNarrationToggle,
   openConsoleSettings,
@@ -142,11 +143,20 @@ async function playStepWithPointer(
 
 
 
-/** The whole canonical run, with the pointer, from wherever the console is open. */
+/**
+ * The whole canonical run, with the pointer, from wherever the console is open
+ * — including the press that leaves it.
+ *
+ * Closing the case is the last command; it is not the last interaction. The
+ * console stays up with the closing receipt and the finished sources on it, and
+ * the player opens the debrief when they have read them. A path that stopped at
+ * the command would be asserting an ending no player reaches.
+ */
 async function playCaseWithPointer(page: Page): Promise<void> {
   for (const step of PERFECT_RUN) {
     await playStepWithPointer(page, step);
   }
+  await continueToDebrief(page);
 }
 
 /** The ending every path in this file has to reach, asserted where it is stated. */
@@ -259,6 +269,7 @@ test.describe('every path finishes the case', () => {
     for (const step of PERFECT_RUN.slice(1)) {
       await playStepWithPointer(page, step);
     }
+    await continueToDebrief(page);
     await expectContainedDebrief(page);
   });
 
@@ -423,9 +434,11 @@ test.describe('every path finishes the case', () => {
     const chosen: string[] = [];
 
     for (let move = 0; move < 40; move += 1) {
-      // Checked first: closing the case replaces the console with the debrief,
-      // and the guide goes with it.
-      if (await page.locator('#debrief-outcome').count()) break;
+      // Checked first: once the case is closed there is no next required step,
+      // and the close beat stands where the guide card did. Leaving the console
+      // is the player's own move, so it is made below rather than inside a loop
+      // that plays the incident.
+      if (await page.locator('#close-continue').count()) break;
 
       const optionIds = await page
         .locator('[id^="decision-option-"]')
@@ -466,6 +479,11 @@ test.describe('every path finishes the case', () => {
 
     // Every decision was answered, and answered correctly.
     expect(chosen.sort()).toEqual([...perfectOptions].sort());
+
+    // And the last press is a press too — Tab to it, Enter on it, no pointer
+    // anywhere in this test.
+    await tabTo(page, '#close-continue');
+    await page.keyboard.press('Enter');
     await expectContainedDebrief(page);
   });
 });

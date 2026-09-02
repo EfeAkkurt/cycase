@@ -1,6 +1,6 @@
 import { expect, test, type Request } from '@playwright/test';
 
-import { openDashboard } from './helpers';
+import { continueToDebrief, openDashboard } from './helpers';
 import { testBaseUrl } from '../../scripts/test-port.mjs';
 
 /**
@@ -83,7 +83,9 @@ test('local mode completes Case 001 while making zero backend requests', async (
   await respond('close_case');
 
   // The case really finished, so the zero above is a zero over a whole run and
-  // not over a page that never got started.
+  // not over a page that never got started. The last press of that run is the
+  // one that leaves the console, and it is the player's.
+  await continueToDebrief(page);
   await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
   await expect(page.locator('#debrief-outcome')).toContainText('Contained');
 

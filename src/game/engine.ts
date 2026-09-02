@@ -32,10 +32,12 @@ import {
   formatClock,
   formatElapsed,
   hasPerformed,
+  hintedDecisionId,
   incidentClock,
   incidentStatus,
   isDecisionUnlocked,
   knownFacts,
+  nextDecisionHint,
   blockedDecisionView,
   openDecisionView,
   openQuestions,
@@ -795,17 +797,55 @@ function handleRequestHint(ctx: GameContext, topic: HintTopic): HandlerOutcome {
       return false;
     }) ?? candidates[candidates.length - 1];
 
+  // The per-decision ladder is a second axis, not a replacement. The topic
+  // pointer above answers "what is still undone" for an analyst who lost the
+  // thread; the ladder answers "why is this a decision" for a novice stuck on
+  // the card in front of them. `hint` keeps its original meaning because
+  // surfaces and tests that predate the ladder read it, and quietly changing
+  // what an existing field means is how a contract rots.
+  /*
+   * The ladder climbs only when the ask was about the area this decision lives
+   * in. It used to climb on every `request_hint` whatever the topic, so a
+   * player who pressed all four topic buttons once burned all three rungs
+   * without ever asking for the decision in front of them, and met "there is
+   * no deeper pointer" on their first real ask. `Decision.topic` is what makes
+   * the two axes meet: ask about containment while a containment decision is
+   * open and the rung advances; ask about evidence and it does not.
+   */
+  const candidateId = hintedDecisionId(ctx);
+  const candidate = candidateId ? DECISION_BY_ID.get(candidateId) : undefined;
+  const decisionId = candidate?.topic === topic ? candidateId : null;
+  const decision = decisionId ? nextDecisionHint(ctx, decisionId) : undefined;
+
   const view: HintView = {
     topic,
     hint: match ? tk(match.textKey) : t('rail.hint.no_penalty'),
     affectsScore: false,
+    ...(decision ? { decision } : {}),
   };
+
+  // Asking again about the same decision climbs one rung and stops at the top.
+  // Recorded in the patch rather than in a component because the escalation has
+  // to survive the office/dashboard round trip and `replay()`, and only state
+  // the engine writes does.
+  const decisionHintLevels =
+    decisionId && decision
+      ? { ...ctx.decisionHintLevels, [decisionId]: decision.level }
+      : ctx.decisionHintLevels;
 
   return {
     data: view,
     // Hints never touch the score. docs/GAME_FLOW.md: "Do not punish the player
-    // for requesting explanations or accessibility features."
-    patch: { hintsRequested: ctx.hintsRequested + 1, lastHint: view, assistantState: 'needs-input' },
+    // for requesting explanations or accessibility features." The ladder does
+    // not change that: no `scoreEntries` are appended here, and `request_hint`
+    // is absent from `VERSION_BUMPING_COMMANDS`, so climbing a rung cannot
+    // invalidate an agent's in-flight call either.
+    patch: {
+      hintsRequested: ctx.hintsRequested + 1,
+      decisionHintLevels,
+      lastHint: view,
+      assistantState: 'needs-input',
+    },
     summary: `Hint requested: ${topic}`,
     effectId: 'rail-hint',
     changedState: false,

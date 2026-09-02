@@ -1,6 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { PERFECT_RUN, installModelContext, openDashboard, runSequence } from './helpers';
+import {
+  PERFECT_RUN,
+  continueToDebrief,
+  installModelContext,
+  openDashboard,
+  runSequence,
+} from './helpers';
 
 /**
  * The chart surface.
@@ -190,8 +196,8 @@ test.describe('charts', () => {
     await installModelContext(page);
     await openDashboard(page);
     await runSequence(page, PERFECT_RUN);
+    await continueToDebrief(page);
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
     const panel = page.locator('#debrief-breakdown');
     await expect(panel.locator('.viz--score')).toBeVisible();
     await waitForCharts(page, 1);
@@ -217,8 +223,8 @@ test.describe('charts', () => {
     await installModelContext(page);
     await openDashboard(page);
     await runSequence(page, PARTIAL_RUN);
+    await continueToDebrief(page);
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Debrief' })).toBeVisible();
     const panel = page.locator('#debrief-breakdown');
     await waitForCharts(page, 1);
 
