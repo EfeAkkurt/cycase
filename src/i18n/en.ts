@@ -445,6 +445,9 @@ export const en = {
    * Every summary says what is inside and how much of it, so that opening one
    * is a choice rather than the only way to find out whether it matters.
    */
+  'evidence.custody.summary': '{count} steps · recorded and collected',
+  'evidence.custody.summary_uncollected': 'not collected yet',
+
   'command.last_event': 'Most recent significant event',
   'command.last_event.none': 'Nothing above routine has happened yet on this case.',
   'command.last_event.critical': 'Critical',

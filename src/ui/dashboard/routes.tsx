@@ -41,7 +41,13 @@ import {
   visibleIdentities,
 } from '../../game/selectors';
 import { t, tk } from '../../i18n';
-import type { ArtifactId, EvidenceView, ResponseActionId, TimelineOriginFilter } from '../../game/types';
+import type {
+  ArtifactId,
+  EvidenceView,
+  GameContext,
+  ResponseActionId,
+  TimelineOriginFilter,
+} from '../../game/types';
 import {
   Badge,
   Button,
@@ -523,6 +529,24 @@ export function EvidenceRoute() {
               </Badge>
             </div>
 
+            {/*
+             * What decides the case, above the record that contains it.
+             *
+             * `decisive` has been on these fields all along and it did nothing
+             * but tint a row somewhere in a list of nine — so the one field the
+             * whole record exists to deliver was the same size as the message
+             * id above it, and a reader had to already know which line mattered
+             * in order to find the line that mattered. It leads now, in both
+             * views, and the list below still marks it so the two do not
+             * disagree about which field it is.
+             *
+             * Outside `MaybeUntrusted` on purpose: the shell that quarantines
+             * attacker-authored content wraps the record body, and a decisive
+             * field is the product's own reading of that record rather than a
+             * quotation from it.
+             */}
+            <DecisiveFields record={selected} />
+
             <MaybeUntrusted untrusted={selected.untrusted}>
               {view === 'raw' ? (
                 <KeyValue
@@ -541,12 +565,75 @@ export function EvidenceRoute() {
             {/* The receipt for the read, beside the record it is about. */}
             <Receipt anchor={`evidence-${selected.id}`} />
 
-            <ChainOfCustody artifactId={selected.id} />
+            {/*
+             * Custody, on request.
+             *
+             * It is a three-column table plus a paragraph and it was expanded
+             * under every record, which put the provenance of the evidence
+             * permanently between the reader and the next record. The summary
+             * carries the fact most readers want from it — how long the estate
+             * sat on this before anyone collected it — so opening the table is
+             * for the reader who needs the steps.
+             */}
+            <Disclosure
+              id={`custody-disclosure-${selected.id}`}
+              summary={t('evidence.custody')}
+              count={custodySummary(ctx, selected.id)}
+            >
+              <ChainOfCustody artifactId={selected.id} />
+            </Disclosure>
           </>
         )}
       </Panel>
     </div>
   );
+}
+
+/**
+ * The fields this record was collected *for*.
+ *
+ * A record is read to answer one question, and `decisive` is the fixture's own
+ * mark for the field that answers it. Promoting it is not emphasis for its own
+ * sake: `art_session_001` carries nine fields and exactly one of them —
+ * `SES-8842 … ACTIVE` — is the reason decision D3 has a right answer, and a
+ * reader who skims the list and misses it will reset the password and leave the
+ * session alive.
+ *
+ * Renders nothing when a record marks nothing decisive, which is most of them.
+ * A promoted block on every record would make the promotion meaningless.
+ */
+function DecisiveFields({ record }: { record: { id: ArtifactId; fields: readonly { labelKey: string; value: string; tone?: 'bad' | 'warn' | 'good'; decisive?: boolean }[] } }) {
+  const decisive = record.fields.filter((field) => field.decisive);
+  if (decisive.length === 0) return null;
+
+  return (
+    <div className="evidence-decisive" id={`decisive-${record.id}`}>
+      <p className="eyebrow">{t('evidence.decisive')}</p>
+      <KeyValue
+        rows={decisive.map((field) => ({
+          key: tk(field.labelKey),
+          value: field.value,
+          tone: field.tone,
+          decisive: true,
+        }))}
+      />
+    </div>
+  );
+}
+
+/**
+ * The one line of the custody record worth reading without opening it: how long
+ * the estate held this before the console collected it.
+ *
+ * That gap is the question a reviewer asks about an investigation, and it is
+ * the reason `custodyRecord` distinguishes *recorded* from *collected* at all.
+ */
+function custodySummary(ctx: GameContext, artifactId: ArtifactId): string {
+  const custody = custodyRecord(ctx, artifactId);
+  const collected = custody.steps.find((step) => step.kind === 'collected');
+  return collected
+    ? t('evidence.custody.summary', { count: custody.steps.length })
+    : t('evidence.custody.summary_uncollected');
 }
 
 /**

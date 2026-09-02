@@ -257,6 +257,74 @@ test.describe('the evidence workbench', () => {
       expect(scrollable, `${id} body does not scroll on its own`).toMatch(/auto|scroll/);
     }
   });
+
+  test('the field the record was collected for leads it', async ({ page }) => {
+    /*
+     * Task 4. `decisive` has been on these fields all along and it did nothing
+     * but tint one row inside a list of nine, so the field the whole record
+     * exists to deliver was the same size as its message id.
+     */
+    /*
+     * The phishing message, not the session record.
+     *
+     * `art_session_001` is the better illustration — one of its nine fields is
+     * the reason decision D3 has a right answer — but it is `revealedBy:
+     * 'session_inventory'` and therefore locked until that query has run, so
+     * clicking it here waits forever on a disabled control. The email is
+     * available from the first frame and marks three fields decisive, which is
+     * what this test is actually about.
+     */
+    await openEvidence(page);
+    await page.locator('#evidence-art_email_001').click();
+
+    const decisive = page.locator('#decisive-art_email_001');
+    await expect(
+      decisive,
+      'the record marks fields decisive and the inspector does not lead with them',
+    ).toBeVisible();
+
+    /*
+     * It leads: above the record's own field list.
+     *
+     * Compared against the list *outside* the decisive block — `.kv` matches
+     * the promoted list too, so `last()` alone would compare the block with
+     * itself on a record whose only other content is the explanation tab.
+     */
+    const lead = (await decisive.boundingBox())!;
+    const fullList = page
+      .locator('#evidence-inspector .kv')
+      .filter({ hasNot: page.locator('#decisive-art_email_001') })
+      .last();
+    const body = await fullList.boundingBox();
+    if (body) {
+      expect(
+        lead.y,
+        'the decisive block is below the record it is meant to head',
+      ).toBeLessThan(body.y);
+    }
+
+    // And the value it promotes is still marked in the list below, so the two
+    // surfaces cannot disagree about which field is decisive.
+    await expect(page.locator('#evidence-inspector .kv__row--decisive').first()).toBeVisible();
+  });
+
+  test('chain of custody is available, not permanently in the way', async ({ page }) => {
+    await openEvidence(page);
+    await page.locator('#evidence-art_email_001').click();
+
+    const custody = page.locator('#custody-disclosure-art_email_001');
+    await expect(custody).toBeVisible();
+    expect(
+      await custody.evaluate((el) => (el as HTMLDetailsElement).open),
+      'custody is expanded under every record again',
+    ).toBe(false);
+
+    // The summary answers the question most readers have without opening it.
+    await expect(custody.locator('summary')).toContainText(/steps|not collected/i);
+
+    await custody.locator('summary').click();
+    await expect(custody.locator('table')).toBeVisible();
+  });
 });
 
 /* ------------------------------------------------------------------ *
@@ -522,4 +590,39 @@ test('the compact tool surface stays inside a 520x306 monitor', async ({ page })
     'the compact strip still prints every fact — soc-tools.css did not load',
   ).toBe('none');
   expect(hidesLongFacts.detail, 'the compact state chip still prints its sentence').toBe('none');
+});
+
+/* ------------------------------------------------------------------ *
+ * Task 8 — the stream's rhythm is the simulation's, and it is readable
+ * ------------------------------------------------------------------ */
+
+test('new data lands on a readable beat, tied to the incident clock', async ({ page }) => {
+  await openDashboard(page);
+  await goTo(page, 'Command');
+
+  /*
+   * The stream labels its own cadence, which is what makes a chart that appends
+   * every thirty seconds legible as alive rather than stuck. The band is
+   * checked rather than the exact number so that retuning the sample does not
+   * fail this test for the wrong reason — what matters is that a person can
+   * read it, not that it is exactly 30.
+   */
+  const label = page.locator('.stream-live__label').first();
+  await expect(label).toBeVisible();
+  const seconds = Number((await label.textContent())!.match(/(\d+)s/)![1]);
+  expect(seconds, `the sample interval is ${seconds}s`).toBeGreaterThanOrEqual(30);
+  expect(seconds).toBeLessThanOrEqual(60);
+
+  /*
+   * And it is the *incident* clock, not a wall clock. Pausing must stop the
+   * stream — a chart that keeps appending behind a paused console is inventing
+   * data, which is the failure this whole module is built to make impossible.
+   */
+  await page.getByRole('button', { name: /^Pause simulation/ }).click();
+  /*
+   * `data-frozen` is the attribute `LiveStreamStatus` publishes for exactly
+   * this gate — a paused stream has to *stop*, not merely stop being drawn.
+   */
+  await expect(page.locator('.stream-live').first()).toHaveAttribute('data-frozen', 'true');
+  await expect(page.locator('.stream-live__label').first()).toContainText(/paused/i);
 });
