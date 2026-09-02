@@ -116,9 +116,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       'appears in the dialogue area and the dashboard rail in its own channel, headed ' +
       '"Generated guidance", and is spoken there when narration is on. It is not delivered by ' +
       'VERA, the operations assistant: she is a person in the room who reports operational ' +
-      'facts, the page never puts your words under her name, and you have no character of your ' +
-      'own — so do not write in her voice, do not open with a name, and do not describe ' +
-      'yourself as anyone. Choose the message and the tone; the page chooses how it is ' +
+      'facts, and the page never puts your words under her name. Whatever you are called in the ' +
+      'chat, this channel carries no name at all — so do not write in her voice, do not open ' +
+      'with a name, and do not describe yourself in the line itself. Choose the message and ' +
+      'the tone; the page chooses how it is ' +
       'presented. It is also the only tool that changes ' +
       'nothing — it cannot move the score, the state version, the findings, the containment ' +
       'checklist or which actions are allowed, and the result says so. Plain text only, at most ' +

@@ -15,6 +15,7 @@ test('offers the prompt in two modes and two languages', async ({ page }) => {
   await expect(text).toBeVisible();
   await expect(text).toContainText('get_incident');
   await expect(text).toContainText('propose it and wait');
+  await expect(text).toContainText('you are Deniz');
   await expect(page.getByRole('button', { name: 'Learn' })).toHaveAttribute('aria-pressed', 'true');
 
   await page.getByRole('button', { name: 'Solve' }).click();
