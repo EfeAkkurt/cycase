@@ -270,6 +270,17 @@ svg {
   padding: var(--tray-frame-inset);
   overflow: hidden;
   min-width: 0;
+  /*
+   * The frame settles; the content does not move.
+   *
+   * Border and shadow only — never a transform, and never a height. A panel
+   * that animates its own box is a panel that reflows everything under it, and
+   * the console's whole layout argument is that reading one thing does not move
+   * another.
+   */
+  transition:
+    border-color var(--motion-duration-panel) var(--motion-easing-standard),
+    box-shadow var(--motion-duration-panel) var(--motion-easing-standard);
   gap: var(--space-1);
 }
 
@@ -1674,6 +1685,15 @@ svg {
   color: var(--text-tertiary);
   font-size: var(--type-sm-size);
   font-weight: var(--fw-medium);
+  /*
+   * Colour only, and on the tokens. A tab that snaps between two greys reads as
+   * the page having been replaced rather than as a selection moving — and the
+   * underline below it already animates, so without this the two halves of one
+   * control moved at different speeds.
+   */
+  transition:
+    color var(--motion-duration-fast) var(--motion-easing-standard),
+    background-color var(--motion-duration-fast) var(--motion-easing-standard);
 }
 
 .tabs__tab::after {
@@ -1842,8 +1862,25 @@ svg {
   border-bottom: 0;
 }
 
+/*
+ * A source change lands lit and settles.
+ *
+ * The highlight used to appear and disappear between two frames, which is the
+ * one moment in the console where something arrived on its own rather than
+ * because the player asked — exactly the change that needs a moment to be
+ * noticed. `--motion-duration-slower` because this is ambient: it is telling
+ * the player something happened, not waiting for them.
+ */
+.log__row,
+.feed__row {
+  transition: background-color var(--motion-duration-slower) var(--motion-easing-decelerate);
+}
+
 .log__row--fresh {
   background: var(--tray-cell-hover);
+  /* Arriving is quicker than settling — the asymmetry is what reads as a flash
+     of attention rather than as a slow wash. */
+  transition-duration: var(--motion-duration-instant);
 }
 
 .log__time {
