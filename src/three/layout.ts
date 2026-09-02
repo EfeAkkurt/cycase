@@ -747,8 +747,17 @@ export const CHARACTER_ANCHORS = {
    * Her elbow and forearm are behind the glass and no pose fixes that — see
    * `POINT_POSE` in `Colleague.tsx` for the sweep that establishes it. The
    * claim this anchor makes is deliberately the small one that is true.
+   *
+   * Re-measured. It said (1.03, 1.34, -1.41) while the rig was putting `FistR`
+   * at (1.041, 1.359, -1.426) — 2.7 cm low, inside the tolerance the bone test
+   * allows and therefore invisible to it. The clearance test projects the
+   * ANCHOR rather than the bone, so those two centimetres were the whole of
+   * "colleaguePoint is behind the right monitor": the declared point dipped one
+   * pixel under the glass at 1440x900 while the hand the player actually sees
+   * cleared it by five. A declaration that is a little pessimistic about the
+   * rig is still a declaration that is wrong about the room.
    */
-  colleaguePoint: { position: [1.03, 1.34, -1.41] as [number, number, number], radius: 0.075 },
+  colleaguePoint: { position: [1.041, 1.359, -1.426] as [number, number, number], radius: 0.075 },
 } as const;
 
 /**

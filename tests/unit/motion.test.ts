@@ -146,7 +146,13 @@ describe('one alarm clock', () => {
 /* ------------------------------------------------------------------ */
 
 describe('how hard the room is drawn', () => {
-  const idle = { alarm: false, entering: false, colleagueVisible: false, reducedMotion: false };
+  const idle = {
+    alarm: false,
+    entering: false,
+    gesturing: false,
+    colleagueVisible: false,
+    reducedMotion: false,
+  };
 
   it('draws continuously while the alarm is pulsing', () => {
     // This is the defect: the driver keyed on the walk alone, so a pulsing
@@ -157,9 +163,31 @@ describe('how hard the room is drawn', () => {
     expect(CONTINUOUS_MAX_INTERVAL_MS).toBeLessThanOrEqual(33);
   });
 
-  it('draws continuously while she is in the room, walking or not', () => {
+  it('draws continuously for the walk and for the gesture', () => {
     expect(officeFrameMode({ ...idle, entering: true })).toBe('continuous');
-    expect(officeFrameMode({ ...idle, colleagueVisible: true })).toBe('continuous');
+    expect(officeFrameMode({ ...idle, gesturing: true })).toBe('continuous');
+  });
+
+  /*
+   * Presence is not movement, and the difference is the whole ambient budget.
+   *
+   * `colleagueVisible` used to force continuous frames on its own. She never
+   * leaves the room, so the office rendered at display rate for the entire
+   * time a player spent in it: §7's ambient cadence was unreachable in the
+   * played flow, and the rAF-versus-render guard had nowhere left to measure a
+   * parked room. What the eye tracks is the walk and the gesture, and both end.
+   */
+  it('goes back to ambient once she is settled and still', () => {
+    expect(officeFrameMode({ ...idle, colleagueVisible: true })).toBe('ambient');
+    expect(
+      officeFrameMode({ ...idle, colleagueVisible: true, gesturing: false, entering: false }),
+    ).toBe('ambient');
+  });
+
+  it('still draws hard for her while anything about her is moving', () => {
+    expect(officeFrameMode({ ...idle, colleagueVisible: true, entering: true })).toBe('continuous');
+    expect(officeFrameMode({ ...idle, colleagueVisible: true, gesturing: true })).toBe('continuous');
+    expect(officeFrameMode({ ...idle, colleagueVisible: true, alarm: true })).toBe('continuous');
   });
 
   it('keeps demand rendering for an empty, quiet room', () => {

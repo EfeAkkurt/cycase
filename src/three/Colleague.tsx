@@ -707,3 +707,24 @@ function applyPosture(
 }
 
 export const COLLEAGUE_WALK_DURATION = WALK_DURATION;
+
+/**
+ * How long the pointing beat lasts after she settles, in seconds.
+ *
+ * Exported for `characters.spec.ts`. The gesture drives her upper arm through
+ * `POINT_POSE.lift` — 2.45 radians — which is a deliberate, bounded offset and
+ * looks exactly like runaway accumulation to a test that samples the posture
+ * layer while it is running. The accumulation test needs to know when the
+ * gesture is over so it can hold the standing pose to the tight bound and the
+ * gesture to its own.
+ */
+export const COLLEAGUE_POINT_END = POINT_END;
+
+/** The largest offset the pointing beat is allowed to apply, in radians. */
+export const COLLEAGUE_POINT_MAX_OFFSET =
+  Math.max(
+    Math.abs(POINT_POSE.lift),
+    Math.abs(POINT_POSE.swing),
+    Math.abs(POINT_POSE.twist),
+    Math.abs(POINT_POSE.elbow),
+  ) + 0.2;

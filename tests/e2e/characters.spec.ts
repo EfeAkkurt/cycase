@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { expect, test, type Page } from '@playwright/test';
 
+import {
+  COLLEAGUE_POINT_END,
+  COLLEAGUE_POINT_MAX_OFFSET,
+} from '../../src/three/Colleague';
 import { CHARACTER_ANCHORS, MONITORS, type MonitorSpec } from '../../src/three/layout';
 import { createCamera } from '../../src/three/projection';
 
@@ -433,6 +437,35 @@ test.describe('the colleague is posed, not accumulated (report of tumbling)', ()
         timeout: 40_000,
       })
       .toBe('settled');
+
+    /*
+     * The pointing beat first, on its own bound.
+     *
+     * She raises an arm when she settles, and `POINT_POSE.lift` is 2.45 radians
+     * — a deliberate offset an order of magnitude past anything standing
+     * produces. Sampling straight after `settled` caught the arm mid-gesture and
+     * read 2.438 as accumulation, which is the one thing it is not: it is the
+     * pose the animation was written to reach, it is bounded by the pose's own
+     * values, and it returns. Raising OFFSET_LIMIT to cover it would have blinded
+     * the test to the defect it exists for, so the gesture gets its own bound
+     * instead and stays under test rather than being waited out silently.
+     */
+    const duringGesture: number[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      duringGesture.push(await worstDeviation(page));
+      await page.waitForTimeout(1200);
+    }
+    const gestureReport = duringGesture.map((value) => value.toFixed(3)).join(' -> ');
+    console.log(`colleague offset during the pointing beat (rad): ${gestureReport}`);
+    for (const [index, value] of duringGesture.entries()) {
+      expect(
+        value,
+        `gesture sample ${index} exceeds what POINT_POSE can apply: ${gestureReport}`,
+      ).toBeLessThan(COLLEAGUE_POINT_MAX_OFFSET);
+    }
+
+    // Then wait the beat out, so what follows is genuinely her standing there.
+    await page.waitForTimeout(COLLEAGUE_POINT_END * 1000);
 
     // Sampled over twelve seconds of her standing there. Accumulation at frame
     // rate is obvious within one of these gaps; a bounded offset is flat.

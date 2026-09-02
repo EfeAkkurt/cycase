@@ -1,7 +1,8 @@
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
+import { COLLEAGUE_POINT_END } from './Colleague';
 import { AMBIENT_INTERVAL_MS, officeFrameMode, type FrameMode } from './officeFrames';
 import { cameraRig } from './cameraRig';
 import { publishRenderProbe } from './renderDiagnostics';
@@ -234,11 +235,31 @@ function SceneContents({
    * policy is a pure function now so it can be asserted without a GPU; see
    * `officeFrames.ts`.
    */
+  /*
+   * Her pointing beat, timed rather than plumbed.
+   *
+   * `Colleague` owns the beat and its clock; the room only needs to know
+   * whether it is still running, and it starts the moment she settles and lasts
+   * `COLLEAGUE_POINT_END`. A timer here is enough for that and keeps the rig
+   * from having to report upward every frame just to answer a render question.
+   */
+  const [gesturing, setGesturing] = useState(false);
+  useEffect(() => {
+    if (colleaguePhase !== 'settled') {
+      setGesturing(false);
+      return;
+    }
+    setGesturing(true);
+    const id = window.setTimeout(() => setGesturing(false), COLLEAGUE_POINT_END * 1000);
+    return () => window.clearTimeout(id);
+  }, [colleaguePhase]);
+
   const frameMode = officeFrameMode({
     // A decaying spill is still something the eye is tracking, so the room
     // keeps its continuous frames until the light has actually gone.
     alarm: alert || (alarmSpill ?? 0) > 0,
     entering: colleaguePhase === 'entering',
+    gesturing,
     colleagueVisible: colleaguePhase !== 'hidden',
     reducedMotion,
   });
@@ -444,6 +465,43 @@ function Lighting({ alert, colleagueLit }: { alert: boolean; colleagueLit: boole
        * than the light.
        */}
       <ContactShadowLight />
+
+      {/*
+       * The room behind the operator.
+       *
+       * Every other light in here is clustered around the desk, between z −0.62
+       * and −0.14, because that is where the seated forward view looks. The
+       * chair swivel reaches ±120° and the contract asks for a rear view at
+       * pitch −38°, which is floor and back wall at positive z — four metres
+       * from the nearest source. It measured 43.8% below luminance 8 against a
+       * 40% ceiling: the geometry is there and there was nothing lighting it.
+       *
+       * Deliberately weak, high and far back. `distance` is set so the falloff
+       * has run out before the desk: from z 2.2 a reach of 3.2 m dies at z −1.0,
+       * past the seat and short of the monitors, so the forward composition and
+       * the alarm's place as the first focal point are untouched — measured, not
+       * assumed, in `office-visibility.spec.ts` and the palette gate.
+       */}
+      <pointLight
+        position={[0, 1.95, 2.2]}
+        intensity={8.0}
+        distance={3.8}
+        decay={2}
+        color={LIGHTS.ambient}
+      />
+      {/*
+       * A second, on the side the rear view actually looks at. The contract's
+       * rear framing is yaw −120°, which is back and to the RIGHT, and a single
+       * fill on the centre line leaves that corner as the darkest thing in the
+       * picture — 42.3% below luminance 8 with the centre fill alone.
+       */}
+      <pointLight
+        position={[1.7, 1.9, 1.9]}
+        intensity={6.6}
+        distance={3.4}
+        decay={2}
+        color={LIGHTS.ambient}
+      />
 
       {/*
        * The desk lamp practical.

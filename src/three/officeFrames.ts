@@ -35,7 +35,18 @@ export interface OfficeMotion {
   alarm: boolean;
   /** The colleague is walking in — the most demanding thing the room does. */
   entering: boolean;
-  /** She is in the room at all, so her idle motion is running. */
+  /**
+   * Her pointing beat is running: a scripted arm movement the eye follows.
+   *
+   * Distinct from merely being in the room. `colleagueVisible` used to force
+   * continuous frames, and because she never leaves, the office rendered at
+   * display rate for the entire time a player spent in it — the ambient budget
+   * in PROJECT_CONTEXT.md §7 was unreachable in the played flow, and the guard
+   * that exists to notice that had nowhere left to measure. What the eye
+   * actually tracks is the walk and the gesture, both of which end.
+   */
+  gesturing: boolean;
+  /** She is in the room at all. On its own this is NOT a reason to draw hard. */
   colleagueVisible: boolean;
   reducedMotion: boolean;
 }
@@ -50,7 +61,20 @@ export function officeFrameMode(motion: OfficeMotion): FrameMode {
    */
   if (motion.reducedMotion) return 'static';
 
-  if (motion.entering || motion.alarm || motion.colleagueVisible) return 'continuous';
+  /*
+   * Continuous for real movement only: the walk, the gesture, the pulsing
+   * alarm. Camera movement is not listed because it does not go through this
+   * policy at all — `HeadLookDriver` invalidates directly for as long as the
+   * rig reports motion, which is the right shape for something driven by input
+   * rather than by a beat.
+   */
+  if (motion.entering || motion.alarm || motion.gesturing) return 'continuous';
+
+  /*
+   * A settled colleague standing in a quiet room is ambient. Her idle is
+   * breathing amplitude on a background figure, which a 10 Hz pump carries;
+   * the alarm was the case where it visibly could not, and the alarm is above.
+   */
   return 'ambient';
 }
 
