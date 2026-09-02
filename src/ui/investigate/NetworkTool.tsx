@@ -1,4 +1,4 @@
-import { useGame } from '../../app/gameContext';
+import { } from '../../app/gameContext';
 import {
   diagnosticRowsFor,
   egressHiddenByRange,
@@ -15,6 +15,7 @@ import { Badge } from '../primitives';
 import { FocusMark, FollowButton, InventoryRangeNote, RangeNotice } from './ConsoleBar';
 import { DiagnosticRows } from './DiagnosticRows';
 import { SourceFields, SourceStatus } from './SourceStatus';
+import { ToolContext, useToolGame } from './ToolContext';
 
 /**
  * Network — proxy and domain reputation, indicators, and what left the estate.
@@ -27,7 +28,7 @@ import { SourceFields, SourceStatus } from './SourceStatus';
  * line between them would be traffic nobody observed.
  */
 export function NetworkTool({ mode = 'full' }: { mode?: PanelMode }) {
-  const ctx = useGame();
+  const ctx = useToolGame();
   const indicators = indicatorInventory(ctx);
   const egress = egressLedger(ctx);
   const totals = egressTotals(egress);
@@ -69,6 +70,18 @@ export function NetworkTool({ mode = 'full' }: { mode?: PanelMode }) {
 
   return (
     <div className="stack">
+      {/*
+       * Network reads two systems that disagree in useful ways — the proxy sees
+       * the request, DLP sees what left — so the strip names both rather than
+       * calling the tool its own source.
+       */}
+      <ToolContext
+        tab="network"
+        source={t('investigate.network.source')}
+        shown={indicators.length + egress.length}
+        hidden={egressHiddenByRange(ctx)}
+      />
+
       <section className="stack stack--tight" aria-labelledby="network-proxy">
         <h3 className="eyebrow" id="network-proxy">
           {t('investigate.network.proxy')}

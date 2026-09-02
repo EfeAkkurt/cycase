@@ -225,6 +225,54 @@ export const en = {
   /* ---------------- investigate ----------------
    * Only the tools Case 001 can feed. There is no Cloud/IAM tab because the
    * scenario has no service-health, workload or deployment data to put in one. */
+  /* ---------------- tool context strip and feed state (Phase 3D) ---------------- */
+  /*
+   * Added, not rewritten. Five tools each showed a subset of the context that
+   * decides what a row means — and the source system, the one fact that says
+   * which machine produced the row, was shown nowhere at all.
+   */
+  'tool.context.source': 'Source',
+  'tool.context.query': 'Query',
+  'tool.context.query_none': 'no filter — every row in range',
+  'tool.context.saved': 'Saved query',
+  'tool.context.range': 'Range',
+  'tool.context.following': 'Following',
+
+  /*
+   * The system behind each tool, in the vendor's own words.
+   *
+   * These are the strings the fixtures already use on individual records
+   * (`IDP-01 / sign-in logs`, `EDR / WKS-114`), lifted to the tool level so a
+   * table that mixes two records still names where it is reading from.
+   */
+  'investigate.identity.source': 'IDP-01 — sign-in logs and token telemetry',
+  'investigate.endpoint.source': 'EDR — managed endpoints',
+  'investigate.network.source': 'Web Proxy PXY-02 and DLP egress inspection',
+  'investigate.email.source': 'Mail Gateway MG-EU-1',
+  'investigate.siem.source': 'Correlated index — every source below, one timeline',
+
+  /*
+   * The eight feed states. Each has a chip and a sentence: the chip is
+   * scannable, the sentence is what makes the state actionable. "Paused" alone
+   * does not tell an analyst whether to wait.
+   */
+  'tool.state.loading': 'Loading',
+  'tool.state.loading.detail': 'Fetching this view.',
+  'tool.state.live': 'Live',
+  'tool.state.live.detail': '{shown} rows · newest {age}',
+  'tool.state.paused': 'Paused',
+  'tool.state.paused.detail': 'The incident clock is stopped. {shown} rows, frozen as they were.',
+  'tool.state.stale': 'Stale',
+  'tool.state.stale.detail': 'Nothing new for {age}. {shown} rows, all of them older than that.',
+  'tool.state.empty': 'No rows',
+  'tool.state.empty.detail': 'This source has produced nothing yet. That is a result, not a fault.',
+  'tool.state.partial': 'Filtered',
+  'tool.state.partial.detail': '{shown} shown · {hidden} held back by the query, range or focus.',
+  'tool.state.offline': 'Not collecting',
+  'tool.state.offline.detail': 'The console is not receiving from this source. Rows below are the last it had.',
+  'tool.state.error': 'Read failed',
+  'tool.state.error.detail': 'The last read of this source did not complete. Nothing below has been discarded.',
+
   'investigate.title': 'Investigation tools',
   'investigate.tools': 'Investigation tools',
   'investigate.tab.siem': 'SIEM',
@@ -391,6 +439,33 @@ export const en = {
   'respond.blast_radius.value': '{identities} identities and {assets} assets in scope',
   'respond.blast_radius.unscoped':
     'Scope has not been swept, so the blast radius is a lower bound.',
+  /*
+   * The respond playbook's disclosure vocabulary (Phase 3D).
+   *
+   * Every summary says what is inside and how much of it, so that opening one
+   * is a choice rather than the only way to find out whether it matters.
+   */
+  'command.last_event': 'Most recent significant event',
+  'command.last_event.none': 'Nothing above routine has happened yet on this case.',
+  'command.last_event.critical': 'Critical',
+  'command.last_event.warn': 'Warning',
+  'command.last_event.by.system': 'Reported by the estate',
+  'command.last_event.by.human': 'Recorded from this console',
+  'command.last_event.by.agent': 'Recorded from an agent tool call',
+
+  'playbook.next': 'Do this next',
+  'playbook.rest_count': '{count} more',
+  'playbook.rows': '{count} rows',
+  'playbook.result_table': 'Result table',
+  'playbook.diagnostics.rest': 'Other queries',
+  'playbook.diagnostics.all_run': 'Every query in this playbook has been run.',
+  'playbook.actions.rest': 'Other operations',
+  'playbook.actions.none_available':
+    'No operation is available yet. Run the queries above, or read the evidence they unlock, to open one.',
+  'respond.prerequisites': 'Prerequisites',
+  'respond.prerequisites.all_met': 'all {count} met',
+  'respond.prerequisites.unmet': '{count} of {total} not met',
+
   'respond.prerequisite': 'Prerequisite',
   'respond.prerequisite.diagnostic':
     'Run {label} first. Acting without it is scored as a blind action.',

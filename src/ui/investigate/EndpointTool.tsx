@@ -1,4 +1,4 @@
-import { useGame } from '../../app/gameContext';
+import { } from '../../app/gameContext';
 import {
   endpointConnections,
   extensionInventory,
@@ -11,6 +11,7 @@ import type { PanelMode } from '../panels/mode';
 import { Badge } from '../primitives';
 import { FocusMark, FollowButton, InventoryRangeNote } from './ConsoleBar';
 import { SourceFields, SourceStatus } from './SourceStatus';
+import { ToolContext, useToolGame } from './ToolContext';
 
 /**
  * Endpoint / EDR — hosts, browser extensions and outbound connections.
@@ -22,7 +23,7 @@ import { SourceFields, SourceStatus } from './SourceStatus';
  * §3 forbids exactly that. The verdict says so in words instead.
  */
 export function EndpointTool({ mode = 'full' }: { mode?: PanelMode }) {
-  const ctx = useGame();
+  const ctx = useToolGame();
   const hosts = hostInventory(ctx);
   const extensions = extensionInventory(ctx);
   const connections = endpointConnections(ctx);
@@ -59,6 +60,12 @@ export function EndpointTool({ mode = 'full' }: { mode?: PanelMode }) {
 
   return (
     <div className="stack">
+      <ToolContext
+        tab="endpoint"
+        source={edr.source || t('investigate.endpoint.source')}
+        shown={hosts.length + extensions.length + connections.length}
+      />
+
       <section className="stack stack--tight" aria-labelledby="endpoint-hosts">
         <h3 className="eyebrow" id="endpoint-hosts">
           {t('investigate.endpoint.hosts')}

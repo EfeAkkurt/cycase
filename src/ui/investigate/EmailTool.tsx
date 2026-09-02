@@ -1,4 +1,4 @@
-import { useGame } from '../../app/gameContext';
+import { } from '../../app/gameContext';
 import {
   matchesFocus,
   messageAuthentication,
@@ -11,6 +11,7 @@ import type { PanelMode } from '../panels/mode';
 import { Badge, KeyValue, UntrustedShell } from '../primitives';
 import { FocusMark, FollowButton, RangeNotice } from './ConsoleBar';
 import { SourceFields, SourceStatus } from './SourceStatus';
+import { ToolContext, useToolGame } from './ToolContext';
 
 /**
  * Email — message trace, headers, SPF/DKIM/DMARC and URL detonation.
@@ -26,7 +27,7 @@ import { SourceFields, SourceStatus } from './SourceStatus';
  * but no header value is reachable through it afterwards.
  */
 export function EmailTool({ mode = 'full' }: { mode?: PanelMode }) {
-  const ctx = useGame();
+  const ctx = useToolGame();
   const trace = messageTrace(ctx);
   const auth = messageAuthentication(ctx);
   const message = sourceRecord(ctx, 'art_email_001');
@@ -63,6 +64,13 @@ export function EmailTool({ mode = 'full' }: { mode?: PanelMode }) {
 
   return (
     <div className="stack">
+      <ToolContext
+        tab="email"
+        source={message.source || t('investigate.email.source')}
+        shown={trace.length}
+        hidden={traceHiddenByRange(ctx)}
+      />
+
       <section className="stack stack--tight" aria-labelledby="email-trace">
         <h3 className="eyebrow" id="email-trace">
           {t('investigate.email.trace')}

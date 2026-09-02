@@ -5,6 +5,8 @@ import { t } from '../../i18n';
 import type { PanelMode } from '../panels/mode';
 import { Panel, Tabs, tabId } from '../primitives';
 import { ConsoleStatus, FocusBar } from './ConsoleBar';
+
+import '../../styles/soc-tools.css';
 import { EmailTool } from './EmailTool';
 import { EndpointTool } from './EndpointTool';
 import { IdentityTool } from './IdentityTool';

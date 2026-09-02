@@ -1,0 +1,361 @@
+/* ------------------------------------------------------------------ *
+ * SOC tools — Phase 3D
+ *
+ * A file of its own rather than more of `global.css`, and the split is by
+ * subject rather than by size: everything here belongs to the five
+ * investigation tools, the evidence workbench and the respond playbook. It
+ * defines no tokens and overrides none — every value is read from
+ * `tokens.css`, which this phase is explicitly not allowed to touch.
+ *
+ * Where an existing block needed different behaviour it is extended with a
+ * modifier class (`.evidence--workbench`) rather than redefined here, so the
+ * base rule in `global.css` keeps working for anything that still uses it and a
+ * reader who greps for `.evidence` finds one definition and one documented
+ * extension instead of two competing ones.
+ * ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ *
+ * The tool context strip — "what am I looking at, and why"
+ * ------------------------------------------------------------------ */
+
+.tool-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  background: var(--tray-cell-hover, var(--surface-raised));
+}
+
+/*
+ * A definition list laid out as columns, so the labels line up with each other
+ * rather than each value carrying its own inline caption. `dt` above `dd` keeps
+ * the pairing obvious when the strip wraps onto two lines at narrow widths.
+ */
+.tool-context__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  min-width: 0;
+}
+
+.tool-context__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tool-context__fact dt {
+  font-size: var(--type-xs-size);
+  line-height: var(--type-xs-lh, 1.4);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide, 0.04em);
+}
+
+.tool-context__fact dd {
+  margin: 0;
+  font-size: var(--type-sm-size);
+  line-height: var(--type-sm-lh);
+  color: var(--text-primary);
+  /*
+   * A long query must not push the state chip off the strip. It truncates with
+   * the full text still in the DOM, so a screen reader and a copy-paste both
+   * get the whole thing.
+   */
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ *
+ * Feed state
+ * ------------------------------------------------------------------ */
+
+.tool-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex: none;
+  margin-left: auto;
+  text-align: right;
+}
+
+.tool-state__detail {
+  max-width: 34ch;
+}
+
+/*
+ * Only `live` and `partial` carry a tint, and both are the same weight as the
+ * badge that names them — colour repeats the word, it never replaces it. The
+ * palette gate measures every pixel of the console, so these are the same warm
+ * neutrals the rest of the product uses.
+ */
+.tool-context[data-state='stale'],
+.tool-context[data-state='partial'] {
+  border-color: var(--status-warning-border, var(--border-default));
+}
+
+.tool-context[data-state='offline'],
+.tool-context[data-state='error'] {
+  border-color: var(--status-error-border, var(--border-default));
+}
+
+/* ------------------------------------------------------------------ *
+ * Evidence workbench (task 3)
+ *
+ * The base `.evidence` grid uses `align-items: start`, which is why the list
+ * and the inspector were different heights and why a long record pushed the
+ * inspector's own controls off the bottom of the screen. This modifier makes
+ * the two columns one workbench:
+ *
+ *   - both columns are the same height, because the grid stretches them;
+ *   - the block is bounded to roughly one screen, so the inspector's heading
+ *     and its Raw/Explained control are above the fold on arrival;
+ *   - each column scrolls *inside itself*, so selecting a record cannot move
+ *     the page under the reader — which is what made the selected row jump.
+ * ------------------------------------------------------------------ */
+
+/*
+ * The workbench fills the room that is actually left, rather than a room
+ * measured once and hard-coded.
+ *
+ * The first attempt capped it at `calc(100dvh - 268px)`, which is the console
+ * chrome measured at 1440x900. It was wrong by exactly the guided step card:
+ * `#destination-content` starts 415px down at *both* review sizes, so a 632px
+ * workbench ran 147px past the bottom of a 900px screen and the inspector's
+ * lower half was unreachable without scrolling — the very thing the cap
+ * existed to prevent.
+ *
+ * `.workspace` is a flex column whose children are all `flex: none`, so the
+ * destination is content-height by default and nothing knows how much room is
+ * left. This lets exactly one destination stretch instead: the `:has()` is what
+ * keeps it scoped to Evidence, so Command, Investigate, Respond and Timeline
+ * keep scrolling as a page the way they always have.
+ */
+.workspace > #destination-content:has(.evidence--workbench) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.evidence--workbench {
+  align-items: stretch;
+  /* Fills its stretched parent; the two columns scroll inside themselves. */
+  height: 100%;
+  min-height: 320px;
+}
+
+.evidence--workbench > .panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/*
+ * The scroll lives on the body, not on the panel, so each column keeps its
+ * heading — the record's name, the count, the Raw/Explained tabs — pinned while
+ * its content moves.
+ */
+.evidence--workbench > .panel > .panel__body {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+/*
+ * The selected row stays where the reader left it.
+ *
+ * `scroll-margin` rather than a scroll handler: when something does bring a row
+ * into view, the browser stops with the row clear of the sticky heading instead
+ * of tucked under it, and it costs no JavaScript that could fight the reader's
+ * own scrolling.
+ */
+.evidence--workbench .evidence__item {
+  scroll-margin-block: var(--space-4);
+}
+
+/*
+ * Below the two-column breakpoint the base rule already collapses to one
+ * column; a height cap there would turn the whole destination into two nested
+ * scrollers, which is the worst of both.
+ */
+@media (max-width: 1023px) {
+  .evidence--workbench {
+    max-height: none;
+    min-height: 0;
+  }
+
+  .evidence--workbench > .panel > .panel__body {
+    overflow: visible;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Disclosure — the respond playbook, and the tool detail tables (tasks 5, 6)
+ *
+ * Native `<details>`, deliberately. It is keyboard operable, it is announced as
+ * expandable, it survives having JavaScript fail underneath it, and — the
+ * reason that decided it — the browser's own find-in-page opens a closed
+ * `<details>` to reveal a match, which no button-and-state implementation does.
+ * ------------------------------------------------------------------ */
+
+.disclosure {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-raised, transparent);
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-size: var(--type-sm-size);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  list-style: none;
+}
+
+/* Safari draws its own triangle through `::-webkit-details-marker`. */
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary::marker {
+  content: '';
+}
+
+.disclosure > summary:hover {
+  color: var(--text-primary);
+  background: var(--tray-cell-hover);
+}
+
+.disclosure > summary:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: -2px;
+}
+
+/* The caret, drawn rather than typed, so it rotates with the open state. */
+.disclosure__caret {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.disclosure[open] > summary .disclosure__caret {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclosure__caret {
+    transition: none;
+  }
+}
+
+.disclosure__count {
+  margin-left: auto;
+  font-size: var(--type-xs-size);
+  color: var(--text-tertiary);
+}
+
+.disclosure__body {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+/* ------------------------------------------------------------------ *
+ * Respond — one open operation, the rest summarised (task 5)
+ * ------------------------------------------------------------------ */
+
+/*
+ * The next operation is a panel; every other one is a row.
+ *
+ * The route used to render eleven full-height cards — five diagnostics and six
+ * actions — each with its impact prose, its prerequisites, its effect diff and
+ * its receipt expanded at once. Eleven of anything at full weight is a list
+ * with no hierarchy, and the one an analyst should do next was indistinguishable
+ * from the five they must not.
+ */
+.respond-step {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-3);
+}
+
+.respond-step--next {
+  border-color: var(--brand-primary);
+  /* A ring rather than a fill: the panel underneath still has to be readable,
+     and a tinted background would fight the decisive-field marks inside it. */
+  box-shadow: inset 0 0 0 1px var(--brand-primary);
+}
+
+.respond-step--done {
+  opacity: 0.78;
+}
+
+.respond-step__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.respond-step__title {
+  font-size: var(--type-md-size);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+.respond-step__actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.respond-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ------------------------------------------------------------------ *
+ * Compact monitor variants (task 11)
+ *
+ * The office projects these onto a 520x306 CSS surface. Everything below is
+ * about staying legible at that size and at that distance; none of it applies
+ * to the full console.
+ * ------------------------------------------------------------------ */
+
+.panel--compact .tool-context {
+  /*
+   * The strip collapses to the two facts that survive monitor distance. The
+   * rest stay in the DOM for assistive technology — a monitor is still a
+   * readable surface — and are hidden from sight only.
+   */
+  padding: var(--space-1) var(--space-2);
+  gap: var(--space-2);
+}
+
+.panel--compact .tool-context__fact:nth-child(n + 3) {
+  display: none;
+}
+
+.panel--compact .tool-context__fact dd {
+  max-width: 22ch;
+}
+
+.panel--compact .tool-state__detail {
+  display: none;
+}

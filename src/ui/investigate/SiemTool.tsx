@@ -15,6 +15,7 @@ import { t, tk } from '../../i18n';
 import type { PanelMode } from '../panels/mode';
 import { Badge, Button, Icon } from '../primitives';
 import { FocusMark, FollowButton, RangeNotice, TimeRangeControl } from './ConsoleBar';
+import { ToolContext, useToolGame } from './ToolContext';
 
 /**
  * SIEM — query bar, saved queries, time range, raw events and aggregation.
@@ -26,7 +27,7 @@ import { FocusMark, FollowButton, RangeNotice, TimeRangeControl } from './Consol
  * stolen — which is what §6 means by an operation having observable effects.
  */
 export function SiemTool({ mode = 'full' }: { mode?: PanelMode }) {
-  const ctx = useGame();
+  const ctx = useToolGame();
   const runtime = useRuntime();
   /*
    * The query lives in case context, not in this component.
@@ -86,6 +87,21 @@ export function SiemTool({ mode = 'full' }: { mode?: PanelMode }) {
 
   return (
     <div className="stack">
+      {/*
+       * The strip goes *above* the query bar, not below it.
+       *
+       * It is the answer to "what am I looking at", and the query bar is one of
+       * the controls that changes that answer — so it reads as a statement the
+       * controls beneath it edit, rather than as a result of them.
+       */}
+      <ToolContext
+        tab="siem"
+        source={t('investigate.siem.source')}
+        query={query}
+        shown={matched.length}
+        hidden={outsideRange}
+      />
+
       <div className="tool-query">
         <label className="tool-query__field">
           <span className="eyebrow">{t('investigate.siem.query')}</span>

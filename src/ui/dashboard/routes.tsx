@@ -17,6 +17,7 @@ import {
 import { custodyRecord, sourceHealth } from '../../game/investigate';
 import {
   CHRONOLOGY_ORIGINS,
+  caseLog,
   chronology,
   chronologyCounts,
   filterChronology,
@@ -60,27 +61,108 @@ import { ContainmentChecklist } from './ContainmentChecklist';
 import { DecisionCard } from './DecisionCard';
 import { openEvidenceRecord } from './flow';
 import { Receipt } from './Receipt';
+import { Disclosure } from '../investigate/Disclosure';
+
+import '../../styles/soc-tools.css';
 
 /* ------------------------------------------------------------------ *
  * Command — the queue, the active incident and what it is costing
  * ------------------------------------------------------------------ */
 
+/**
+ * Command, in the order an analyst actually triages.
+ *
+ * The old order was an inventory of what the destination owns: the queue, the
+ * incident, the decision, the checklist, the log, source health, then two
+ * charts. Read top to bottom it answered "what does this console have" rather
+ * than the five questions someone picking up a critical incident asks, in the
+ * order they ask them:
+ *
+ *   1. What is this, and how bad?          `IncidentPanel`
+ *   2. How far does it reach?              `BlastRadius`
+ *   3. What of mine is in it?              `TopologyPanel` — identities and assets
+ *   4. What has been done about it?        `ContainmentChecklist`
+ *   5. What happened most recently?        `LastCriticalEvent`
+ *
+ * Everything below that line is reference rather than triage — the decision the
+ * case is waiting on, whether the feeds can be trusted, the telemetry curves and
+ * the full log — so it keeps its place and moves under the fold.
+ *
+ * The queue moves to the top as a single line rather than a table; see
+ * `CaseQueue`.
+ */
 export function CommandRoute() {
   return (
     <>
       <CaseQueue />
+
+      {/* 1 — what this is */}
       <IncidentPanel mode="full" />
-      <DecisionCard />
+
+      {/* 2 and 3 — how far it reaches, and what of ours is inside it */}
       <div className="grid-2">
-        <ContainmentChecklist />
-        <CaseLogPanel />
+        <BlastRadius />
+        <LastCriticalEvent />
       </div>
+      <TopologyPanel mode="full" />
+
+      {/* 4 — what has been done */}
+      <ContainmentChecklist />
+
+      {/* Below the triage fold: the decision, the feeds, the curves, the log. */}
+      <DecisionCard />
       <SourceHealth />
       <div className="grid-2">
         <TelemetryPanel mode="full" />
-        <TopologyPanel mode="full" />
+        <CaseLogPanel />
       </div>
     </>
+  );
+}
+
+/**
+ * The most recent thing that mattered.
+ *
+ * The fifth triage question, and the one the console could not answer without
+ * scrolling to the case log and reading past every routine row. `caseLog`
+ * already carries severity and origin on every entry, so this is a read of the
+ * existing chronology rather than a second one that could disagree with it.
+ *
+ * "Critical" here means `critical` or `warn`. An incident whose newest event is
+ * a `warn` has still moved, and reporting "nothing critical yet" while a
+ * warning sits unread would be the wrong kind of reassuring.
+ */
+function LastCriticalEvent() {
+  const ctx = useGame();
+  const notable = caseLog(ctx).filter(
+    (entry) => entry.severity === 'critical' || entry.severity === 'warn',
+  );
+  const latest = notable[notable.length - 1];
+
+  return (
+    <Panel id="command-last-event" title={t('command.last_event')}>
+      {!latest ? (
+        <p className="muted text-sm">{t('command.last_event.none')}</p>
+      ) : (
+        <div className="stack stack--tight">
+          <p className="row">
+            <Badge tone={latest.severity === 'critical' ? 'critical' : 'warning'} icon="alert">
+              {latest.severity === 'critical'
+                ? t('command.last_event.critical')
+                : t('command.last_event.warn')}
+            </Badge>
+            <span className="mono text-sm">{latest.at}</span>
+            <span className="muted text-xs">{formatAge(ctx.clockSec - latest.atSec)}</span>
+          </p>
+          <p className="prose text-sm" id="command-last-event-text">
+            {latest.text}
+          </p>
+          <p className="muted text-xs">
+            {t(`command.last_event.by.${latest.origin}`)}
+          </p>
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -164,12 +246,23 @@ function SourceHealth() {
 }
 
 /**
- * The case queue.
+ * The case queue: one case, one line.
  *
- * One row, because this scenario has one case, and saying so is better than
- * padding the table with cases that do not exist. There is no SLA column for
- * the same reason: Case 001 defines no target, and an invented one would be the
- * first number on the page a senior analyst could catch out.
+ * It was a six-column table with a single row in it — case id, title, severity,
+ * status, owner, elapsed — plus a header, a footer explaining the absent SLA
+ * and a button. About 180px of the first viewport spent saying "there is one
+ * case and you are on it", above the incident panel that says the same six
+ * facts with room to explain them.
+ *
+ * A table is the right shape for a queue an analyst picks *from*. This queue
+ * has nothing to pick, so it is a strip: the identifiers, the two states that
+ * can change, the clock, and the way out. Every fact the table carried is still
+ * here and the row is still `aria-current`, because a screen reader user
+ * navigating the console should still be told which case they are in.
+ *
+ * The SLA note is gone from the strip and kept in the panel's own subtitle —
+ * Case 001 defines no target, and inventing one would be the first number on
+ * the page a senior analyst could catch out.
  */
 function CaseQueue() {
   const ctx = useGame();
@@ -180,67 +273,55 @@ function CaseQueue() {
     <Panel
       id="case-queue"
       title={t('command.queue')}
+      variant="summary"
       actions={
+        /*
+         * Both notes live here rather than as paragraphs under the row. Case
+         * 001 defines no SLA and an invented one would be the first number a
+         * senior analyst could catch out — but saying so cost a whole line of
+         * the first viewport, which is the thing this panel was shrunk to save.
+         */
         <span className="muted text-xs">
-          {t('command.single_case')}
+          {t('command.single_case')} · {t('command.no_sla')}
         </span>
       }
     >
-      <div className="table-scroll">
-        <table className="table">
-          <thead>
-            <tr>
-              <th scope="col">{t('command.queue.col.case')}</th>
-              <th scope="col">{t('command.queue.col.title')}</th>
-              <th scope="col">{t('command.queue.col.severity')}</th>
-              <th scope="col">{t('command.queue.col.status')}</th>
-              <th scope="col">{t('command.queue.col.owner')}</th>
-              <th scope="col">{t('command.queue.col.elapsed')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr id={`queue-${CASE_ID}`} aria-current="true">
-              <th scope="row" className="mono" style={{ fontWeight: 500 }}>
-                <div>{CASE_ID}</div>
-                <div className="muted text-xs">
-                  {INCIDENT_ID}
-                </div>
-              </th>
-              <td>{t('incident.title')}</td>
-              <td>
-                <Badge tone="critical" icon="alert">
-                  {t('overview.severity.critical')}
-                </Badge>
-              </td>
-              <td>
-                <Badge tone={status === 'active' ? 'critical' : 'success'}>
-                  {status === 'active'
-                    ? t('overview.status.active')
-                    : status === 'contained'
-                      ? t('overview.status.contained')
-                      : t('overview.status.closed')}
-                </Badge>
-              </td>
-              <td>{t('command.owner.value', { name: ctx.operatorName })}</td>
-              <td className="mono">{formatElapsed(elapsedSeconds(ctx))}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div className="row">
-        <p className="muted text-xs grow">
-          {t('command.no_sla')}
-        </p>
-        <Button
-          size="sm"
-          id="queue-open-investigate"
-          onClick={() =>
-            runtime.send({ type: 'SET_ROUTE', route: 'investigate', tab: 'siem' })
-          }
-        >
-          <Icon name="search" size={13} />
-          {t('nav.investigate')}
-        </Button>
+      <div className="row" id={`queue-${CASE_ID}`} aria-current="true">
+        <span className="mono" style={{ fontWeight: 500 }}>
+          {CASE_ID}
+        </span>
+        <span className="mono muted text-xs">{INCIDENT_ID}</span>
+
+        <span className="text-sm">{t('incident.title')}</span>
+
+        <Badge tone="critical" icon="alert">
+          {t('overview.severity.critical')}
+        </Badge>
+        <Badge tone={status === 'active' ? 'critical' : 'success'}>
+          {status === 'active'
+            ? t('overview.status.active')
+            : status === 'contained'
+              ? t('overview.status.contained')
+              : t('overview.status.closed')}
+        </Badge>
+
+        <span className="muted text-xs">
+          {t('command.owner.value', { name: ctx.operatorName })}
+        </span>
+        <span className="mono text-xs">{formatElapsed(elapsedSeconds(ctx))}</span>
+
+        <span style={{ marginLeft: 'auto' }}>
+          <Button
+            size="sm"
+            id="queue-open-investigate"
+            onClick={() =>
+              runtime.send({ type: 'SET_ROUTE', route: 'investigate', tab: 'siem' })
+            }
+          >
+            <Icon name="search" size={13} />
+            {t('nav.investigate')}
+          </Button>
+        </span>
       </div>
     </Panel>
   );
@@ -313,22 +394,29 @@ export function EvidenceRoute() {
   }, [selectedId, selectedInspected, selectedAvailability, stateVersion, run]);
 
   /*
-   * Focus follows the record, not the route.
+   * Focus follows the record, not the route — and it no longer scrolls.
    *
    * A CTA elsewhere in the console sends the player here to read one specific
    * thing; landing their keyboard on the list they did not ask for would make
-   * them hunt for it. Moving focus only when the *selection* changes is what
-   * keeps that from fighting the scroll position a returning reader left behind.
+   * them hunt for it. So focus still moves when the *selection* changes.
+   *
+   * The `scrollIntoView` that used to run beside it is gone. It scrolled the
+   * whole workspace to bring the inspector heading into view, which meant
+   * clicking a row in the list moved the list out from under the pointer — the
+   * reported "the selected record jumps" — and it fought `scrollMemory`'s
+   * restore on every arrival. The workbench below is bounded to one screen with
+   * each column scrolling inside itself, so the heading is in view without
+   * anything having to move the page to put it there. `focus({ preventScroll })`
+   * says the same thing to the browser's own focus-scrolling.
    */
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (!selectedId) return;
-    headingRef.current?.scrollIntoView({ block: 'nearest' });
-    headingRef.current?.focus();
+    headingRef.current?.focus({ preventScroll: true });
   }, [selectedId]);
 
   return (
-    <div className="evidence">
+    <div className="evidence evidence--workbench">
       <Panel
         id="evidence-list"
         title={t('evidence.list')}
@@ -692,6 +780,29 @@ export function TimelineRouteWithLog() {
  * Respond — operations, prerequisites, blast radius and verification
  * ------------------------------------------------------------------ */
 
+/**
+ * Respond — one operation open, the rest summarised.
+ *
+ * The route used to render eleven full-weight cards: five diagnostics and six
+ * actions, each with its impact prose, its prerequisite list, its effect diff
+ * and its receipt all expanded at once. That is not a playbook, it is an
+ * inventory — and the operation the case wanted next was rendered identically
+ * to the five that would lose points, so the hierarchy existed only in a badge.
+ *
+ * Three rules now decide what is open:
+ *
+ * 1. **Exactly one step is expanded**: the next thing to do. For diagnostics
+ *    that is the first one not yet run; for actions it is the recommended one
+ *    the case has unlocked, or failing that the first allowed one.
+ * 2. **Everything else is a row** — title, state, and the control — inside a
+ *    disclosure that says how many it holds.
+ * 3. **The two big tables open on request**: prerequisites and the effect diff
+ *    are `<details>` of their own, closed by default, and nothing opens more
+ *    than one of them for you.
+ *
+ * The tables are unchanged; what changed is that they are no longer all on
+ * screen simultaneously.
+ */
 export function RespondRoute() {
   const ctx = useGame();
   const run = useCommand();
@@ -700,156 +811,84 @@ export function RespondRoute() {
   const recommended = new Set(recommendedActions(ctx));
   const pendingAction = pending ? RESPONSE_ACTIONS.find((a) => a.id === pending) : null;
 
+  /*
+   * The next diagnostic and the next action.
+   *
+   * Derived rather than remembered: a step that has just been run stops being
+   * "next" on the state version that recorded it, so the open step follows the
+   * case instead of following a click.
+   */
+  const nextDiagnostic = DIAGNOSTICS.find(
+    (diagnostic) => !ctx.ranDiagnostics.includes(diagnostic.id),
+  );
+  const nextAction =
+    RESPONSE_ACTIONS.find(
+      (action) => !hasPerformed(ctx, action.id) && recommended.has(action.id),
+    ) ??
+    RESPONSE_ACTIONS.find(
+      (action) => !hasPerformed(ctx, action.id) && actionAvailability(ctx, action.id).allowed,
+    );
+
+  const otherDiagnostics = DIAGNOSTICS.filter((d) => d.id !== nextDiagnostic?.id);
+  const otherActions = RESPONSE_ACTIONS.filter((a) => a.id !== nextAction?.id);
+
   return (
     <>
       <BlastRadius />
 
       <Panel id="playbook-diagnostics" title={t('playbook.diagnostics')}>
-        {DIAGNOSTICS.map((diagnostic) => {
-          const ran = ctx.ranDiagnostics.includes(diagnostic.id);
-          return (
-            <div
-              key={diagnostic.id}
-              id={`diagnostic-${diagnostic.id}`}
-              className="stack stack--tight"
-              style={{
-                borderBottom: '1px solid var(--border)',
-                paddingBottom: 'var(--space-4)',
-              }}
-            >
-              <div className="row">
-                <strong className="text-md">{tk(diagnostic.titleKey)}</strong>
-                {ran ? (
-                  <Badge tone="success" icon="check">
-                    {t('playbook.ran')}
-                  </Badge>
-                ) : null}
-                <span style={{ marginLeft: 'auto' }}>
-                  <Button
-                    size="sm"
-                    variant={ran ? 'ghost' : 'primary'}
-                    disabled={ran}
-                    reason={ran ? t('error.diagnostic_done') : undefined}
-                    onClick={() => run((r) => r.runDiagnostic(diagnostic.id))}
-                  >
-                    <Icon name="search" size={14} />
-                    {t('playbook.run')}
-                  </Button>
-                </span>
-              </div>
-              <p className="prose muted text-sm">
-                {tk(diagnostic.descriptionKey)}
-              </p>
+        {nextDiagnostic ? (
+          <DiagnosticStep diagnostic={nextDiagnostic} isNext />
+        ) : (
+          <p className="muted text-sm">{t('playbook.diagnostics.all_run')}</p>
+        )}
 
-              {ran ? (
-                <div className="stack stack--tight">
-                  <p className="prose text-sm">
-                    {tk(diagnostic.resultKey)}
-                  </p>
-                  <div className="table-scroll">
-                    <table className="table">
-                      <tbody>
-                        {diagnosticRows(ctx, diagnostic.id).map((row, index) => (
-                          // `row.key` is a display value and repeats — the auth
-                          // timeline has two rows at 03:02:14 (P0.8). Keys must
-                          // never be display values.
-                          <tr key={`${diagnostic.id}-${index}`}>
-                            <th scope="row" className="mono" style={{ fontWeight: 500 }}>
-                              {row.key}
-                            </th>
-                            <td className={row.tone ? `kv__value kv__value--${row.tone}` : 'kv__value'}>
-                              {row.value}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* The receipt for this diagnostic, beside the control that ran
-                  it — not 900px down the page in a shared summary block. */}
-              <Receipt anchor={`diagnostic-${diagnostic.id}`} />
+        {otherDiagnostics.length > 0 ? (
+          <Disclosure
+            id="playbook-diagnostics-rest"
+            summary={t('playbook.diagnostics.rest')}
+            count={t('playbook.rest_count', { count: otherDiagnostics.length })}
+          >
+            <div className="respond-group">
+              {otherDiagnostics.map((diagnostic) => (
+                <DiagnosticStep key={diagnostic.id} diagnostic={diagnostic} isNext={false} />
+              ))}
             </div>
-          );
-        })}
+          </Disclosure>
+        ) : null}
       </Panel>
 
       <Panel id="playbook-actions" title={t('playbook.actions')}>
-        {RESPONSE_ACTIONS.map((action) => {
-          const availability = actionAvailability(ctx, action.id);
-          const done = hasPerformed(ctx, action.id);
-          const isRecommended = recommended.has(action.id);
+        {nextAction ? (
+          <ActionStep
+            action={nextAction}
+            isNext
+            isRecommended={recommended.has(nextAction.id)}
+            onConfirmNeeded={setPending}
+          />
+        ) : (
+          <p className="muted text-sm">{t('playbook.actions.none_available')}</p>
+        )}
 
-          return (
-            <div
-              key={action.id}
-              id={`action-${action.id}`}
-              className="stack stack--tight"
-              style={{
-                borderBottom: '1px solid var(--border)',
-                paddingBottom: 'var(--space-4)',
-              }}
-            >
-              <div className="row">
-                <strong className="text-md">{tk(action.labelKey)}</strong>
-                {action.destructive ? <Badge tone="critical">{t('action.destructive_badge')}</Badge> : null}
-                {isRecommended ? (
-                  <Badge tone="accent" icon="check">
-                    {t('playbook.recommended')}
-                  </Badge>
-                ) : null}
-                {done ? (
-                  <Badge tone="success" icon="check">
-                    {t('action.done')}
-                  </Badge>
-                ) : null}
-              </div>
-
-              <p className="prose muted text-sm">
-                {tk(action.impactKey)}
-              </p>
-
-              <Prerequisites actionId={action.id} />
-
-              {done ? (
-                <>
-                  <p className="prose text-sm tone-good">
-                    {tk(action.resultKey)}
-                  </p>
-                  <VerificationStatus actionId={action.id} />
-                </>
-              ) : availability.allowed ? (
-                <ConsequencePreview actionId={action.id} />
-              ) : null}
-
-              <Receipt anchor={`action-${action.id}`} />
-
-              {done ? null : (
-                <div>
-                  <Button
-                    variant={action.destructive ? 'danger' : 'primary'}
-                    disabled={!availability.allowed}
-                    reason={
-                      availability.allowed
-                        ? undefined
-                        : availability.reasonKey
-                          ? t(availability.reasonKey)
-                          : t('action.locked')
-                    }
-                    onClick={() => {
-                      if (action.requiresConfirmation) setPending(action.id);
-                      else run((r) => r.takeResponseAction(action.id));
-                    }}
-                  >
-                    {tk(action.labelKey)}
-                  </Button>
-                </div>
-              )}
+        {otherActions.length > 0 ? (
+          <Disclosure
+            id="playbook-actions-rest"
+            summary={t('playbook.actions.rest')}
+            count={t('playbook.rest_count', { count: otherActions.length })}
+          >
+            <div className="respond-group">
+              {otherActions.map((action) => (
+                <ActionStep
+                  key={action.id}
+                  action={action}
+                  isNext={false}
+                  isRecommended={recommended.has(action.id)}
+                  onConfirmNeeded={setPending}
+                />
+              ))}
             </div>
-          );
-        })}
+          </Disclosure>
+        ) : null}
       </Panel>
 
       <ContainmentChecklist />
@@ -869,6 +908,279 @@ export function RespondRoute() {
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * One diagnostic.
+ *
+ * `isNext` decides weight, not content: a collapsed step still carries its
+ * control, its state and its receipt, because a reader who opens the group has
+ * to be able to act from there without expanding anything further. What the
+ * next step gets is the description and the result table without asking.
+ */
+function DiagnosticStep({
+  diagnostic,
+  isNext,
+}: {
+  diagnostic: (typeof DIAGNOSTICS)[number];
+  isNext: boolean;
+}) {
+  const ctx = useGame();
+  const run = useCommand();
+  const ran = ctx.ranDiagnostics.includes(diagnostic.id);
+  const rows = ran ? diagnosticRows(ctx, diagnostic.id) : [];
+
+  return (
+    <div
+      id={`diagnostic-${diagnostic.id}`}
+      className={[
+        'respond-step',
+        'stack',
+        'stack--tight',
+        isNext ? 'respond-step--next' : '',
+        ran ? 'respond-step--done' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <div className="respond-step__head">
+        <strong className="respond-step__title">{tk(diagnostic.titleKey)}</strong>
+        {isNext && !ran ? (
+          <Badge tone="accent" icon="shield">
+            {t('playbook.next')}
+          </Badge>
+        ) : null}
+        {ran ? (
+          <Badge tone="success" icon="check">
+            {t('playbook.ran')}
+          </Badge>
+        ) : null}
+        <span className="respond-step__actions">
+          <Button
+            size="sm"
+            variant={ran ? 'ghost' : isNext ? 'primary' : 'default'}
+            disabled={ran}
+            reason={ran ? t('error.diagnostic_done') : undefined}
+            onClick={() => run((r) => r.runDiagnostic(diagnostic.id))}
+          >
+            <Icon name="search" size={14} />
+            {t('playbook.run')}
+          </Button>
+        </span>
+      </div>
+
+      {isNext || ran ? (
+        <p className="prose muted text-sm">{tk(diagnostic.descriptionKey)}</p>
+      ) : null}
+
+      {ran ? (
+        <div className="stack stack--tight">
+          <p className="prose text-sm">{tk(diagnostic.resultKey)}</p>
+          {/*
+           * The result table is the largest thing on this route and there are
+           * five of them. Open for the step the reader is on, on request for
+           * the rest — task 6's "never show every big table at once".
+           */}
+          {isNext ? (
+            <DiagnosticRowsTable diagnosticId={diagnostic.id} rows={rows} />
+          ) : (
+            <Disclosure
+              summary={t('playbook.result_table')}
+              count={t('playbook.rows', { count: rows.length })}
+            >
+              <DiagnosticRowsTable diagnosticId={diagnostic.id} rows={rows} />
+            </Disclosure>
+          )}
+        </div>
+      ) : null}
+
+      {/* The receipt for this diagnostic, beside the control that ran it — not
+          900px down the page in a shared summary block. */}
+      <Receipt anchor={`diagnostic-${diagnostic.id}`} />
+    </div>
+  );
+}
+
+function DiagnosticRowsTable({
+  diagnosticId,
+  rows,
+}: {
+  diagnosticId: string;
+  rows: { key: string; value: string; tone?: string }[];
+}) {
+  return (
+    <div className="table-scroll">
+      <table className="table">
+        <tbody>
+          {rows.map((row, index) => (
+            // `row.key` is a display value and repeats — the auth timeline has
+            // two rows at 03:02:14 (P0.8). Keys must never be display values.
+            <tr key={`${diagnosticId}-${index}`}>
+              <th scope="row" className="mono" style={{ fontWeight: 500 }}>
+                {row.key}
+              </th>
+              <td className={row.tone ? `kv__value kv__value--${row.tone}` : 'kv__value'}>
+                {row.value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** One response action, on the same weight rule as `DiagnosticStep`. */
+function ActionStep({
+  action,
+  isNext,
+  isRecommended,
+  onConfirmNeeded,
+}: {
+  action: (typeof RESPONSE_ACTIONS)[number];
+  isNext: boolean;
+  isRecommended: boolean;
+  onConfirmNeeded: (id: ResponseActionId) => void;
+}) {
+  const ctx = useGame();
+  const run = useCommand();
+  const availability = actionAvailability(ctx, action.id);
+  const done = hasPerformed(ctx, action.id);
+
+  return (
+    <div
+      id={`action-${action.id}`}
+      className={[
+        'respond-step',
+        'stack',
+        'stack--tight',
+        isNext ? 'respond-step--next' : '',
+        done ? 'respond-step--done' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <div className="respond-step__head">
+        <strong className="respond-step__title">{tk(action.labelKey)}</strong>
+        {action.destructive ? (
+          <Badge tone="critical">{t('action.destructive_badge')}</Badge>
+        ) : null}
+        {isRecommended ? (
+          <Badge tone="accent" icon="check">
+            {t('playbook.recommended')}
+          </Badge>
+        ) : null}
+        {isNext && !done ? (
+          <Badge tone="accent" icon="shield">
+            {t('playbook.next')}
+          </Badge>
+        ) : null}
+        {done ? (
+          <Badge tone="success" icon="check">
+            {t('action.done')}
+          </Badge>
+        ) : null}
+
+        {done ? null : (
+          <span className="respond-step__actions">
+            <Button
+              size="sm"
+              variant={action.destructive ? 'danger' : isNext ? 'primary' : 'default'}
+              disabled={!availability.allowed}
+              reason={
+                availability.allowed
+                  ? undefined
+                  : availability.reasonKey
+                    ? t(availability.reasonKey)
+                    : t('action.locked')
+              }
+              onClick={() => {
+                if (action.requiresConfirmation) onConfirmNeeded(action.id);
+                else run((r) => r.takeResponseAction(action.id));
+              }}
+            >
+              {tk(action.labelKey)}
+            </Button>
+          </span>
+        )}
+      </div>
+
+      {isNext || done ? <p className="prose muted text-sm">{tk(action.impactKey)}</p> : null}
+
+      {/*
+       * Prerequisites and the effect diff, both on request.
+       *
+       * These are the two blocks task 6 names. They used to render expanded on
+       * every one of six actions at once, which put four tables and six
+       * prerequisite lists on one screen — and the effect diff is the single
+       * most important thing on this route, so burying it in a wall of its own
+       * duplicates was the worst possible outcome for it.
+       */}
+      <PrerequisiteDisclosure actionId={action.id} defaultOpen={isNext} />
+
+      {done ? (
+        <>
+          <p className="prose text-sm tone-good">{tk(action.resultKey)}</p>
+          <VerificationStatus actionId={action.id} />
+        </>
+      ) : availability.allowed ? (
+        <Disclosure
+          summary={t('respond.preview')}
+          count={t('respond.preview.count', { count: previewEffects(ctx, action.id).length })}
+          defaultOpen={isNext}
+        >
+          <ConsequencePreview actionId={action.id} />
+        </Disclosure>
+      ) : null}
+
+      <Receipt anchor={`action-${action.id}`} />
+    </div>
+  );
+}
+
+/**
+ * The prerequisite list, behind a summary that already says whether they are
+ * met.
+ *
+ * The summary carries the answer so that opening it is optional: a reader who
+ * only needs to know "am I clear to run this" reads the count, and a reader who
+ * needs to know *which* one is missing opens it.
+ */
+function PrerequisiteDisclosure({
+  actionId,
+  defaultOpen,
+}: {
+  actionId: ResponseActionId;
+  defaultOpen: boolean;
+}) {
+  const ctx = useGame();
+  const action = RESPONSE_ACTIONS.find((candidate) => candidate.id === actionId);
+  const penalties = action?.conditionalPenalties ?? [];
+  if (penalties.length === 0) return null;
+
+  const unmet = penalties.filter((penalty) => {
+    const diagnosticId = penalty.whenMissing.diagnostic;
+    const artifactId = penalty.whenMissing.artifact;
+    return diagnosticId
+      ? !ctx.ranDiagnostics.includes(diagnosticId)
+      : artifactId
+        ? !ctx.inspectedArtifacts.includes(artifactId)
+        : false;
+  }).length;
+
+  return (
+    <Disclosure
+      summary={t('respond.prerequisites')}
+      count={
+        unmet === 0
+          ? t('respond.prerequisites.all_met', { count: penalties.length })
+          : t('respond.prerequisites.unmet', { count: unmet, total: penalties.length })
+      }
+      defaultOpen={defaultOpen && unmet > 0}
+    >
+      <Prerequisites actionId={actionId} />
+    </Disclosure>
   );
 }
 

@@ -13,6 +13,7 @@ import { Badge, Icon } from '../primitives';
 import { FocusMark, FollowButton, InventoryRangeNote } from './ConsoleBar';
 import { DiagnosticRows } from './DiagnosticRows';
 import { SourceFields, SourceStatus } from './SourceStatus';
+import { ToolContext, useToolGame } from './ToolContext';
 
 /**
  * Identity — the directory, the sign-in history, and what is still valid.
@@ -24,7 +25,7 @@ import { SourceFields, SourceStatus } from './SourceStatus';
  * live state over that fixture rather than printing it.
  */
 export function IdentityTool({ mode = 'full' }: { mode?: PanelMode }) {
-  const ctx = useGame();
+  const ctx = useToolGame();
   const sessions = sessionInventory(ctx);
   const credentials = credentialPosture(ctx);
 
@@ -66,6 +67,19 @@ export function IdentityTool({ mode = 'full' }: { mode?: PanelMode }) {
 
   return (
     <div className="stack">
+      {/*
+       * What this table is, before the table.
+       *
+       * Identity reads two different systems — sign-in logs and token
+       * telemetry — and the distinction is the case's central lesson, so the
+       * source is named rather than flattened to the tool's own label.
+       */}
+      <ToolContext
+        tab="identity"
+        source={t('investigate.identity.source')}
+        shown={sessions.rows.length}
+      />
+
       <IdentityDirectory />
 
       <section className="stack stack--tight" aria-labelledby="identity-signins">
