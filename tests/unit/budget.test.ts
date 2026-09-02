@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialContext } from '../../src/game/context';
 import { executeCommand } from '../../src/game/engine';
 import { RESULT_BUDGET, compactResult } from '../../src/webmcp/tools';
+import { describePage, pageReserve, withPageContext } from '../../src/webmcp/pageContext';
 import type { GameCommand, GameContext, ToolResult } from '../../src/game/types';
 
 /**
@@ -108,5 +109,52 @@ describe('tool result budget', () => {
 
     expect(JSON.stringify(compact).length).toBeLessThanOrEqual(RESULT_BUDGET);
     expect(data.knownFactsTruncated).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The property that actually ships.
+ *
+ * `get_incident` is not sent as the engine returns it: the tool layer reserves
+ * room for the page token, compacts against the smaller budget, then merges the
+ * token in (`useWebMcpTools.ts`). Asserting the un-merged size leaves the real
+ * wire payload untested, and the margin it relies on is thin.
+ */
+describe('the merged get_incident wire payload', () => {
+  const SCENES = [
+    ['boot', null],
+    ['intro', null],
+    ['office', 'alarmUnacknowledged'],
+    ['office', 'acknowledged'],
+    ['office', 'assistantReporting'],
+    ['office', 'briefingChoice'],
+    ['office', 'explained'],
+    ['office', 'resume'],
+    ['transition', null],
+    ['dashboard', null],
+    ['debrief', null],
+  ] as const;
+
+  it('fits the budget at every step of a full case, in every scene', () => {
+    const oversized: string[] = [];
+
+    for (const { step, result } of drive(FULL_CASE)) {
+      if (!step.includes(':get_incident:')) continue;
+      for (const [scene, sub] of SCENES) {
+        const page = describePage(scene, sub);
+        const wire = withPageContext(compactResult(result, pageReserve(page)), page);
+        const size = JSON.stringify(wire).length;
+        if (size > RESULT_BUDGET) oversized.push(`${step} @ ${scene}/${sub}: ${size}`);
+      }
+    }
+
+    expect(oversized).toEqual([]);
+  });
+
+  it('adds the page token rather than dropping it', () => {
+    const result = drive([{ kind: 'get_incident', input: {} }])[0]!.result;
+    const page = describePage('office', 'briefingChoice');
+    const wire = withPageContext(compactResult(result, pageReserve(page)), page);
+    expect((wire.data as Record<string, unknown>).page).toBe('briefing_choice');
   });
 });

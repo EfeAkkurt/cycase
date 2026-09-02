@@ -1,4 +1,5 @@
 import { TOOL_JSON_SCHEMAS } from '../game/validation';
+import { pageStateGuide } from './pageContext';
 import type { CommandKind, ToolResult } from '../game/types';
 
 /**
@@ -42,7 +43,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       'established facts, still-open questions, the unresolved containment checklist, the ' +
       'decision that is currently open (or why the next one is blocked), and every action ' +
       'allowed right now. Call this first, and again after any rejected call, because its ' +
-      'stateVersion is the value every other tool needs.',
+      'stateVersion is the value every other tool needs. ' +
+      pageStateGuide(),
     inputSchema: TOOL_JSON_SCHEMAS.get_incident as unknown as Record<string, unknown>,
     annotations: { readOnlyHint: true },
   },
@@ -174,14 +176,22 @@ export const RESULT_BUDGET = 1500;
  * fields marked `decisive` are protected from pass 3 until the very last width,
  * because those are the values the whole case turns on.
  */
-export function compactResult(result: ToolResult): ToolResult {
-  if (size(result) <= RESULT_BUDGET) return result;
+export function compactResult(result: ToolResult, reserve = 0): ToolResult {
+  /*
+   * `reserve` is room the caller will fill after compaction — the page token
+   * `get_incident` merges in the tool layer. Reserving it here, rather than
+   * compacting and then merging and hoping, is what keeps that token whole:
+   * it is the agent's only instruction for a player who is not at the console
+   * yet, and the clip passes must never be able to reach it.
+   */
+  const budget = RESULT_BUDGET - reserve;
+  if (size(result) <= budget) return result;
 
   const data = result.data as Record<string, unknown> | undefined;
   if (!data || typeof data !== 'object') return result;
 
   let trimmed: Record<string, unknown> = { ...data };
-  const fits = () => size({ ...result, data: trimmed }) <= RESULT_BUDGET;
+  const fits = () => size({ ...result, data: trimmed }) <= budget;
 
   trimmed = shortenNested(trimmed, 'allowedNextActions', ['rationale', 'label'], 56);
   if (fits()) return { ...result, data: trimmed };

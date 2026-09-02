@@ -5,6 +5,12 @@ import {
 } from '../app/gameContext';
 import type { CommandKind } from '../game/types';
 import { withGuidanceDelivery } from './guidanceReceipt';
+import {
+  describePage,
+  officeSubSceneOf,
+  pageReserve,
+  withPageContext,
+} from './pageContext';
 import { TOOL_DEFINITIONS, compactResult } from './tools';
 import { getModelContext, type ToolExecuteResult } from './types';
 
@@ -114,8 +120,24 @@ export function useWebMcpTools(): WebMcpStatus {
                     ? withGuidanceDelivery(result, runtime.context)
                     : result;
 
+                /*
+                 * `get_incident` also says where the player is. The token is
+                 * merged *after* compaction with its size reserved, so the clip
+                 * passes can never reach it — see `pageContext.ts`.
+                 */
+                const page =
+                  tool.name === 'get_incident'
+                    ? describePage(
+                        runtime.scene,
+                        officeSubSceneOf(runtime.actor.getSnapshot().value),
+                      )
+                    : null;
+                const wire = page
+                  ? withPageContext(compactResult(payload, pageReserve(page)), page)
+                  : compactResult(payload);
+
                 return {
-                  content: [{ type: 'text', text: JSON.stringify(compactResult(payload)) }],
+                  content: [{ type: 'text', text: JSON.stringify(wire) }],
                   isError: !result.ok,
                 };
               },
