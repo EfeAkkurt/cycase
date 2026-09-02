@@ -108,7 +108,7 @@ for (const size of SIZES) {
     // 8 — partial-containment debrief
     await page.goto('/');
     await page.getByRole('button', { name: 'Skip intro' }).first().click();
-    await page.getByRole('button', { name: 'Skip intro' }).click();
+    await page.getByRole('button', { name: 'Skip to console' }).click();
     await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
     await runSequence(page, [
       { tool: 'submit_decision', input: { decisionId: 'D1', optionId: 'D1_disable_account_now' } },

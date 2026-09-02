@@ -130,10 +130,16 @@ export function VoiceSettings({ surface = 'inline' }: { surface?: 'inline' | 'me
               />
             </label>
 
+            {/*
+              * The design system's button, not a second element wearing the
+              * narration toggle's class. Reusing that class put two controls
+              * behind one locator and gave this one press motion it had not
+              * been given deliberately; `Button` carries both correctly.
+              */}
             {ranked.other.length > 0 && !query.trim() ? (
-              <button
-                type="button"
-                className="voice-settings__toggle"
+              <Button
+                size="sm"
+                variant="ghost"
                 id="voice-show-all"
                 aria-pressed={showAll}
                 onClick={() => setShowAll((value) => !value)}
@@ -141,7 +147,7 @@ export function VoiceSettings({ surface = 'inline' }: { surface?: 'inline' | 'me
                 {showAll
                   ? t('settings.voice_show_recommended')
                   : t('settings.voice_show_all', { count: ranked.other.length })}
-              </button>
+              </Button>
             ) : null}
 
             <p className="voice-settings__note" id={noteId}>

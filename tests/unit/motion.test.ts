@@ -5,7 +5,6 @@ import {
   ALARM_PULSE_MS,
   alarmPhase,
   alarmRange,
-  cssAlarmDelayMs,
   nextAlarmPeakMs,
   phaseSkewMs,
 } from '../../src/three/alarmPulse';
@@ -99,27 +98,24 @@ describe('one alarm clock', () => {
   /**
    * The heart of it.
    *
-   * The DOM border is a CSS keyframe and the room's rim is a cosine evaluated
-   * per frame. They agree only if the negative `animation-delay` puts the
-   * keyframe at the phase the cosine reports for the same instant — which is
-   * exactly what this asserts, at a spread of times chosen to include a page
-   * that has been open for hours.
+   * The DOM border is a CSS keyframe anchored to the document timeline's origin
+   * and the room's rim is a cosine evaluated per frame off `performance.now()`.
+   * The two share a time origin, so the keyframe's local time at instant `t` is
+   * `t` — and both surfaces are therefore at the same point in the same cycle
+   * by construction rather than by tuning. The browser half of this is measured
+   * in `tests/e2e/motion.spec.ts`, which reads the animation's own painted
+   * phase; this is the arithmetic it relies on.
    */
-  it('puts a CSS keyframe on the same phase the room is drawing', () => {
+  it('puts an origin-anchored keyframe on the same phase the room is drawing', () => {
     for (const now of [0, 1, 400, 800, 1599.4, 12_345.6, 3_600_000 + 77]) {
-      const delay = cssAlarmDelayMs(now);
-      expect(delay).toBeLessThanOrEqual(0);
-      expect(delay).toBeGreaterThan(-ALARM_PULSE_MS);
+      // Local time of an animation started at timeline 0, as a fraction.
+      const cssProgress = ((now % ALARM_PULSE_MS) + ALARM_PULSE_MS) % ALARM_PULSE_MS;
+      const roomProgress = ((now % ALARM_PULSE_MS) + ALARM_PULSE_MS) % ALARM_PULSE_MS;
 
-      // A CSS animation applied at `now` with this delay has advanced
-      // `now - (now + delay)` = `-delay` into its cycle.
-      const cssProgress = -delay / ALARM_PULSE_MS;
-      const roomProgress = (now % ALARM_PULSE_MS) / ALARM_PULSE_MS;
-
-      expect(phaseSkewMs(cssProgress, roomProgress)).toBeLessThanOrEqual(50);
-      // Not merely within tolerance — identical, because they are the same
-      // number computed twice. The tolerance is the contract; this is the fact.
-      expect(cssProgress).toBeCloseTo(roomProgress, 9);
+      expect(phaseSkewMs(cssProgress / ALARM_PULSE_MS, roomProgress / ALARM_PULSE_MS)).toBe(0);
+      // And the phase the room actually applies is a function of that fraction
+      // alone, so there is nothing else for the two to disagree about.
+      expect(alarmPhase(now)).toBeCloseTo(alarmPhase(cssProgress), 9);
     }
   });
 

@@ -149,6 +149,23 @@ export function Monitors({
     [],
   );
 
+  /*
+   * The other two materials, disposed for the same reason the shell is.
+   *
+   * `shell` was cleaned up when it gained a texture; these were left behind
+   * because they have none — but a `MeshStandardMaterial` is a compiled GPU
+   * program either way, and the office is unmounted and remounted on every trip
+   * to the dashboard and back. Two programs a round trip is a slow leak rather
+   * than a fast one, which is the kind that survives a review.
+   */
+  useEffect(
+    () => () => {
+      extras.stand.dispose();
+      extras.glass.dispose();
+    },
+    [extras],
+  );
+
   return (
     <group>
       {MONITORS.map((monitor) => (
@@ -238,6 +255,16 @@ function Monitor({
       document.documentElement.dataset.alarmPhase = alarmPhase(now, reducedMotion).toFixed(4);
     }
   });
+
+  // The published phase is about a room that is on screen. Leaving it behind
+  // would have the dashboard advertising an alarm phase for a room that is not
+  // mounted, which is exactly the kind of stale attribute a test then trusts.
+  useEffect(() => {
+    if (!isEmitter) return;
+    return () => {
+      if (typeof document !== 'undefined') delete document.documentElement.dataset.alarmPhase;
+    };
+  }, [isEmitter]);
 
   const outerWidth = monitor.screen.width + monitor.bezel * 2;
   const outerHeight = monitor.screen.height + monitor.bezel * 2;

@@ -29,8 +29,18 @@ const LINES = [
 
 const TOTAL_GLYPHS = LINES.join('').length;
 
-/** Line 2 occupies these glyph indices and contains no interior punctuation. */
-const CLEAN_WINDOW = { from: LINES[0]!.length + 4, to: LINES[0]!.length + LINES[1]!.length - 4 };
+/**
+ * Line 2's interior, which is where the cadence is measured.
+ *
+ * It used to be chosen so the window contained no rests at all, and the test
+ * divided raw wall-clock time by glyphs. The line now rests briefly at the end
+ * of each long word — a sentence typed at a fixed rate with no word rhythm
+ * reads as a ticker rather than as typing — so the window is no longer
+ * rest-free and the division subtracts the rests instead. That is the honest
+ * form of the same measurement: `at` is `glyph * GLYPH_MS + pause` by
+ * construction, so removing the pause delta leaves exactly the glyph time.
+ */
+const MEASURE_WINDOW = { from: LINES[0]!.length + 4, to: LINES[0]!.length + LINES[1]!.length - 4 };
 
 /**
  * The WebGL room is irrelevant to every assertion below, and several agents
@@ -176,19 +186,24 @@ test.describe('opening typewriter', () => {
 
     expect(marks.length, 'no glyph reveals were recorded').toBeGreaterThan(40);
 
-    const first = marks.find((mark) => mark.g >= CLEAN_WINDOW.from);
-    const last = [...marks].reverse().find((mark) => mark.g <= CLEAN_WINDOW.to);
+    const first = marks.find((mark) => mark.g >= MEASURE_WINDOW.from);
+    const last = [...marks].reverse().find((mark) => mark.g <= MEASURE_WINDOW.to);
     expect(first, 'the measurement window was never entered').toBeTruthy();
     expect(last, 'the measurement window never closed').toBeTruthy();
 
     const glyphs = last!.g - first!.g;
     const rests = last!.p - first!.p;
     expect(glyphs, 'window too short to average out timer jitter').toBeGreaterThanOrEqual(20);
-    // Chosen so the window contains no rests at all: the division below is raw
-    // wall-clock time per glyph, not a rest-adjusted figure.
-    expect(rests, 'the measurement window is not rest-free').toBe(0);
+    /*
+     * The window rests, and that is the point: a run of words with no rhythm
+     * between them is a ticker. What the 28–36 ms contract governs is the rate
+     * between glyphs, so the rests are measured and subtracted rather than
+     * avoided — and this asserts they are really there, because a window with
+     * no rests would mean the word rhythm had quietly gone.
+     */
+    expect(rests, 'the sentence typed with no word rhythm at all').toBeGreaterThan(0);
 
-    const cadence = (last!.t - first!.t) / glyphs;
+    const cadence = (last!.t - first!.t - rests) / glyphs;
     console.log(`typewriter cadence: ${cadence.toFixed(2)} ms/glyph over ${glyphs} glyphs`);
 
     expect(cadence, `cadence ${cadence.toFixed(2)} ms is outside 28–36 ms`).toBeGreaterThanOrEqual(
@@ -466,8 +481,9 @@ test.describe('office to dashboard crossfade', () => {
     });
 
     // The office chrome's skip goes straight to the dashboard, through the
-    // crossfade — the same path openDashboard() takes.
-    await page.getByRole('button', { name: 'Skip intro' }).click();
+    // crossfade — the same path openDashboard() takes. It is named for what it
+    // skips: the intro is already over by the time this control exists.
+    await page.getByRole('button', { name: 'Skip to console' }).click();
     await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
     await page.waitForTimeout(1500);
 
@@ -512,7 +528,7 @@ test.describe('office to dashboard crossfade', () => {
       (office as HTMLElement).dataset.e2eStamp = 'kept';
     });
 
-    await page.getByRole('button', { name: 'Skip intro' }).click();
+    await page.getByRole('button', { name: 'Skip to console' }).click();
     const stamped = await page.evaluate(
       () => document.querySelector('[data-stage="office"] .office')?.getAttribute('data-e2e-stamp'),
     );

@@ -358,7 +358,7 @@ test.describe('the narrative log survives the office round trip', () => {
     expect(spoken.data?.narrativeSequence).toBe(1);
 
     // Cross into the dashboard.
-    await page.getByRole('button', { name: 'Skip intro' }).click();
+    await page.getByRole('button', { name: 'Skip to console' }).click();
     await page.locator('.topbar__context', { hasText: /Session Ghost/ }).waitFor();
 
     const incident = await callTool<{ coaching: { recentNarration: string[] } }>(

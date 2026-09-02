@@ -280,7 +280,7 @@ for (const size of SIZES) {
 
     await page.goto('/');
     await page.getByRole('button', { name: 'Skip intro' }).first().click();
-    await page.getByRole('button', { name: 'Skip intro' }).click();
+    await page.getByRole('button', { name: 'Skip to console' }).click();
     await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
 
     await runSequence(page, SEED);

@@ -15,11 +15,12 @@
  *
  *   phase(t) = 0.5 − 0.5·cos(2π · (t mod P) / P)
  *
- * `performance.now()` and the document timeline share a time origin, so a CSS
- * animation given `animation-delay: -(t mod P)` at the moment it is applied is
- * running at exactly the phase this function reports for the same `t`. No
- * shared epoch object, nothing to keep in sync, and no way for a late mount to
- * start the border on a different beat from the room.
+ * `performance.now()` and the document timeline share a time origin, which is
+ * what lets a CSS keyframe join this clock without any bookkeeping at all: an
+ * animation whose `startTime` is anchored to 0 has a local time of `t` and a
+ * phase of `t mod P`, the same number this function computes for the room's
+ * emissive rim. No shared epoch object, nothing to keep in sync, and no way for
+ * a late mount to start the border on a different beat.
  */
 
 /**
@@ -59,17 +60,6 @@ export function alarmRange(
   reducedMotion = false,
 ): number {
   return range.min + (range.max - range.min) * alarmPhase(nowMs, reducedMotion);
-}
-
-/**
- * The negative `animation-delay` that puts a CSS keyframe on this clock.
- *
- * Applied inline when the alarm class goes on. Without it the keyframe starts
- * at phase zero whenever the element happens to mount, which is the whole
- * reason the border and the room could drift apart in the first place.
- */
-export function cssAlarmDelayMs(nowMs: number): number {
-  return -wrap(nowMs, ALARM_PULSE_MS);
 }
 
 /** The next moment the alarm is at its brightest, at or after `nowMs`. */

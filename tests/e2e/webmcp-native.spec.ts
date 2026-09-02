@@ -96,7 +96,7 @@ async function openOfficeThenDashboard(page: Page) {
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Skip intro' }).first().click();
-  await page.getByRole('button', { name: 'Skip intro' }).click();
+  await page.getByRole('button', { name: 'Skip to console' }).click();
   await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
 }
 
@@ -301,7 +301,7 @@ test.describe('native WebMCP in installed Chrome', () => {
 
     await page.reload();
     await page.getByRole('button', { name: 'Skip intro' }).first().click();
-    await page.getByRole('button', { name: 'Skip intro' }).click();
+    await page.getByRole('button', { name: 'Skip to console' }).click();
     await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
 
     // React Strict Mode mounts twice in development; a leaked registration would

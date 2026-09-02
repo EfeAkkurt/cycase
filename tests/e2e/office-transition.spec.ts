@@ -133,7 +133,7 @@ async function reachDashboardVia3DOffice(page: Page): Promise<void> {
     .toBe(3);
   await page.waitForTimeout(2_500);
 
-  await page.getByRole('button', { name: 'Skip intro' }).click();
+  await page.getByRole('button', { name: 'Skip to console' }).click();
   await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
   // The forward cover keeps fading for 400 ms after the dashboard is visible.
   await expect(page.locator('[data-testid="transition-cover"]')).toHaveCount(0, {
@@ -266,7 +266,7 @@ test.describe('dashboard → office return (audit P2)', () => {
     });
     await page.goto('/');
     await page.getByRole('button', { name: 'Skip intro' }).first().click();
-    await page.getByRole('button', { name: 'Skip intro' }).click();
+    await page.getByRole('button', { name: 'Skip to console' }).click();
     await expect(page.locator('.topbar__context', { hasText: /Session Ghost/ })).toBeVisible();
     // The heading goes live at the cover's swap, 400 ms before the cover ends.
     await expect(page.locator('[data-testid="transition-cover"]')).toHaveCount(0, {

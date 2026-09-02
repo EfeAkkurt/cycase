@@ -157,8 +157,13 @@ export async function openDashboard(page: Page): Promise<void> {
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Skip intro' }).first().click();
-  // Now in the office; the chrome carries its own skip.
-  await page.getByRole('button', { name: 'Skip intro' }).click();
+  /*
+   * Now in the office, and the office's control is not called "Skip intro" any
+   * more: the intro is over by the time it is on screen, and a control that
+   * offers to skip something already finished is one a player has to stop and
+   * reason about. It skips the rest of the room, on the way to the console.
+   */
+  await page.getByRole('button', { name: 'Skip to console' }).click();
   /*
    * The case name is the top bar's *context* line, not a heading. The console
    * redesign reduced the bar to one h1 -- the destination you are on -- and put

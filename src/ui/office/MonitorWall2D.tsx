@@ -1,8 +1,7 @@
-import { useRef, type MouseEvent } from 'react';
+import { useLayoutEffect, useRef, type MouseEvent } from 'react';
 
 import { useAudio } from '../../audio/audioContext';
 import { useGameSelector, useRuntime } from '../../app/gameContext';
-import { cssAlarmDelayMs } from '../../three/alarmPulse';
 import { setTransitionOriginFrom } from './transitionOrigin';
 import { nextRequiredStep } from '../../game/selectors';
 import type { DashboardRoute, GameContext, InvestigateTab } from '../../game/types';
@@ -245,24 +244,69 @@ function MonitorSurface({
 
   const alarming = Boolean(className?.includes('office3d__surface--alarm'));
 
+  /*
+   * Put the border's keyframe on the alarm's clock.
+   *
+   * A CSS animation begins when it is applied, so this border used to start its
+   * cycle whenever the surface mounted, which is not when the room's emissive
+   * rim started its own — different phase, and a different period besides.
+   *
+   * The fix anchors the animation's own `startTime` to the timeline origin
+   * rather than compensating for it. The document timeline shares its origin
+   * with `performance.now()`, so an animation starting at 0 has a local time of
+   * `t` and a phase of `t mod P` — exactly what `alarmPhase(t)` computes for
+   * the room's emissive rim, with nothing left to drift.
+   *
+   * Two earlier attempts are worth recording, because both looked right:
+   *
+   *  - a negative `animation-delay` in an inline style, which is recomputed on
+   *    every render. The office re-renders on the incident clock, so each write
+   *    derived a delay from a later moment while the animation's start time
+   *    stayed put, and the phase walked forward once a second. Measured at
+   *    ~400 ms of drift.
+   *  - the same delay written once in this effect, which still assumed the
+   *    animation had started at the moment the effect ran. It had not, and the
+   *    residue was a systematic ~100 ms.
+   *
+   * `getAnimations()` can be empty on the commit that adds the class, so the
+   * `ready` promise is the fallback rather than the main path.
+   */
+  useLayoutEffect(() => {
+    const node = surfaceRef.current;
+    if (!node || !alarming) return;
+
+    const anchor = (animation: Animation) => {
+      try {
+        animation.startTime = 0;
+      } catch {
+        // A timeline that refuses an explicit start time leaves the alarm
+        // pulsing at its own phase — visibly wrong by at most half a period,
+        // and never broken.
+      }
+    };
+
+    const animations = node.getAnimations();
+    if (animations.length > 0) {
+      for (const animation of animations) anchor(animation);
+      return;
+    }
+
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      for (const animation of surfaceRef.current?.getAnimations() ?? []) anchor(animation);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [alarming]);
+
   return (
     <div
       ref={surfaceRef}
       className={['monitor-surface', className].filter(Boolean).join(' ')}
       role="group"
       aria-label={monitor.name}
-      /*
-       * Put the border's keyframe on the alarm's clock.
-       *
-       * A CSS animation begins when it is applied, so this border used to start
-       * its cycle whenever the surface mounted — which is not when the room's
-       * emissive rim started its own. Both share a time origin with
-       * `performance.now()`, so a negative delay of `-(t mod P)` lands the
-       * keyframe at exactly the phase `alarmPhase(t)` reports. Read once, on the
-       * render that turns the alarm on: it is an offset into a repeating cycle,
-       * not something to keep updating.
-       */
-      style={alarming ? { animationDelay: `${cssAlarmDelayMs(performance.now())}ms` } : undefined}
       onClick={alert ? undefined : onClick}
     >
       <div className="monitor-surface__tools">
