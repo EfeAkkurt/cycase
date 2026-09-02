@@ -32,6 +32,9 @@ export const en = {
   'intro.colleague.name': 'VERA',
   'intro.colleague.line':
     '{name} — we cannot reach the identity services, and the platform just blocked an outbound customer export at 62%. The account behind it is still signed in.',
+  // Finishes the reveal without leaving the scene — the want "skip" never
+  // covered, and the reason a reader used to have to leave to read a sentence.
+  'intro.action.show_all': 'Show the full text',
   'intro.action.investigate': 'Investigate the incident',
   'intro.action.solve': 'Open response console',
   'intro.action.explain_first': 'Explain the incident',
@@ -56,6 +59,12 @@ export const en = {
    * hers. */
   'office.dialogue': 'Incident dialogue',
   'office.return_dashboard': 'Return to dashboard',
+  /*
+   * Not "Skip intro". The office is what comes *after* the intro, and a control
+   * offering to skip something already over is one a player has to stop and
+   * reason about before pressing.
+   */
+  'office.skip_to_console': 'Skip to console',
   'office.recenter': 'Recenter view',
   'office.eyelids': 'Opening your eyes…',
 
@@ -1244,6 +1253,18 @@ export const en = {
   'settings.voice': 'Voice',
   'settings.voice_auto': 'Automatic',
   'settings.voice_remote': 'online',
+  /*
+   * Two groups, because a browser's forty-voice list is mostly voices for
+   * languages this product has no copy in. The recommended group uses the same
+   * rule the automatic pick uses, so the voice at the top is the one a player
+   * would have got by doing nothing.
+   */
+  'settings.voice_group.recommended': 'For this language',
+  'settings.voice_group.other': 'Other languages',
+  'settings.voice_search': 'Find a voice',
+  'settings.voice_search_placeholder': 'Name or language tag',
+  'settings.voice_show_all': 'Show all voices ({count} more)',
+  'settings.voice_show_recommended': 'Show only voices for this language',
   'settings.voice_hint':
     'Spoken by your browser, so the voice and its quality come from your browser and operating system, not from CYCASE. Every line is also written out in full below.',
   'settings.voice_none':

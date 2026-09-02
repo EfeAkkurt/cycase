@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { usePrefersReducedMotion } from '../app/gameContext';
+import { alarmPhase, alarmRange } from './alarmPulse';
 import { sharedChamferedBox } from './bevelGeometry';
 import { LIGHTS, MONITORS, PALETTE, monitorStand, type MonitorSpec } from './layout';
 import { roughnessVariation, variedRoughness } from './proceduralMaps';
@@ -53,8 +54,6 @@ const CHAMFER = {
   fine: 0.0006,
 } as const;
 
-/** Rim and light pulse period, in seconds. Slow enough to read as equipment. */
-const ALARM_PULSE_SECONDS = 1.15;
 /** Spill-light intensity range. The low end is never zero — it must stay lit. */
 const ALARM_LIGHT_RANGE = { min: 0.8, max: 2.6 };
 /*
@@ -72,9 +71,17 @@ const ALARM_RIM_RANGE = { min: 0.36, max: 0.82 };
 
 export function Monitors({
   alert,
+  spill,
   onAcknowledge,
 }: {
   alert: boolean;
+  /**
+   * How much of the alarm's spill is still lit, 1 to 0.
+   *
+   * Defaults to the boolean it replaces, so a caller with no acknowledge bundle
+   * behaves exactly as before: lit while alarming, dark the instant it is not.
+   */
+  spill?: number;
   /** Raycast target while the alarm is unacknowledged (audit P0.2). */
   onAcknowledge?: () => void;
 }) {
@@ -152,6 +159,7 @@ export function Monitors({
           stand={extras.stand}
           glass={extras.glass}
           alert={alert && monitor.id === 'center'}
+          spill={monitor.id === 'center' ? (spill ?? (alert ? 1 : 0)) : 0}
           onAcknowledge={monitor.id === 'center' ? onAcknowledge : undefined}
         />
       ))}
@@ -165,6 +173,7 @@ function Monitor({
   stand,
   glass,
   alert,
+  spill,
   onAcknowledge,
 }: {
   monitor: MonitorSpec;
@@ -172,6 +181,8 @@ function Monitor({
   stand: THREE.Material;
   glass: THREE.Material;
   alert: boolean;
+  /** 1 while alarming, then the acknowledge bundle's decay, then 0. */
+  spill: number;
   onAcknowledge?: () => void;
 }) {
   const reducedMotion = usePrefersReducedMotion();
@@ -185,22 +196,46 @@ function Monitor({
    * removing it: the state still has to be visible without animation, and a
    * screen that simply stops pulsing reads as a screen that stopped alarming.
    */
-  useFrame((state) => {
-    if (!alert) {
-      // The light stays mounted; it is silenced by intensity, not by unmounting.
+  useFrame(() => {
+    /*
+     * `spill`, not `alert`.
+     *
+     * The light used to be cut to zero on the frame the alarm was acknowledged,
+     * which is the loudest object in the room disappearing between two frames.
+     * It now follows the acknowledge bundle's decay down to nothing over about
+     * 185 ms, and only then stops being drawn. The light stays mounted either
+     * way; it is silenced by intensity, never by unmounting.
+     */
+    if (!alert && spill <= 0) {
       if (lightRef.current) lightRef.current.intensity = 0;
+      if (rimRef.current) rimRef.current.opacity = 0;
       return;
     }
-    const phase = reducedMotion
-      ? 0.5
-      : 0.5 - 0.5 * Math.cos((state.clock.elapsedTime * Math.PI * 2) / ALARM_PULSE_SECONDS);
+    /*
+     * `performance.now()`, not `state.clock.elapsedTime`.
+     *
+     * The r3f clock starts when the canvas does, so the room's pulse used to
+     * begin on a different beat from the DOM border layered on top of it — and
+     * ran at a different period as well. Both now read `alarmPhase` off the
+     * absolute clock, which is the one thing that makes them the same alarm
+     * rather than two things that happen to blink.
+     */
+    const now = performance.now();
     if (lightRef.current) {
-      lightRef.current.intensity =
-        ALARM_LIGHT_RANGE.min + (ALARM_LIGHT_RANGE.max - ALARM_LIGHT_RANGE.min) * phase;
+      lightRef.current.intensity = alarmRange(now, ALARM_LIGHT_RANGE, reducedMotion) * spill;
     }
     if (rimRef.current) {
-      rimRef.current.opacity =
-        ALARM_RIM_RANGE.min + (ALARM_RIM_RANGE.max - ALARM_RIM_RANGE.min) * phase;
+      rimRef.current.opacity = alarmRange(now, ALARM_RIM_RANGE, reducedMotion) * spill;
+    }
+    /*
+     * Publish what was actually applied.
+     *
+     * This is the value that just drove the material, so a test reading it is
+     * reading the room's real output rather than a second calculation that
+     * could agree with the comment and disagree with the pixels.
+     */
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.alarmPhase = alarmPhase(now, reducedMotion).toFixed(4);
     }
   });
 

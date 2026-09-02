@@ -1,7 +1,9 @@
-import type { MouseEvent } from 'react';
+import { useRef, type MouseEvent } from 'react';
 
 import { useAudio } from '../../audio/audioContext';
 import { useGameSelector, useRuntime } from '../../app/gameContext';
+import { cssAlarmDelayMs } from '../../three/alarmPulse';
+import { setTransitionOriginFrom } from './transitionOrigin';
 import { nextRequiredStep } from '../../game/selectors';
 import type { DashboardRoute, GameContext, InvestigateTab } from '../../game/types';
 import { t } from '../../i18n';
@@ -214,8 +216,19 @@ function MonitorSurface({
   const runtime = useRuntime();
   const audio = useAudio();
 
+  const surfaceRef = useRef<HTMLDivElement>(null);
+
   const activate = () => {
     audio.play('confirm');
+    /*
+     * Where the console is about to come from.
+     *
+     * Recorded before the transition starts, because this element is unmounted
+     * by it. The cover reads the point and reveals the dashboard outward from
+     * it, so the destination looks like it grew out of the screen the player
+     * pressed rather than arriving from nowhere.
+     */
+    setTransitionOriginFrom(surfaceRef.current);
     runtime.send({ type: 'SET_ROUTE', route: monitor.route, tab: monitor.tab });
     runtime.send({ type: 'DEBUG' });
   };
@@ -230,11 +243,26 @@ function MonitorSurface({
     activate();
   };
 
+  const alarming = Boolean(className?.includes('office3d__surface--alarm'));
+
   return (
     <div
+      ref={surfaceRef}
       className={['monitor-surface', className].filter(Boolean).join(' ')}
       role="group"
       aria-label={monitor.name}
+      /*
+       * Put the border's keyframe on the alarm's clock.
+       *
+       * A CSS animation begins when it is applied, so this border used to start
+       * its cycle whenever the surface mounted — which is not when the room's
+       * emissive rim started its own. Both share a time origin with
+       * `performance.now()`, so a negative delay of `-(t mod P)` lands the
+       * keyframe at exactly the phase `alarmPhase(t)` reports. Read once, on the
+       * render that turns the alarm on: it is an offset into a repeating cycle,
+       * not something to keep updating.
+       */
+      style={alarming ? { animationDelay: `${cssAlarmDelayMs(performance.now())}ms` } : undefined}
       onClick={alert ? undefined : onClick}
     >
       <div className="monitor-surface__tools">

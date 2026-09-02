@@ -52,6 +52,7 @@ export function Office3D({
   colleaguePhase,
   onColleagueArrive,
   alert,
+  alarmSpill,
   reducedMotion,
   onAcknowledgeAlarm,
   onReady,
@@ -61,6 +62,8 @@ export function Office3D({
   colleaguePhase: ColleaguePhase;
   onColleagueArrive?: () => void;
   alert: boolean;
+  /** The acknowledge bundle's decaying spill. See `acknowledgeBundle.ts`. */
+  alarmSpill?: number;
   reducedMotion: boolean;
   onAcknowledgeAlarm?: () => void;
   /** Fired once the WebGL room has drawn. Only the dashboard return uses it. */
@@ -255,6 +258,7 @@ export function Office3D({
           colleaguePhase={colleaguePhase}
           onColleagueArrive={onColleagueArrive}
           alert={alert}
+          alarmSpill={alarmSpill}
           reducedMotion={reducedMotion}
           onFootstep={() => audio.play('footstep')}
           onAcknowledgeAlarm={onAcknowledgeAlarm}

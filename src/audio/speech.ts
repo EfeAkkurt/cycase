@@ -88,6 +88,14 @@ export interface SpeechState {
   selectedVoiceUri: string | null;
   /** The current line, always populated — this is the caption contract. */
   caption: SpeechLine | null;
+  /**
+   * The locale the interface copy is written in.
+   *
+   * Published so the voice picker can put the voices that can actually read
+   * this copy at the top of its list, rather than showing whatever order the
+   * operating system happened to return.
+   */
+  locale: SpeechLocale;
 }
 
 /**
@@ -106,6 +114,24 @@ export const VOICE_PROFILES: Record<SpeakerRole, { rate: number; pitch: number }
 };
 
 /**
+ * How long an utterance may run before the app stops believing it.
+ *
+ * Speech engines vary enormously — a system voice at rate 1.0 lands somewhere
+ * near 14 characters a second, and a slow one at 0.9 rather less — so this
+ * assumes a pace no real engine is slower than, and then doubles it and adds a
+ * fixed floor on top. It exists to notice an utterance whose `end` event never
+ * arrived, not to cut a line short, and a false positive here would silence the
+ * caption's "reading" label on a line still being read.
+ */
+export const UTTERANCE_CHARS_PER_SECOND = 7;
+export const UTTERANCE_FLOOR_MS = 4_000;
+
+export function utteranceBudgetMs(text: string, rate = 1): number {
+  const pace = UTTERANCE_CHARS_PER_SECOND * Math.max(0.5, rate);
+  return UTTERANCE_FLOOR_MS + (text.length / pace) * 1000;
+}
+
+/**
  * How long the first line will wait for `getVoices()` to fill.
  *
  * Bounded, because Safari has historically never fired `voiceschanged` at all,
@@ -119,7 +145,7 @@ const VOICE_KEY = 'cycase.voice';
 const SPEECH_MUTED_KEY = 'cycase.speech_muted';
 
 /** Preferred BCP-47 prefixes per locale, best first. */
-const LOCALE_PREFERENCES: Record<SpeechLocale, string[]> = {
+export const LOCALE_PREFERENCES: Record<SpeechLocale, string[]> = {
   tr: ['tr-tr', 'tr'],
   en: ['en-us', 'en-gb', 'en'],
 };
@@ -235,6 +261,8 @@ export class SpeechDirector {
   private pending: SpeechLine[] = [];
   private resolveTimer: number | null = null;
   private pollTimer: number | null = null;
+  /** Armed with an utterance, cleared by its end. See `utteranceBudgetMs`. */
+  private speakTimer: number | null = null;
   private gestureAttached = false;
 
   private onVoicesChanged = () => this.collectVoices();
@@ -290,6 +318,7 @@ export class SpeechDirector {
       voices: this.voices,
       selectedVoiceUri: this.chosenUri,
       caption: this.current,
+      locale: this.locale,
     };
   }
 
@@ -547,9 +576,16 @@ export class SpeechDirector {
     this.emit();
   }
 
+  private clearSpeakWatchdog(): void {
+    if (this.speakTimer === null) return;
+    this.clearTimer(this.speakTimer);
+    this.speakTimer = null;
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.clearSpeakWatchdog();
     this.stopResolveWindow();
     this.detachGesture();
     if (this.deps) {
@@ -598,13 +634,34 @@ export class SpeechDirector {
       utterance.lang = voice.lang;
     }
 
+    const finish = () => {
+      this.clearSpeakWatchdog();
+      if (!this.speakingValue) return;
+      this.speakingValue = false;
+      this.emit();
+    };
+
     utterance.onstart = () => {
       this.speakingValue = true;
       this.emit();
-    };
-    const finish = () => {
-      this.speakingValue = false;
-      this.emit();
+      /*
+       * The watchdog.
+       *
+       * `speechSynthesis` is documented to fire `end` or `error` for every
+       * utterance and does not always manage it: an utterance cancelled while
+       * the engine is between lines, or one running when a tab is throttled,
+       * can leave both handlers unfired. Nothing deadlocks when that happens —
+       * the narration channel releases its line on its own hold timer, never on
+       * speech — but the caption would keep claiming to be reading a sentence
+       * that finished a minute ago, which is the "stuck" half of "narration is
+       * never read twice and never gets stuck".
+       *
+       * Generous by design: this is a liar-detector, not a time limit. A line
+       * still being read when it fires would have to be running at well under
+       * half the speed the profile asked for.
+       */
+      this.clearSpeakWatchdog();
+      this.speakTimer = this.setTimer(finish, utteranceBudgetMs(line.text, profile.rate));
     };
     utterance.onend = finish;
     // A failed utterance must not leave the app believing it is still talking,

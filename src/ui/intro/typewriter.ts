@@ -21,18 +21,38 @@ export const LINE_PAUSE_MS = 340;
 export const GROUP_SIZE = 3;
 
 /**
- * Punctuation rests. Deliberately not `:` — the opening line is a clock, and a
- * rest inside `03:17:42` reads as a stutter rather than as breath.
+ * Punctuation rests, graded by how long a reader's eye actually stops.
+ *
+ * The old table had three values doing the work of five: a comma and a
+ * semicolon rested the same, and a full stop, an exclamation and a question
+ * mark were identical at 220 ms. Read back, the line lost its shape — every
+ * sentence ended with the same beat regardless of what kind of sentence it was.
+ *
+ * Deliberately still not `:` — the opening line is a clock, and a rest inside
+ * `03:17:42` reads as a stutter rather than as breath.
  */
 const PAUSE_AFTER: Record<string, number> = {
-  ',': 120,
-  ';': 120,
-  '.': 220,
-  '!': 220,
-  '?': 220,
-  '…': 260,
-  '—': 150,
+  ',': 110,
+  ';': 150,
+  ':': 0,
+  '.': 230,
+  '!': 260,
+  '?': 280,
+  '…': 300,
+  '—': 160,
 };
+
+/**
+ * A rest a space earns, when the word it closed was long enough to earn one.
+ *
+ * Nothing rested at a word boundary before, so a nine-word sentence arrived as
+ * one undifferentiated run of glyphs at a fixed rate. This is small on purpose:
+ * enough to give the line a pulse, not enough to read as hesitation.
+ */
+export const WORD_PAUSE_MS = 26;
+
+/** Words shorter than this are not worth a rest; they read as one gesture. */
+const WORD_PAUSE_MIN_CHARS = 4;
 
 /** True where a key group must be flushed even before it is full. */
 function isBoundary(char: string): boolean {
@@ -68,11 +88,21 @@ export function planTypewriter(lines: string[]): GlyphStep[] {
 
   lines.forEach((text, line) => {
     const chars = [...text];
+    let sinceBoundary = 0;
+
     chars.forEach((char, index) => {
       glyph += 1;
       group += 1;
 
       const last = index === chars.length - 1;
+      /*
+       * A key click closes a group, a word or a clause.
+       *
+       * Grouping alone produced a click every third glyph forever, which is a
+       * machine-gun rather than a typist: real key sounds cluster inside a word
+       * and thin out at its edges. Flushing on the boundary as well means the
+       * click density follows the words instead of ignoring them.
+       */
       const sound = group >= GROUP_SIZE || isBoundary(char) || last;
       if (sound) group = 0;
 
@@ -86,6 +116,16 @@ export function planTypewriter(lines: string[]): GlyphStep[] {
       });
 
       pause += PAUSE_AFTER[char] ?? 0;
+
+      // A rest at the end of a word, but only a word long enough to have been
+      // one. `sinceBoundary` counts the glyphs since the last space.
+      if (char === ' ') {
+        if (sinceBoundary >= WORD_PAUSE_MIN_CHARS) pause += WORD_PAUSE_MS;
+        sinceBoundary = 0;
+      } else {
+        sinceBoundary += 1;
+      }
+
       if (last && line < lines.length - 1) pause += LINE_PAUSE_MS;
     });
   });

@@ -2619,6 +2619,49 @@ svg {
 }
 
 /*
+ * The acknowledge bundle — press, settle, acknowledged.
+ *
+ * Timings come from `src/ui/office/acknowledgeBundle.ts` and are stated there
+ * as budgets a unit test holds; these rules are the visual half of the same
+ * three beats. Deliberately absent: any transform. Nothing here moves, nothing
+ * shakes, and nothing covers the room — the whole bundle is brightness and a
+ * border, so input is never blocked and a player who asked for no motion loses
+ * nothing but the ramp.
+ */
+.office[data-ack-stage='pressed'] .office3d__surface--alarm,
+.office[data-ack-stage='pressed'] .monitor-surface {
+  /* The press itself, acknowledged on the next paint. */
+  filter: brightness(1.28);
+  transition: filter var(--motion-duration-instant) var(--motion-easing-accelerate);
+}
+
+.office[data-ack-stage='settling'] .monitor-surface {
+  filter: brightness(1);
+  transition: filter var(--motion-duration-panel) var(--motion-easing-decelerate);
+}
+
+/*
+ * The short "you did that" beat. A calm green edge on the monitor that was
+ * alarming, and only on that one — an acknowledgement is about the thing that
+ * was asking for attention, not about the wall.
+ */
+.office[data-ack-stage='acknowledged'] .monitor-surface--acknowledged,
+.office[data-ack-stage='acknowledged'] #monitor-center {
+  box-shadow: inset 0 0 0 2px var(--status-success-fill);
+  transition: box-shadow var(--motion-duration-base) var(--motion-easing-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .office[data-ack-stage='pressed'] .office3d__surface--alarm,
+  .office[data-ack-stage='pressed'] .monitor-surface,
+  .office[data-ack-stage='settling'] .monitor-surface,
+  .office[data-ack-stage='acknowledged'] .monitor-surface--acknowledged,
+  .office[data-ack-stage='acknowledged'] #monitor-center {
+    transition: none;
+  }
+}
+
+/*
  * Unacknowledged-alarm treatment (audit P0.2): a restrained border pulse on
  * the centre surface only — never the whole viewport. Reduced motion holds a
  * static red border instead of animating it.
@@ -2632,7 +2675,27 @@ svg {
    * weighs more heavily on the darker of the pair.
    */
   filter: brightness(1.16);
-  animation: alarm-border 1.6s var(--motion-easing-standard) infinite;
+  /*
+   * One clock, shared with the room's emissive rim.
+   *
+   * The duration is `ALARM_PULSE_MS` in `src/three/alarmPulse.ts` and the phase
+   * is set by an inline negative `animation-delay` the surface computes from the
+   * same absolute time the WebGL rim reads. The keyframe below is deliberately
+   * shaped like `0.5 − 0.5·cos`: dimmest at 0%, brightest at 50%, which is what
+   * lets a delay derived from that function land this border on the room's beat
+   * instead of half a cycle out of it.
+   *
+   * `linear`, not the standard easing curve: the easing is *in* the cosine.
+   * Composing a second curve on top of it would make the two surfaces disagree
+   * again, more subtly than before.
+   */
+  /*
+   * `ALARM_PULSE_MS` in `src/three/alarmPulse.ts`, named here so the duplicate
+   * is visible rather than buried in a shorthand. `motion.test.ts` reads this
+   * file and fails if the two ever drift apart.
+   */
+  --alarm-pulse-duration: 1600ms;
+  animation: alarm-border var(--alarm-pulse-duration) linear infinite;
 }
 
 /*
@@ -2657,16 +2720,26 @@ svg {
 @keyframes alarm-border {
   0%,
   100% {
-    box-shadow: inset 0 0 0 2px rgb(226 96 78 / 0.9);
+    box-shadow: inset 0 0 0 2px rgb(226 96 78 / 0.25);
   }
   50% {
-    box-shadow: inset 0 0 0 2px rgb(226 96 78 / 0.25);
+    box-shadow: inset 0 0 0 2px rgb(226 96 78 / 0.9);
   }
 }
 
+/*
+ * Reduced motion holds the midpoint, not the first frame.
+ *
+ * `animation: none` alone would freeze the border wherever 0% happens to be,
+ * and 0% is now the dim end of the range — an alarm frozen at its faintest,
+ * which is the one thing this state must not look like. `ALARM_PULSE_HELD` is
+ * 0.5 in `alarmPulse.ts` and the room holds the same value, so the two surfaces
+ * agree when they are still exactly as they agree when they move.
+ */
 @media (prefers-reduced-motion: reduce) {
   .office3d__surface--alarm {
     animation: none;
+    box-shadow: inset 0 0 0 2px rgb(226 96 78 / 0.575);
   }
 }
 
@@ -2962,7 +3035,44 @@ svg {
   inset: 0;
   z-index: var(--z-overlay);
   background: var(--carbon);
+  /*
+   * Never takes input. The office and the dashboard are both mounted under it
+   * for the length of the crossfade and both stay reachable — the cover is a
+   * sheet of colour, not a modal.
+   */
   pointer-events: none;
+  /*
+   * The reveal grows out of the monitor the player pressed.
+   *
+   * A radial mask centred on that screen, so the console appears from where the
+   * player was looking rather than from everywhere at once. The origin is set
+   * inline by `TransitionCover`; these are the fallbacks for a keyboard
+   * activation, which has no rectangle and gets the middle.
+   *
+   * `mask-image` and not a second animated element: the mask rides the same
+   * opacity the cover already animates, so this adds a shape to the existing
+   * crossfade rather than a second moving thing to keep in time with it.
+   */
+  --cover-origin-x: 50%;
+  --cover-origin-y: 50%;
+  mask-image: radial-gradient(
+    circle at var(--cover-origin-x) var(--cover-origin-y),
+    rgb(0 0 0 / 0.55) 0%,
+    rgb(0 0 0 / 1) 62%
+  );
+}
+
+/*
+ * Reduced motion: a plain, even sheet.
+ *
+ * The mask is a gradient, and a gradient over a fading layer reads as a wipe
+ * travelling across the screen. Somebody who asked for no motion should get the
+ * crossfade and nothing sweeping.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .transition-cover {
+    mask-image: none;
+  }
 }
 
 /* ---------------- opening typewriter ---------------- */

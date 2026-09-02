@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 
+import { isRoomReady, subscribeRoomReady } from '../office/roomReady';
 import {
   EXPOSURE_MAX,
   FOCUS_MAX,
   LID_SHUT,
   WAKE_FADE_MS,
+  WAKE_ROOM_WAIT_MS,
   WAKE_TOTAL_MS,
   exposureAmount,
   fadeAmount,
@@ -53,11 +55,38 @@ export function WakeReveal({ onDone }: { onDone: () => void }) {
   }, [onDone]);
 
   useEffect(() => {
-    const start = startRef.current;
+    const mounted = startRef.current;
     let raf = 0;
+    /*
+     * The reveal is held shut until the room behind it is real.
+     *
+     * Opening on the Suspense fallback and then having the WebGL room swapped
+     * in underneath is the bare 2D-to-3D cut this beat exists to avoid. So the
+     * clock does not start at mount: it starts when the room reports drawn, or
+     * when the wait runs out — capped, because a reveal a slow GPU could hold
+     * open forever is worse than one that opens on the flat wall.
+     *
+     * `start` stays `null` for the whole hold, and every frame of that hold
+     * draws the reveal at elapsed 0, which is lids shut. Nothing flickers, and
+     * a player who is waiting is looking at closed eyes rather than at a room
+     * being assembled.
+     */
+    let start: number | null = isRoomReady() ? mounted : null;
+
+    const unsubscribe = subscribeRoomReady(() => {
+      if (start === null) start = performance.now();
+    });
 
     const frame = () => {
-      const elapsed = performance.now() - start;
+      const now = performance.now();
+      if (start === null) {
+        if (now - mounted >= WAKE_ROOM_WAIT_MS) start = now;
+        else {
+          raf = requestAnimationFrame(frame);
+          return;
+        }
+      }
+      const elapsed = now - start;
       const upper = lidFraction(elapsed);
       const lower = lowerLidFraction(elapsed);
 
@@ -81,7 +110,10 @@ export function WakeReveal({ onDone }: { onDone: () => void }) {
     };
 
     raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      unsubscribe();
+    };
   }, []);
 
   return (
@@ -134,11 +166,38 @@ export function WakeFade({ onDone }: { onDone: () => void }) {
   }, [onDone]);
 
   useEffect(() => {
-    const start = startRef.current;
+    const mounted = startRef.current;
     let raf = 0;
+    /*
+     * The reveal is held shut until the room behind it is real.
+     *
+     * Opening on the Suspense fallback and then having the WebGL room swapped
+     * in underneath is the bare 2D-to-3D cut this beat exists to avoid. So the
+     * clock does not start at mount: it starts when the room reports drawn, or
+     * when the wait runs out — capped, because a reveal a slow GPU could hold
+     * open forever is worse than one that opens on the flat wall.
+     *
+     * `start` stays `null` for the whole hold, and every frame of that hold
+     * draws the reveal at elapsed 0, which is lids shut. Nothing flickers, and
+     * a player who is waiting is looking at closed eyes rather than at a room
+     * being assembled.
+     */
+    let start: number | null = isRoomReady() ? mounted : null;
+
+    const unsubscribe = subscribeRoomReady(() => {
+      if (start === null) start = performance.now();
+    });
 
     const frame = () => {
-      const elapsed = performance.now() - start;
+      const now = performance.now();
+      if (start === null) {
+        if (now - mounted >= WAKE_ROOM_WAIT_MS) start = now;
+        else {
+          raf = requestAnimationFrame(frame);
+          return;
+        }
+      }
+      const elapsed = now - start;
       if (ref.current) ref.current.style.opacity = String(fadeAmount(elapsed));
       if (elapsed >= WAKE_FADE_MS) {
         doneRef.current();
@@ -148,7 +207,10 @@ export function WakeFade({ onDone }: { onDone: () => void }) {
     };
 
     raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      unsubscribe();
+    };
   }, []);
 
   return (

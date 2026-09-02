@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 
+import { CENTRE_ORIGIN, transitionOrigin } from '../office/transitionOrigin';
 import {
   coverOpacity,
   coverTimings,
@@ -107,11 +108,28 @@ export function TransitionCover({
     return () => cancelAnimationFrame(raf);
   }, [reducedMotion, variant, maxHoldMs]);
 
+  /*
+   * Where the cover opens from.
+   *
+   * The forward crossfade used to be spatially anonymous — black in, black out,
+   * and the console arrived from nowhere. The player pressed one specific
+   * screen, and the destination is what was on it, so the reveal is a radial
+   * wipe centred on that screen: the dashboard grows out of the monitor that
+   * was activated. `transitionOrigin` is in viewport fractions, so a resize
+   * between the press and the reveal cannot put it somewhere off screen.
+   *
+   * Reduced motion gets the centre and the plain fade the `--cover-spread`
+   * rule below collapses to — no travelling edge, nothing sweeping across.
+   */
+  const origin = variant === 'forward' && !reducedMotion ? transitionOrigin() : CENTRE_ORIGIN;
+
   return (
     <div
       className="transition-cover"
       data-testid="transition-cover"
       data-direction={variant}
+      data-origin-x={origin.x.toFixed(3)}
+      data-origin-y={origin.y.toFixed(3)}
       aria-hidden="true"
       /*
        * The reverse cover is opaque in the very first painted frame, not one
@@ -119,7 +137,13 @@ export function TransitionCover({
        * this element together, so an initial 0 here would show one frame of the
        * un-drawn room — the exact defect this variant exists to remove.
        */
-      style={{ opacity: variant === 'return' ? 1 : 0 }}
+      style={
+        {
+          opacity: variant === 'return' ? 1 : 0,
+          '--cover-origin-x': `${(origin.x * 100).toFixed(2)}%`,
+          '--cover-origin-y': `${(origin.y * 100).toFixed(2)}%`,
+        } as CSSProperties
+      }
       ref={ref}
     />
   );

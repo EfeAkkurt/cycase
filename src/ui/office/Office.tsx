@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAudio } from '../../audio/audioContext';
 import {
@@ -12,6 +12,12 @@ import {
 import type { ResponseActionId } from '../../game/types';
 import { t } from '../../i18n';
 import { cameraRig } from '../../three/cameraRig';
+import {
+  ackIsRunning,
+  ackSpillFactor,
+  ackStageAt,
+} from './acknowledgeBundle';
+import { markRoomReady, resetRoomReady } from './roomReady';
 import type { ColleaguePhase } from '../../three/Colleague';
 import { VoiceSettings } from '../../audio/VoiceSettings';
 import { NarrationPanel, useNarration } from '../narration/NarrationPanel';
@@ -217,7 +223,12 @@ export function Office() {
    */
   const [returning, setReturning] = useState(() => sub === 'resume' && show3D);
   const [roomDrawn, setRoomDrawn] = useState(false);
-  const markRoomDrawn = useCallback(() => setRoomDrawn(true), []);
+  const markRoomDrawn = useCallback(() => {
+    setRoomDrawn(true);
+    // Also told to the wake reveal, which is mounted by the shell and cannot be
+    // handed this as a prop. It holds the eyes shut until the room is real.
+    markRoomReady();
+  }, []);
 
   const uncover = useCallback(() => {
     setReturning(false);
@@ -317,17 +328,67 @@ export function Office() {
 
   useEffect(() => () => cameraRig.reset(), []);
 
+  /*
+   * A new office waits again — and one that never shows a room does not wait
+   * at all. `show3D` false is the flat wall, which is drawn the moment it is
+   * mounted, so there is nothing for the reveal to hold for.
+   */
+  useEffect(() => () => resetRoomReady(), []);
+  useEffect(() => {
+    if (!show3D) markRoomReady();
+  }, [show3D]);
+
+  /*
+   * The acknowledge bundle: press, settle, acknowledged.
+   *
+   * `ackStartedAt` is set synchronously in the click handler, so the press
+   * affordance is on the very next paint — one frame, not the 100 ms the
+   * contract allows. The rest is a rAF loop over the pure timeline in
+   * `acknowledgeBundle.ts`; it writes an attribute and a number and touches
+   * nothing else, so it cannot block input and has nothing to shake.
+   */
+  const [ackElapsed, setAckElapsed] = useState(-1);
+  const ackStartedAt = useRef(-1);
+
   const acknowledge = useMemo(
     () => () => {
       audio.play('confirm');
+      ackStartedAt.current = performance.now();
+      setAckElapsed(0);
       runtime.send({ type: 'ACKNOWLEDGE_ALARM' });
     },
     [audio, runtime],
   );
 
+  // The bundle runs exactly once per acknowledgement, and `acknowledge` is the
+  // only thing that starts it. Keyed on the press timestamp so a second press
+  // — which the machine ignores anyway — cannot start a second loop.
+  const ackStartMs = ackElapsed >= 0 ? ackStartedAt.current : -1;
+  useEffect(() => {
+    if (ackStartMs < 0) return;
+    let raf = 0;
+    const step = () => {
+      const elapsed = performance.now() - ackStartMs;
+      setAckElapsed(elapsed);
+      if (ackIsRunning(elapsed)) raf = window.requestAnimationFrame(step);
+    };
+    raf = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(raf);
+  }, [ackStartMs]);
+
+  const ackStage = ackStageAt(ackElapsed);
+  /*
+   * The spill the room should still be drawing.
+   *
+   * 1 while the alarm is unacknowledged, then the bundle's decay, then nothing.
+   * Threaded as a number rather than as a boolean because the whole point is
+   * that the light falls instead of being switched off.
+   */
+  const alarmSpill = unacknowledged ? 1 : ackSpillFactor(ackElapsed, reducedMotion);
+
   return (
     <>
-      <main className="office" id="main">
+      <main className="office" id="main" data-ack-stage={ackStage}>
         <div className="office__chrome">
           <h1 className="office__title">{t('app.title')}</h1>
           <span className="muted text-sm">
@@ -361,8 +422,14 @@ export function Office() {
               {t('office.recenter')}
             </Button>
           ) : null}
+          {/*
+            * Not "Skip intro". The intro is over — this is the office, and what
+            * this control skips is the rest of the room's story on the way to
+            * the console. A control that offers to skip something already
+            * finished is a control a player has to stop and reason about.
+            */}
           <Button size="sm" variant="ghost" onClick={() => runtime.send({ type: 'DEBUG' })}>
-            {t('app.skip_intro')}
+            {t('office.skip_to_console')}
           </Button>
         </div>
 
@@ -397,9 +464,18 @@ export function Office() {
                 colleaguePhase={colleaguePhase}
                 onColleagueArrive={() => runtime.send({ type: 'COLLEAGUE_ARRIVED' })}
                 alert={unacknowledged}
+                alarmSpill={alarmSpill}
                 reducedMotion={reducedMotion}
                 onAcknowledgeAlarm={unacknowledged ? acknowledge : undefined}
-                onReady={returning ? markRoomDrawn : undefined}
+                /*
+                 * Always, not only on the return path.
+                 *
+                 * The reverse cover was the first consumer, but the wake reveal
+                 * needs the same fact on the *forward* path — that is where the
+                 * eyes used to open on the flat Suspense fallback and then have
+                 * the room swapped in underneath them.
+                 */
+                onReady={markRoomDrawn}
                 caseResolved={caseResolved}
                 onContextLost={() => setRuntimeFailure('context_lost')}
               />

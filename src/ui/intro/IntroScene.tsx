@@ -57,6 +57,18 @@ export function IntroScene() {
     audioRef.current = audio;
   }, [audio]);
 
+  /*
+   * The reveal is skippable in place, not only skippable altogether.
+   *
+   * Before this the only control was "Skip intro", so a reader who simply
+   * wanted the rest of the sentence had to leave the scene to get it. `finish`
+   * is the other half of that choice: every line jumps to its full text, the
+   * timer stops, and the transcript releases what it had not released yet. The
+   * ref is what lets a click reach a timer owned by an effect.
+   */
+  const finishRef = useRef<() => void>(() => {});
+  const finish = () => finishRef.current();
+
   useEffect(() => {
     const layer = layerRef.current;
     if (!layer) return;
@@ -72,13 +84,40 @@ export function IntroScene() {
       layer.dataset.twGlyphs = String(steps.length);
       layer.dataset.twPause = '0';
       layer.dataset.twKeys = '0';
+      finishRef.current = () => setDone(true);
       return;
     }
 
     let timer = 0;
     let index = 0;
     let keys = 0;
+    let stopped = false;
     const start = performance.now();
+
+    /*
+     * Jump to the finished frame.
+     *
+     * The transcript is released as whole sentences here too — the same
+     * `flushSync` ordering the glyph loop uses — so a reader who completes the
+     * reveal early is handed the same complete lines a reader who waited got,
+     * never a fragment.
+     */
+    const complete = () => {
+      if (stopped) return;
+      stopped = true;
+      window.clearTimeout(timer);
+      flushSync(() => setSpoken(lines.length));
+      lines.forEach((line, lineIndex) => {
+        const node = glyphRefs.current[lineIndex];
+        if (!node) return;
+        node.dataset.typed = line.text;
+        node.dataset.state = 'done';
+      });
+      layer.dataset.twGlyphs = String(steps.length);
+      layer.dataset.twKeys = String(keys);
+      setDone(true);
+    };
+    finishRef.current = complete;
 
     const apply = (step: GlyphStep) => {
       const text = lines[step.line]!.text;
@@ -117,6 +156,7 @@ export function IntroScene() {
     };
 
     const tick = () => {
+      if (stopped) return;
       apply(steps[index]!);
       index += 1;
       if (index >= steps.length) {
@@ -130,7 +170,10 @@ export function IntroScene() {
     };
 
     timer = window.setTimeout(tick, steps[0]!.at);
-    return () => window.clearTimeout(timer);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+    };
   }, [lines, steps, reducedMotion]);
 
   return (
@@ -177,8 +220,23 @@ export function IntroScene() {
         </div>
 
         <div className="row" style={{ justifyContent: 'center' }}>
+          {/*
+            * Two different wants, two controls.
+            *
+            * "Show the full text" finishes the reveal and stays in the scene;
+            * "Skip intro" leaves it. Collapsing them into one button — which is
+            * what this was — meant a reader who only wanted the rest of the
+            * sentence had to leave to get it. Skip is present at every moment
+            * until the intro is genuinely over, and then it is gone.
+            */}
+          {done ? null : (
+            <Button variant="ghost" id="intro-complete" onClick={finish}>
+              {t('intro.action.show_all')}
+            </Button>
+          )}
           <Button
             variant={done ? 'primary' : 'ghost'}
+            id="intro-advance"
             onClick={() => {
               audio.play('reveal');
               runtime.send({ type: 'INTRO_ADVANCE' });

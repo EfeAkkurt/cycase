@@ -39,6 +39,7 @@ export const SILENT_SPEECH: SpeechBinding = {
   voices: [],
   selectedVoiceUri: null,
   caption: null,
+  locale: 'en',
   activate: () => undefined,
   speak: () => undefined,
   repeat: () => undefined,

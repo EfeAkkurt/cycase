@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { t } from '../i18n';
 import { useSpeech } from './speechContext';
+import { filterVoices, rankVoices } from './voiceList';
 import { Button } from '../ui/primitives';
 
 /**
@@ -20,6 +21,37 @@ export function VoiceSettings({ surface = 'inline' }: { surface?: 'inline' | 'me
   const [open, setOpen] = useState(false);
 
   const hasChoices = speech.voices.length > 0;
+
+  /*
+   * The list, ordered so the usable voices are the visible ones.
+   *
+   * A browser commonly returns forty or more voices in the operating system's
+   * own order, with the two or three that can read this copy scattered through
+   * the middle. `rankVoices` puts the locale's voices first, local engines
+   * ahead of network ones, by the same rule the automatic pick uses — so the
+   * voice at the top of the list is the one the player would have got anyway.
+   * Everything else stays reachable behind "Show all", which is the difference
+   * between a shorter list and a list that has hidden something.
+   */
+  const [showAll, setShowAll] = useState(false);
+  const [query, setQuery] = useState('');
+  const searchId = useId();
+
+  const ranked = useMemo(
+    () => rankVoices(speech.voices, speech.locale),
+    [speech.voices, speech.locale],
+  );
+
+  const recommended = useMemo(
+    () => filterVoices(ranked.recommended, query),
+    [ranked.recommended, query],
+  );
+  const other = useMemo(
+    // Searching implies showing all: a player who types a language tag is
+    // asking for the voice with that tag, wherever it was filed.
+    () => (showAll || query.trim() ? filterVoices(ranked.other, query) : []),
+    [ranked.other, query, showAll],
+  );
 
   useEffect(() => {
     if (!open || surface !== 'menu') return;
@@ -63,14 +95,55 @@ export function VoiceSettings({ surface = 'inline' }: { surface?: 'inline' | 'me
                 onChange={(event) => speech.setVoice(event.target.value || null)}
               >
                 <option value="">{t('settings.voice_auto')}</option>
-                {speech.voices.map((voice) => (
-                  <option key={voice.uri} value={voice.uri}>
-                    {voice.name} ({voice.lang})
-                    {voice.localService ? '' : ` — ${t('settings.voice_remote')}`}
-                  </option>
-                ))}
+                {recommended.length > 0 ? (
+                  <optgroup label={t('settings.voice_group.recommended')}>
+                    {recommended.map((voice) => (
+                      <option key={voice.uri} value={voice.uri}>
+                        {voice.name} ({voice.lang})
+                        {voice.localService ? '' : ` — ${t('settings.voice_remote')}`}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {other.length > 0 ? (
+                  <optgroup label={t('settings.voice_group.other')}>
+                    {other.map((voice) => (
+                      <option key={voice.uri} value={voice.uri}>
+                        {voice.name} ({voice.lang})
+                        {voice.localService ? '' : ` — ${t('settings.voice_remote')}`}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
             </label>
+
+            <label className="voice-settings__field" htmlFor={searchId}>
+              <span className="voice-settings__label">{t('settings.voice_search')}</span>
+              <input
+                id={searchId}
+                type="search"
+                className="voice-settings__select"
+                value={query}
+                placeholder={t('settings.voice_search_placeholder')}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+
+            {ranked.other.length > 0 && !query.trim() ? (
+              <button
+                type="button"
+                className="voice-settings__toggle"
+                id="voice-show-all"
+                aria-pressed={showAll}
+                onClick={() => setShowAll((value) => !value)}
+              >
+                {showAll
+                  ? t('settings.voice_show_recommended')
+                  : t('settings.voice_show_all', { count: ranked.other.length })}
+              </button>
+            ) : null}
+
             <p className="voice-settings__note" id={noteId}>
               {t('settings.voice_hint')}
             </p>

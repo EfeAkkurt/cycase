@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
+import { AMBIENT_INTERVAL_MS, officeFrameMode, type FrameMode } from './officeFrames';
 import { cameraRig } from './cameraRig';
 import { publishRenderProbe } from './renderDiagnostics';
 import { Colleague, type ColleaguePhase } from './Colleague';
@@ -28,6 +29,16 @@ export interface OfficeSceneProps {
   onColleagueArrive?: () => void;
   /** Centre monitor runs the unacknowledged-incident treatment. */
   alert: boolean;
+  /**
+   * How much of the alarm's spill is still lit, 1 to 0.
+   *
+   * 1 while unacknowledged. After the press it is the acknowledge bundle's
+   * decay curve, which is why the light falls over ~185 ms instead of being
+   * switched off between two frames. Optional so a caller that has no bundle
+   * — the return-to-office path, and every test that mounts the scene alone —
+   * gets the old behaviour exactly.
+   */
+  alarmSpill?: number;
   reducedMotion: boolean;
   onFootstep?: () => void;
   onAcknowledgeAlarm?: () => void;
@@ -206,13 +217,31 @@ function SceneContents({
   colleaguePhase,
   onColleagueArrive,
   alert,
+  alarmSpill,
   reducedMotion,
   onFootstep,
   onAcknowledgeAlarm,
   onReady,
   caseResolved,
 }: OfficeSceneProps) {
-  const animating = colleaguePhase === 'entering';
+  /*
+   * What the room has to draw for, not just who is walking.
+   *
+   * `active` used to mean "the colleague is entering" and nothing else, so
+   * while the alarm was the only thing happening the driver parked on a 100 ms
+   * timer and the emissive rim advanced ten times a second — a staircase, sat
+   * directly underneath a DOM border animating at the display's rate. The
+   * policy is a pure function now so it can be asserted without a GPU; see
+   * `officeFrames.ts`.
+   */
+  const frameMode = officeFrameMode({
+    // A decaying spill is still something the eye is tracking, so the room
+    // keeps its continuous frames until the light has actually gone.
+    alarm: alert || (alarmSpill ?? 0) > 0,
+    entering: colleaguePhase === 'entering',
+    colleagueVisible: colleaguePhase !== 'hidden',
+    reducedMotion,
+  });
 
   return (
     <>
@@ -222,7 +251,7 @@ function SceneContents({
       <Lighting alert={alert} colleagueLit={colleaguePhase !== 'hidden'} />
       <Room />
       <Workstation />
-      <Monitors alert={alert} onAcknowledge={onAcknowledgeAlarm} />
+      <Monitors alert={alert} spill={alarmSpill} onAcknowledge={onAcknowledgeAlarm} />
       <Colleague
         phase={colleaguePhase}
         onArrive={onColleagueArrive}
@@ -230,8 +259,7 @@ function SceneContents({
       />
       <HeadLookDriver />
       <AnimationDriver
-        active={animating}
-        reducedMotion={reducedMotion}
+        mode={frameMode}
         onFootstep={colleaguePhase === 'entering' ? onFootstep : undefined}
       />
     </>
@@ -600,18 +628,21 @@ function Lighting({ alert, colleagueLit }: { alert: boolean; colleagueLit: boole
 /**
  * Frame pump for demand rendering.
  *
- * Full rate only while the scripted entrance is running. Otherwise ambient
- * motion is invalidated at 10 FPS, which is what docs/PROJECT_CONTEXT.md §7
- * asks for ("ambient animations update at 5–10 FPS, not 60 FPS") and keeps the
- * office nearly free when nothing is happening.
+ * Three modes, decided by `officeFrameMode` and nothing else — the component
+ * carries no policy of its own, so what is asserted in `officeFrames.test.ts`
+ * is the same rule that runs.
+ *
+ *   continuous  every display frame, while the alarm pulses or she is in the
+ *               room. `docs/PROJECT_CONTEXT.md` §7's ambient budget is about an
+ *               idle room, not about a thing the eye is tracking.
+ *   ambient     10 FPS. The room breathes; nobody is watching a moving edge.
+ *   static      one frame. Reduced motion, or nothing to draw.
  */
 function AnimationDriver({
-  active,
-  reducedMotion,
+  mode,
   onFootstep,
 }: {
-  active: boolean;
-  reducedMotion: boolean;
+  mode: FrameMode;
   onFootstep?: () => void;
 }) {
   const invalidate = useThree((state) => state.invalidate);
@@ -624,7 +655,7 @@ function AnimationDriver({
   }, [invalidate]);
 
   useEffect(() => {
-    if (reducedMotion && !active) {
+    if (mode === 'static') {
       invalidate();
       return;
     }
@@ -632,25 +663,25 @@ function AnimationDriver({
     let raf = 0;
     let timer = 0;
 
-    if (active) {
+    if (mode === 'continuous') {
       const pump = () => {
         invalidate();
         raf = window.requestAnimationFrame(pump);
       };
       raf = window.requestAnimationFrame(pump);
     } else {
-      timer = window.setInterval(() => invalidate(), 100);
+      timer = window.setInterval(() => invalidate(), AMBIENT_INTERVAL_MS);
     }
 
     return () => {
       if (raf) window.cancelAnimationFrame(raf);
       if (timer) window.clearInterval(timer);
     };
-  }, [active, reducedMotion, invalidate]);
+  }, [mode, invalidate]);
 
   // Footstep cues, timed off the same clock the walk animation uses.
   useFrame((_, delta) => {
-    if (!active || !onFootstep) return;
+    if (!onFootstep) return;
     stepRef.current += delta;
     if (stepRef.current >= 0.38) {
       stepRef.current = 0;

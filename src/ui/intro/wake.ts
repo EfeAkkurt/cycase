@@ -60,6 +60,17 @@ const LID_SHUT = 0.5;
  * 3020 sits in the middle of the redesign's 2.8–3.4 s window with room on both
  * sides for the frame of unmount latency an end-to-end measurement adds.
  */
+/**
+ * Longest the eyes stay shut waiting for the room to be drawn.
+ *
+ * The reveal is held until `roomReady` reports a real frame, so the eyes never
+ * open on the Suspense fallback and then have the WebGL room swapped in behind
+ * them. Capped because the alternative — a wait a slow or absent GPU could hold
+ * open forever — is worse than opening on the flat wall, which is a shipped,
+ * tested path in its own right.
+ */
+export const WAKE_ROOM_WAIT_MS = 1200;
+
 export const WAKE_TOTAL_MS = 3020;
 
 /**
