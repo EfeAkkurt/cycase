@@ -15,7 +15,7 @@ import { t, tk } from '../../i18n';
 import type { PanelMode } from '../panels/mode';
 import { Badge, Button, Icon } from '../primitives';
 import { FocusMark, FollowButton, RangeNotice, TimeRangeControl } from './ConsoleBar';
-import { ToolContext, useToolGame } from './ToolContext';
+import { CompactToolState, ToolContext, useToolGame } from './ToolContext';
 
 /**
  * SIEM — query bar, saved queries, time range, raw events and aggregation.
@@ -49,6 +49,8 @@ export function SiemTool({ mode = 'full' }: { mode?: PanelMode }) {
     const recent = searchEvents(ctx, { query: '' }).slice(-5).reverse();
     return (
       <div className="stack stack--tight">
+        {/* The one fact that survives monitor distance — see `CompactToolState`. */}
+        <CompactToolState shown={recent.length} />
         {recent.length === 0 ? (
           <p className="muted text-xs">
             {t('investigate.siem.empty_index')}

@@ -365,12 +365,34 @@
  * to the full console.
  * ------------------------------------------------------------------ */
 
+/*
+ * The compact surface renders `CompactToolState` alone rather than the strip —
+ * see the note on it. The chip lays out as one line there instead of a stacked
+ * badge-over-sentence, because 306px of height is spent on rows.
+ */
+.panel--compact .tool-state {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-left: 0;
+  text-align: left;
+}
+
+/*
+ * The sentence goes; the chip stays. "Paused" is legible across a room and
+ * "The incident clock is stopped. 6 rows, frozen as they were." is not — and
+ * the sentence is still in the full console for anyone who needs it.
+ */
+.panel--compact .tool-state__detail {
+  display: none;
+}
+
+/*
+ * The strip itself, if a compact surface is ever given one. Kept because the
+ * rule is cheap and its absence is the kind of thing that is only noticed once
+ * a monitor is already showing five unreadable facts.
+ */
 .panel--compact .tool-context {
-  /*
-   * The strip collapses to the two facts that survive monitor distance. The
-   * rest stay in the DOM for assistive technology — a monitor is still a
-   * readable surface — and are hidden from sight only.
-   */
   padding: var(--space-1) var(--space-2);
   gap: var(--space-2);
 }
@@ -381,8 +403,4 @@
 
 .panel--compact .tool-context__fact dd {
   max-width: 22ch;
-}
-
-.panel--compact .tool-state__detail {
-  display: none;
 }

@@ -292,6 +292,26 @@ export function ToolContext({
   );
 }
 
+/**
+ * What a monitor shows instead of the strip.
+ *
+ * The office projects these tools onto a 520x306 surface and reads them from
+ * across a room, where five labelled facts are unreadable and the tab strip is
+ * already a label rather than a control — the console owns the choice of tool,
+ * the monitor only displays it.
+ *
+ * So the compact surface gets the one fact that survives the distance and
+ * changes what the rows *mean*: whether the feed is live, paused, stale or
+ * empty. A monitor showing a frozen table with no indication that it is frozen
+ * is worse than a monitor showing nothing.
+ */
+export function CompactToolState({ shown, hidden = 0 }: { shown: number; hidden?: number }) {
+  const ctx = useGame();
+  const health = feedHealth(ctx);
+  const state = feedState({ shown, hidden }, ctx.paused, health.ageSec);
+  return <FeedStateChip state={state} shown={shown} hidden={hidden} ageSec={health.ageSec} />;
+}
+
 /* ------------------------------------------------------------------ *
  * When a tool is allowed to re-render
  * ------------------------------------------------------------------ */

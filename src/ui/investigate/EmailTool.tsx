@@ -11,7 +11,7 @@ import type { PanelMode } from '../panels/mode';
 import { Badge, KeyValue, UntrustedShell } from '../primitives';
 import { FocusMark, FollowButton, RangeNotice } from './ConsoleBar';
 import { SourceFields, SourceStatus } from './SourceStatus';
-import { ToolContext, useToolGame } from './ToolContext';
+import { CompactToolState, ToolContext, useToolGame } from './ToolContext';
 
 /**
  * Email — message trace, headers, SPF/DKIM/DMARC and URL detonation.
@@ -36,6 +36,8 @@ export function EmailTool({ mode = 'full' }: { mode?: PanelMode }) {
   if (mode === 'compact') {
     return (
       <div className="stack stack--tight">
+        {/* The one fact that survives monitor distance — see `CompactToolState`. */}
+        <CompactToolState shown={trace.length} />
         {trace.length === 0 ? (
           <p className="muted text-xs">
             {t('investigate.email.trace_empty')}

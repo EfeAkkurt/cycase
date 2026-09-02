@@ -13,7 +13,7 @@ import { Badge, Icon } from '../primitives';
 import { FocusMark, FollowButton, InventoryRangeNote } from './ConsoleBar';
 import { DiagnosticRows } from './DiagnosticRows';
 import { SourceFields, SourceStatus } from './SourceStatus';
-import { ToolContext, useToolGame } from './ToolContext';
+import { CompactToolState, ToolContext, useToolGame } from './ToolContext';
 
 /**
  * Identity — the directory, the sign-in history, and what is still valid.
@@ -32,6 +32,8 @@ export function IdentityTool({ mode = 'full' }: { mode?: PanelMode }) {
   if (mode === 'compact') {
     return (
       <div className="stack stack--tight">
+        {/* The one fact that survives monitor distance — see `CompactToolState`. */}
+        <CompactToolState shown={sessions.rows.length} />
         {sessions.ran ? (
           <ul className="tool-rows">
             {sessions.rows.map((row) => (

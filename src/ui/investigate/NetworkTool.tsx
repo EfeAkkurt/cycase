@@ -15,7 +15,7 @@ import { Badge } from '../primitives';
 import { FocusMark, FollowButton, InventoryRangeNote, RangeNotice } from './ConsoleBar';
 import { DiagnosticRows } from './DiagnosticRows';
 import { SourceFields, SourceStatus } from './SourceStatus';
-import { ToolContext, useToolGame } from './ToolContext';
+import { CompactToolState, ToolContext, useToolGame } from './ToolContext';
 
 /**
  * Network — proxy and domain reputation, indicators, and what left the estate.
@@ -37,6 +37,8 @@ export function NetworkTool({ mode = 'full' }: { mode?: PanelMode }) {
   if (mode === 'compact') {
     return (
       <div className="stack stack--tight">
+        {/* The one fact that survives monitor distance — see `CompactToolState`. */}
+        <CompactToolState shown={indicators.length} />
         {indicators.length === 0 ? (
           <p className="muted text-xs">
             {t('investigate.network.indicators_empty')}
