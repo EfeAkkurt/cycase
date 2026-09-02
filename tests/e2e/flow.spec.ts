@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { openRailTab } from './helpers';
+
 import {
   callTool,
   installModelContext,
@@ -32,24 +34,6 @@ function nav(page: Page, name: string) {
   return page.getByRole('navigation').getByRole('button', { name: new RegExp(`^${name}`) });
 }
 
-/**
- * Opens one of the guidance rail's extras the way a player has to.
- *
- * The rail starts collapsed, and narration, optional evidence, the activity
- * feed and the registered tools are one tab at a time — each panel is absent
- * from the document until its own tab is selected. So a test that wants any of
- * them has to expand the rail and select the tab, exactly as a person does,
- * rather than reach for an id that is no longer rendered.
- */
-async function openRailTab(page: Page, name: string): Promise<void> {
-  const toggle = page.locator('.rail__toggle');
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
-    await toggle.click();
-  }
-  const tab = page.getByRole('tab', { name });
-  await tab.click();
-  await expect(tab).toHaveAttribute('aria-selected', 'true');
-}
 
 /* ------------------------------------------------------------------ */
 

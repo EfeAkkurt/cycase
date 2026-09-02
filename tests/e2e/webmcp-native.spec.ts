@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { collectPageProblems, PERFECT_RUN } from './helpers';
+import {
+  PERFECT_RUN,
+  collectPageProblems,
+  openRailTab,
+} from './helpers';
 
 /**
  * Native WebMCP — the installed Chrome, no shim.
@@ -278,6 +282,13 @@ test.describe('native WebMCP in installed Chrome', () => {
       idempotencyKey: 'native-attribution',
     });
 
+    /*
+     * The feed is one of the rail's tabs now, and the rail starts collapsed, so
+     * the panel is absent from the document until a player opens it. The
+     * attribution IS this test, so it is read from the same place a player
+     * reads it rather than from an id that is no longer rendered.
+     */
+    await openRailTab(page, 'Activity');
     const activity = page.locator('#rail-activity');
     await expect(activity).toContainText('Agent');
     await expect(activity).toContainText(/submit_decision|Decision/i);
