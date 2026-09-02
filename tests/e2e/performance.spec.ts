@@ -259,36 +259,66 @@ test.describe('performance budgets', () => {
     expect(cost.meanCostMs).toBeLessThanOrEqual(MEAN_FRAME_COST_MAX_MS);
   });
 
-  test('rAF is not this renderer\'s frame rate, and the numbers prove it', async ({ page }) => {
+  test("rAF is not this renderer's frame rate, and the numbers prove it", async ({
+    browser,
+  }, testInfo) => {
     /*
      * The evidence for why the two gates above changed shape.
      *
-     * This is not a product requirement — it is a guard against the measurement
-     * regressing to the thing it used to be. On an idle office `rAF` ticks at
-     * the display's rate while the renderer draws on `AnimationDriver`'s 10 Hz
-     * ambient pump, so the two disagree by roughly six times. Anyone who
-     * reintroduces "avg FPS" from rAF and calls it WebGL performance will find
-     * this test printing both numbers side by side.
+     * Not a product requirement — a guard against the MEASUREMENT regressing to
+     * the thing it used to be. Anyone who reintroduces "avg FPS" from
+     * requestAnimationFrame and calls it WebGL performance will find this test
+     * printing both numbers side by side.
+     *
+     * It used to measure the unacknowledged office and expect the two to differ
+     * by roughly six times. That state is no longer quiet, and deliberately so:
+     * `officeFrameMode` now draws continuously while the alarm pulses, because
+     * a 1.6 s cosine sampled on a 100 ms pump is a staircase sitting next to a
+     * DOM border animating at the display's rate — half of "the alarm reads as
+     * two rhythms" was exactly that. So the comparison moved to the state the
+     * policy still parks in, which a player reaches by asking for reduced
+     * motion: `officeFrameMode` returns `static` there whatever else is
+     * happening, and the room draws once.
+     *
+     * And it compares the two counters directly rather than two derived rates.
+     * `WebGLRenderer.info.render.frame` is the number of real `render()` calls;
+     * rAF is the display. When the room has parked, the first stops and the
+     * second does not, which is the whole claim and cannot be produced by
+     * dividing one of them by the other.
      */
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await openOffice3D(page);
+    const context = await browser.newContext({
+      baseURL: testInfo.project.use.baseURL,
+      viewport: { width: 1440, height: 900 },
+      reducedMotion: 'reduce',
+    });
+    const page = await context.newPage();
 
-    const raf = await sampleFrameRate(page, 2000);
-    const { cost } = await sampleRenderCost(page, 2000);
-    const renderedFps = 1000 / cost.meanIntervalMs;
+    try {
+      await openOffice3D(page);
 
-    console.log(
-      `idle office: requestAnimationFrame ${raf.average.toFixed(1)} Hz (the display), ` +
-        `WebGL render ${renderedFps.toFixed(1)} Hz (the room) — ` +
-        `a factor of ${(raf.average / renderedFps).toFixed(1)}`,
-    );
+      const before = await page.evaluate(() => window.__CYCASE_RENDER__?.sample()?.frame ?? null);
+      expect(before, 'the render probe is unavailable — the office is not mounted').not.toBeNull();
 
-    expect(raf.average, 'rAF did not run, so this comparison means nothing').toBeGreaterThan(30);
-    expect(
-      renderedFps,
-      'the idle office is rendering at display rate — the demand loop is not demanding, ' +
-        'and the ambient budget in PROJECT_CONTEXT.md §7 is being spent every frame',
-    ).toBeLessThan(raf.average * 0.5);
+      const raf = await sampleFrameRate(page, 2000);
+      const after = await page.evaluate(() => window.__CYCASE_RENDER__?.sample()?.frame ?? null);
+
+      const rendered = after! - before!;
+      const rafTicks = Math.round((raf.average * 2000) / 1000);
+      console.log(
+        `parked office (reduced motion): requestAnimationFrame ${raf.average.toFixed(1)} Hz ` +
+          `(~${rafTicks} ticks in 2 s, the display), gl.info.render.frame +${rendered} ` +
+          `(the room) — a factor of ${rendered === 0 ? '∞' : (rafTicks / rendered).toFixed(1)}`,
+      );
+
+      expect(raf.average, 'rAF did not run, so this comparison means nothing').toBeGreaterThan(30);
+      expect(
+        rendered,
+        'the parked office is still drawing at something like display rate — the demand loop ' +
+          'is not demanding, and the ambient budget in PROJECT_CONTEXT.md §7 is being spent',
+      ).toBeLessThan(rafTicks * 0.5);
+    } finally {
+      await context.close();
+    }
   });
 
   test('the character arrival never drops below the sustained floor', async ({ page }) => {
