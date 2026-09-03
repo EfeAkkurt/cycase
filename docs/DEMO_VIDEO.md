@@ -181,10 +181,12 @@ expected; the edit finds the cut points.
    `CYCASE — incident response you play with an agent`.
 9. Paste the link into Devpost.
 
-## 10. Remotion, when we get there
+## 10. Remotion — the cut lives in `~/dev/cycase-pitch`
 
-A title card, an end card, and lower thirds naming each speaker on their first
-appearance. The camera and screen footage carry the film; motion design would
-only cost seconds we do not have. Compositions at 1920×1080/60, one
-`<Sequence>` per row in §3, camera audio as the master track so screen b-roll is
-timed to the voice, not the other way round.
+Separate repo (media is ~2 GB, stays out of git). `src/timeline.ts` is the
+whole edit: camera trims, shot list, scene order. Composition `Pitch`,
+1920×1080 @ 30 fps, currently 2:43 with Efe's four scenes rendering placeholder
+cards that carry his lines. When his `efe.mp4` lands, flip `EFE.ready` and fill
+the four ranges — nothing else moves. Lower thirds on first appearance, the
+cold-open caption at 0:08, end card with the live URL and repo; no other motion
+design. Camera audio is the master track; b-roll is timed to the voice.
