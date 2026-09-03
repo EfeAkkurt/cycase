@@ -2,6 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 
 import { t } from '../i18n';
 import { Badge, Button, Icon, Panel } from '../ui/primitives';
+import { agentPrompt } from './agentPrompts';
 import { TOOL_DEFINITIONS } from './tools';
 import type { WebMcpStatus } from './useWebMcpTools';
 
@@ -65,7 +66,7 @@ export function WebMcpPanel() {
 
   const copyPrompt = async () => {
     try {
-      await navigator.clipboard.writeText(t('webmcp.example_prompt'));
+      await navigator.clipboard.writeText(agentPrompt('learn', 'en'));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {

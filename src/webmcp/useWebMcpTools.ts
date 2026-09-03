@@ -5,8 +5,55 @@ import {
 } from '../app/gameContext';
 import type { CommandKind } from '../game/types';
 import { withGuidanceDelivery } from './guidanceReceipt';
+import {
+  describePage,
+  officeSubSceneOf,
+  pageReserve,
+  withPageContext,
+} from './pageContext';
 import { TOOL_DEFINITIONS, compactResult } from './tools';
 import { getModelContext, type ToolExecuteResult } from './types';
+
+/** Case calls that mean the agent has started working, rather than just reading. */
+const CASE_WORK = new Set<CommandKind>([
+  'inspect_artifact',
+  'run_diagnostic',
+  'submit_decision',
+  'take_response_action',
+]);
+
+/** Office beats where the player already has the console control in front of them. */
+const HANDS_OVER = new Set(['assistantReporting', 'briefingChoice', 'explained', 'resume']);
+
+/**
+ * Bring the player to the console when the agent starts working the case.
+ *
+ * The proposal model needs the player somewhere they can answer it: `Approve`
+ * lives on the console, and an agent working while the player is still at the
+ * desk leaves a proposal with nobody able to take it. This sends the same
+ * `DEBUG` the office's own "Open response console" button sends — the scene
+ * only. It deliberately does not touch the route: the receipt already surfaces
+ * an agent's call at the control that issued it, which is a better answer than
+ * moving the view, and this is only about being in the room at all.
+ *
+ * Reads and narration never reach here, and neither does a refused call. Nor
+ * does anything before the player has the console control in front of them:
+ * `DEBUG` sits on the office node so the skip path can bypass the choreography,
+ * and reusing that hatch earlier would let a tool call teleport the player past
+ * the alarm and VERA's arrival — which is exactly what `get_incident.page`
+ * promises the agent it will ask them to do instead.
+ */
+function openConsoleForAgentWork(
+  runtime: ReturnType<typeof useRuntime>,
+  kind: CommandKind,
+  result: { ok: boolean },
+): void {
+  if (!result.ok || !CASE_WORK.has(kind)) return;
+  if (runtime.scene !== 'office') return;
+  const sub = officeSubSceneOf(runtime.actor.getSnapshot().value);
+  if (sub === null || !HANDS_OVER.has(sub)) return;
+  runtime.send({ type: 'DEBUG' });
+}
 
 export interface WebMcpStatus {
   /** The browser exposes `document.modelContext.registerTool`. */
@@ -114,8 +161,26 @@ export function useWebMcpTools(): WebMcpStatus {
                     ? withGuidanceDelivery(result, runtime.context)
                     : result;
 
+                /*
+                 * `get_incident` also says where the player is. The token is
+                 * merged *after* compaction with its size reserved, so the clip
+                 * passes can never reach it — see `pageContext.ts`.
+                 */
+                openConsoleForAgentWork(runtime, tool.name as CommandKind, result);
+
+                const page =
+                  tool.name === 'get_incident'
+                    ? describePage(
+                        runtime.scene,
+                        officeSubSceneOf(runtime.actor.getSnapshot().value),
+                      )
+                    : null;
+                const wire = page
+                  ? withPageContext(compactResult(payload, pageReserve(page)), page)
+                  : compactResult(payload);
+
                 return {
-                  content: [{ type: 'text', text: JSON.stringify(compactResult(payload)) }],
+                  content: [{ type: 'text', text: JSON.stringify(wire) }],
                   isError: !result.ok,
                 };
               },

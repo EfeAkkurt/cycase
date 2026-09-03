@@ -3,6 +3,7 @@ import { useAudio } from '../../audio/audioContext';
 import { useSpeech } from '../../audio/speechContext';
 import { t } from '../../i18n';
 import { Button } from '../primitives';
+import { AgentPromptCard } from './AgentPromptCard';
 
 /**
  * Boot — black screen. Nothing starts until the user opts in, so audio can
@@ -49,6 +50,8 @@ export function BootScene() {
         <p className="muted text-sm">
           {t('app.enter_hint')}
         </p>
+
+        <AgentPromptCard />
       </div>
     </main>
   );
