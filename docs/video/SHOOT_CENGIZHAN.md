@@ -16,7 +16,7 @@ you start.
 **Your lines** (from `../DEMO_VIDEO.md` §4 — reproduced here so you have one
 page to read from):
 
-> **[camera]** Hi — I'm Cengizhan. This is CYCASE: a cyber incident-response
+> **[camera, smile]** Hi — I'm Cengizhan. This is CYCASE: a cyber incident-response
 > simulation where an AI agent works a real case beside you. You just watched it
 > happen — an agent reading evidence, proposing a move, and me approving it on
 > the page.
@@ -35,10 +35,10 @@ page to read from):
 > up as untrusted content, right beside the case's real label for the move. I
 > approve — and it's recorded as my decision, not the model's.
 >
-> **[camera, with Efe — see "The joint close" below]** No agent? Still a full
+> **[camera, with Efe, smile — see "The joint close" below]** No agent? Still a full
 > game — every control's right there, keyboard and all.
 >
-> **[screen: end card]** Thanks for watching.
+> **[screen: end card, smile]** Thanks for watching.
 
 **How to shoot it:**
 
@@ -50,7 +50,11 @@ page to read from):
    play under the ChatGPT footage; you do not need to think about that while
    recording.
 3. The bracketed notes are for the editor. Do not read `[camera]` or
-   `[screen: A2]` out loud.
+   `[screen: A2]` out loud — `smile` is the one exception: at those three lines
+   (the hello, "No agent? Still a full game," and "Thanks for watching"), let
+   an actual smile land on your face as you say the words. Not the whole
+   block — those three moments are the warm ones; the rest can stay level and
+   direct.
 4. Three full takes minimum. Keep the calmest one.
 5. The **"No agent? Still a full game"** line is shot separately, with Efe — see
    the last section of this document.
@@ -184,7 +188,7 @@ afterwards. Fifteen seconds, no dead air, no hunting for the button.
 
 Row 9 of the timeline is both of you on camera together, delivering:
 
-> Cengizhan: "No agent? Still a full game — every control's right there,
+> Cengizhan (smile): "No agent? Still a full game — every control's right there,
 > keyboard and all."
 > Efe: "It's open source, it's live, and it's built entirely on WebMCP."
 

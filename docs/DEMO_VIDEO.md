@@ -65,7 +65,7 @@ in order, looking at the lens. `[screen: …]` notes are for the editor.
 
 ### Cengizhan's block
 
-> **[camera]** Hi — I'm Cengizhan. This is CYCASE: a cyber incident-response
+> **[camera, smile]** Hi — I'm Cengizhan. This is CYCASE: a cyber incident-response
 > simulation where an AI agent works a real case beside you. You just watched it
 > happen — an agent reading evidence, proposing a move, and me approving it on
 > the page.
@@ -85,10 +85,10 @@ in order, looking at the lens. `[screen: …]` notes are for the editor.
 > right beside the case's real label for the move. I approve — and it's
 > recorded as my decision, not the model's.
 >
-> **[camera, with Efe]** No agent? Still a full game — every control's right
+> **[camera, with Efe, smile]** No agent? Still a full game — every control's right
 > there, keyboard and all.
 >
-> **[screen: end card, tail]** Thanks for watching.
+> **[screen: end card, tail, smile]** Thanks for watching.
 
 ### Efe's block
 
