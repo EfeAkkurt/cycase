@@ -72,6 +72,21 @@ speed-read; cut a sentence instead.
 
 ## 4. Who records what
 
+Two role-specific scripts, each written against the deployed build and the flow
+as it actually behaves:
+
+- **[`video/SHOOT_CENGIZHAN.md`](./video/SHOOT_CENGIZHAN.md)** — A1–A5, everything
+  involving the ChatGPT desktop app.
+- **[`video/SHOOT_EFE.md`](./video/SHOOT_EFE.md)** — B1–B2, the console reaching
+  containment and the no-agent path.
+
+A full 39-minute playthrough against the deployed URL is already captured at
+`~/Desktop/cycase-demo/cycase-full-playthrough.mov`. It is the fallback, not the
+cut: it carries two macOS notifications and a mechanical cursor. Both scripts
+say which shots to take fresh.
+
+### Summary
+
 Two capture sets. Both must be recorded **against the deployed HTTPS URL**, not
 localhost — judges will open the deployed site and the video should show the
 same thing.
