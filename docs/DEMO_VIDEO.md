@@ -36,21 +36,25 @@ the editor; do not read them aloud.
 
 ## 3. Timeline
 
-Target **2:45**, hard ceiling 2:59.
+Target **2:53**, hard ceiling 2:59. (Was 2:45 before the market-context
+paragraph in row 3 below; the extra ~24s comes back out of rows 4, 6, 7, 8, 9
+and 10, trimmed in the edit — the b-roll is already captured, so this is a
+shorter hold in Remotion, not a reshoot.)
 
 | # | Time | Visual | Speaker |
 | --- | --- | --- | --- |
 | 1 | 0:00–0:10 | **Screen, silent, caption only.** A1 cold open: agent proposes, Approve, containment moves. Caption pops at 0:08: *"Contained · 100/100."* | — |
 | 2 | 0:10–0:25 | **Camera.** Cengizhan, hook. | Cengizhan |
-| 3 | 0:25–0:45 | **Screen** (A2, lobby gate), his voice continues. | Cengizhan |
-| 4 | 0:45–1:00 | **Camera.** Efe, the guarantee. | Efe |
-| 5 | 1:00–1:25 | **Screen** (A3 page token + A4 chat play), his voice continues. | Efe |
-| 6 | 1:25–1:55 | **Screen only** (A5, the proposal card). No camera cut here — let the frame breathe. | Cengizhan (VO) |
-| 7 | 1:55–2:15 | **Screen** (B1, contain → debrief, land on the activity split). | Efe (VO) |
-| 8 | 2:15–2:35 | **Camera, both together.** Close. | Both |
-| 9 | 2:35–2:45 | **Screen, static end card.** Live URL, repo, MIT. | Cengizhan (tail) |
+| 3 | 0:25–0:49 | **Camera.** Cengizhan, the market-context beat — why this teaches, why now. | Cengizhan |
+| 4 | 0:49–1:04 | **Screen** (A2, lobby gate), his voice continues. | Cengizhan |
+| 5 | 1:04–1:19 | **Camera.** Efe, the guarantee. | Efe |
+| 6 | 1:19–1:41 | **Screen** (A3 page token + A4 chat play), his voice continues. | Efe |
+| 7 | 1:41–2:09 | **Screen only** (A5, the proposal card). No camera cut here — let the frame breathe. | Cengizhan (VO) |
+| 8 | 2:09–2:27 | **Screen** (B1, contain → debrief, land on the activity split). | Efe (VO) |
+| 9 | 2:27–2:45 | **Camera, both together.** Close. | Both |
+| 10 | 2:45–2:53 | **Screen, static end card.** Live URL, repo, MIT. | Cengizhan (tail) |
 
-Row 6 is deliberately camera-free: it is the single most important frame in the
+Row 7 is deliberately camera-free: it is the single most important frame in the
 film (the proposal card, untrusted-content shell, case label, Approve) and a
 cutaway to a face would cost the viewer the read.
 
@@ -65,6 +69,12 @@ in order, looking at the lens. `[screen: …]` notes are for the editor.
 > simulation where an AI agent works a real case beside you. You just watched it
 > happen — an agent reading evidence, proposing a move, and me approving it on
 > the page.
+>
+> **[camera]** Every big leap in AI ends up putting security in the headlines
+> more than the software itself — and that's pulling in people who never
+> called themselves "security people." We wanted CYCASE to teach the real
+> thing: technical enough to respect people who already know this, and clear
+> enough that someone just getting curious can actually learn it.
 >
 > **[screen: A2]** It's built on WebMCP — seven site tools, registered right on
 > the page. The shift doesn't even start until an agent actually shows up.
@@ -108,7 +118,7 @@ pace.
   block (§4 above) plus screen shots A1–A5.
 - **[`video/SHOOT_EFE.md`](./video/SHOOT_EFE.md)** — his camera block plus
   screen shots B1–B2.
-- **Row 8 (both together)** needs a joint sitting — see both scripts' final
+- **Row 9 (both together)** needs a joint sitting — see both scripts' final
   section for how to shoot it once and split it.
 
 A full 39-minute playthrough against the deployed URL is already captured at
@@ -159,7 +169,7 @@ expected; the edit finds the cut points.
    part that needs a clean room and a good take, and it tells the editor exactly
    how long each screen segment has to fill.
 3. **Record your screen shots** per your own script (A1–A5 or B1–B2).
-4. **Shoot the joint close together** (row 8) — see the final section of either
+4. **Shoot the joint close together** (row 9) — see the final section of either
    shoot script.
 5. **Send everything to one place** — camera clips and screen clips, one file
    per shot, named by shot code (`C-cengizhan.mov`, `A2.mov`, `B1.mov`, …).

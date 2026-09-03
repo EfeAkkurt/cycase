@@ -21,6 +21,12 @@ page to read from):
 > happen — an agent reading evidence, proposing a move, and me approving it on
 > the page.
 >
+> **[camera]** Every big leap in AI ends up putting security in the headlines
+> more than the software itself — and that's pulling in people who never
+> called themselves "security people." We wanted CYCASE to teach the real
+> thing: technical enough to respect people who already know this, and clear
+> enough that someone just getting curious can actually learn it.
+>
 > **[screen: A2]** It's built on WebMCP — seven site tools, registered right on
 > the page. The shift doesn't even start until an agent actually shows up.
 > Watch: the button's locked until it calls its first tool.
@@ -144,7 +150,7 @@ agent just read.
 
 This is the shot the whole submission argues from. Shoot it three times; keep the
 calmest. No camera cut lands here — the frame plays alone (see the timeline in
-`../DEMO_VIDEO.md` §3, row 6).
+`../DEMO_VIDEO.md` §3, row 7).
 
 ### A1 — the cold open  *(target 15s — film this LAST)*
 
@@ -176,7 +182,7 @@ afterwards. Fifteen seconds, no dead air, no hunting for the button.
 
 ## The joint close (with Efe)
 
-Row 8 of the timeline is both of you on camera together, delivering:
+Row 9 of the timeline is both of you on camera together, delivering:
 
 > Cengizhan: "No agent? Still a full game — every control's right there,
 > keyboard and all."
