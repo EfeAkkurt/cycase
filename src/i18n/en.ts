@@ -14,6 +14,15 @@ export const en = {
   'app.enter': 'Enter Simulation',
   'app.enter_hint': 'Audio starts only after you choose to enter.',
   'app.language': 'Language',
+  'app.lobby.gate_reason': 'Waiting for the agent',
+  'app.lobby.gate_reason_tools': 'Registering the site tools',
+  'app.lobby.waiting_tools': 'Registering the site tools on this page…',
+  'app.lobby.waiting_agent': 'Seven site tools are registered. No agent has called one yet.',
+  'app.lobby.agent_here': 'An agent is on the case. The shift can start.',
+  'app.lobby.escape':
+    'No agent arrived, so the shift is open anyway — the whole case is playable without one.',
+  'app.lobby.manual':
+    'No site tools in this browser. The whole case is playable without an agent.',
   'prompt.title': 'Start with your agent',
   'prompt.body': 'Paste this into the chat beside the page. The decisions stay with you.',
   'prompt.mode': 'Mode',

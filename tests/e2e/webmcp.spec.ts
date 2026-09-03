@@ -110,7 +110,9 @@ test.describe('agent completes the case', () => {
      * to read as the agent's work and not the player's.
      */
     const attribution = page.locator('#debrief-outcome');
-    await expect(attribution).toContainText(`${PERFECT_RUN.length} by the agent`);
+    // The run itself, plus the incident read the double makes on arrival —
+    // the lobby will not start a shift for a browser no agent has joined.
+    await expect(attribution).toContainText(`${PERFECT_RUN.length + 1} by the agent`);
     await expect(attribution).toContainText('0 by you');
   });
 

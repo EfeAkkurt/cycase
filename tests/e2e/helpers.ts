@@ -18,6 +18,24 @@ Object.defineProperty(document, 'modelContext', {
       if (options && options.signal) {
         options.signal.addEventListener('abort', () => window.__cycaseTools.delete(descriptor.name));
       }
+      /*
+       * The agent this shim stands for reads the incident once the page has
+       * finished registering, which is what an agent asked to help with a case
+       * actually does first. Without it the double is a browser that supports
+       * WebMCP and has nobody attached — a real state, but not the one specs
+       * installing this shim are describing, and the lobby gate can tell the
+       * difference. \`installModelContext(page, { agentArrives: false })\` opts
+       * out for the specs that mean the empty browser.
+       */
+      if (window.__cycaseAgentArrives && descriptor.name === 'get_incident') {
+        setTimeout(() => {
+          try {
+            descriptor.execute({});
+          } catch {
+            /* the page is the referee; a refused first read is its business */
+          }
+        }, 0);
+      }
       return Promise.resolve();
     },
     getTools() {
@@ -69,8 +87,20 @@ export interface ToolResult<T = unknown> {
   error?: { code: string; message: string; recovery?: string };
 }
 
-/** Installs the shim. Must run before any page script. */
-export async function installModelContext(page: Page): Promise<void> {
+/**
+ * Installs the shim. Must run before any page script.
+ *
+ * By default the agent it stands for reads the incident as soon as the page has
+ * registered its tools, because that is what an agent does and because the
+ * lobby will not start a shift for a browser nobody has joined. Pass
+ * `{ agentArrives: false }` for the specs that are *about* that empty state.
+ */
+export async function installModelContext(
+  page: Page,
+  options: { agentArrives?: boolean } = {},
+): Promise<void> {
+  const arrives = options.agentArrives ?? true;
+  await page.addInitScript(`window.__cycaseAgentArrives = ${arrives};`);
   await page.addInitScript(MODEL_CONTEXT_SHIM);
 }
 
