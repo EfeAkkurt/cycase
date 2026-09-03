@@ -15,6 +15,7 @@ export const en = {
   'app.enter_hint': 'Audio starts only after you choose to enter.',
   'app.language': 'Language',
   'app.lobby.gate_reason': 'Waiting for the agent',
+  'app.lobby.gate_reason_tools': 'Registering the site tools',
   'app.lobby.waiting_tools': 'Registering the site tools on this page…',
   'app.lobby.waiting_agent': 'Seven site tools are registered. No agent has called one yet.',
   'app.lobby.agent_here': 'An agent is on the case. The shift can start.',

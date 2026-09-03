@@ -29,6 +29,9 @@ describe('lobbyGate', () => {
   });
 
   it('distinguishes waiting for tools from waiting for an agent', () => {
+    // The two are different blockers and the lobby says which one it is on:
+    // "waiting for an agent" while the page is still registering sends the
+    // player looking for a problem on the other end that does not exist yet.
     expect(lobbyGate({ ...base, toolsRegistered: false }).phase).toBe('waiting_tools');
     expect(lobbyGate(base).phase).toBe('waiting_agent');
   });

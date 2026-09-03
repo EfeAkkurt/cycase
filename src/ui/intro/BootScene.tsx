@@ -80,7 +80,21 @@ export function BootScene() {
             variant="primary"
             onClick={() => enter(false)}
             disabled={!gate.canEnter}
-            reason={gate.canEnter ? undefined : t('app.lobby.gate_reason')}
+            /*
+             * The reason has to name the actual blocker. Until the seven
+             * descriptors are registered the lobby is waiting on itself, and
+             * telling the player it is waiting for an agent sends them looking
+             * for a problem on the other end that does not exist yet.
+             */
+            reason={
+              gate.canEnter
+                ? undefined
+                : t(
+                    gate.phase === 'waiting_tools'
+                      ? 'app.lobby.gate_reason_tools'
+                      : 'app.lobby.gate_reason',
+                  )
+            }
           >
             {t('app.enter')}
           </Button>

@@ -36,12 +36,14 @@ test('lets a browser without site tools straight in', async ({ page }) => {
   await expect(page.locator('#lobby-gate')).toContainText('playable without an agent');
 });
 
-test('the gate is a real control, not a hidden one', async ({ page }) => {
+test('the gate is a real control, and names the actual blocker', async ({ page }) => {
   await installModelContext(page, { agentArrives: false });
   await page.goto('/');
 
-  // A disabled primary action has to say why, or it reads as a broken page.
+  // A disabled primary action has to say why, or it reads as a broken page —
+  // and the why has to be true: once the tools are up, the wait is on the agent.
   await expect(page.locator('.btn__reason')).toContainText('Waiting for the agent');
+  await expect(page.locator('#lobby-gate')).toContainText('No agent has called one yet');
 });
 
 test('a joined browser starts the shift without ceremony', async ({ page }) => {
