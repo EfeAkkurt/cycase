@@ -5,7 +5,9 @@ covering *what you built* and *how you used WebMCP*. Their own guidance: show th
 project working in the first fifteen seconds, start already logged in, skip
 setup and loading, and cut dead air, slow sections and live typing.
 
-Nothing here is recorded yet. This is the plan.
+This is a **pitch video with two on-camera narrators**, not a silent screen
+recording. Efe and Cengizhan both appear on camera, in their own words, cut
+against the product working. Nothing here is recorded yet. This is the plan.
 
 ## 1. The thesis, in one sentence
 
@@ -14,185 +16,165 @@ what keeps it honest.**
 
 Everything in the cut serves that sentence. If a shot does not, it goes.
 
-## 2. Timeline
+## 2. Format
 
-Target **2:45**, hard ceiling 2:59. Times are cumulative.
+Two kinds of footage, cut together:
 
-| # | Time | On screen | Source |
+- **Screen captures** — silent, video only, no system audio. `SHOOT_CENGIZHAN.md`
+  (shots A1–A5) and `SHOOT_EFE.md` (shots B1–B2). These already exist as scripts
+  and one full 39-minute reference playthrough is captured at
+  `~/Desktop/cycase-demo/cycase-full-playthrough.mov`.
+- **Camera footage** — Efe and Cengizhan, on camera, each delivering their whole
+  part of the script in one continuous take (§4). This is new since the last
+  version of this plan.
+
+The edit decides, shot by shot, whether a line plays as a **talking head** (face
+on screen) or as **narration over screen b-roll** (voice continues, screen takes
+over). You do not need to decide this while shooting — read your part straight
+through, on camera, start to finish. Bracketed notes like `[screen: A2]` are for
+the editor; do not read them aloud.
+
+## 3. Timeline
+
+Target **2:45**, hard ceiling 2:59.
+
+| # | Time | Visual | Speaker |
 | --- | --- | --- | --- |
-| 1 | 0:00–0:14 | **Cold open, mid-case.** Chat: the agent proposes *Revoke active sessions*. Console: the proposal beside the case's own label, `Approve`. Cursor clicks Approve. Containment checklist 0/5 → 1/5, Active sessions 3 → 1, a receipt appears. | A1 |
-| 2 | 0:14–0:34 | **What it is.** Lobby, gated: *"Seven site tools are registered. No agent has called one yet."* Copy prompt → paste in ChatGPT → send. Gate opens. | A2 |
-| 3 | 0:34–0:52 | **The page tells the agent where you are.** Agent replies that `page` is `enter_simulation` and asks for the button. Press it. Wake, office, alarm, VERA's report. | A3 |
-| 4 | 0:52–1:16 | **Playing from the chat.** Agent explains the first decision and asks. Answer in the chat. The console opens by itself on the evidence the agent just read. Phase rail Triage → Investigate. | A4 |
-| 5 | 1:16–1:46 | **The guarantee.** Agent proposes a consequential move. Console renders the model's line as untrusted content *beside the fixture's own label*, with Approve. Approve. Receipt: what changed, what did not. | A5 |
-| 6 | 1:46–2:12 | **Contain → close.** Phase pills filling, checklist to 5/5, severity Critical → Contained, debrief: score, three lessons, "Nothing critical was left open." | B1 |
-| 7 | 2:12–2:32 | **No agent, still a game.** Plain Chrome: lobby lets you straight in, the same case played by hand through the console's own controls. | B2 |
-| 8 | 2:32–2:45 | **Close.** Static card: live URL, repo URL, "MIT". | E1 |
+| 1 | 0:00–0:10 | **Screen, silent, caption only.** A1 cold open: agent proposes, Approve, containment moves. Caption pops at 0:08: *"Contained · 100/100."* | — |
+| 2 | 0:10–0:25 | **Camera.** Cengizhan, hook. | Cengizhan |
+| 3 | 0:25–0:45 | **Screen** (A2, lobby gate), his voice continues. | Cengizhan |
+| 4 | 0:45–1:00 | **Camera.** Efe, the guarantee. | Efe |
+| 5 | 1:00–1:25 | **Screen** (A3 page token + A4 chat play), his voice continues. | Efe |
+| 6 | 1:25–1:55 | **Screen only** (A5, the proposal card). No camera cut here — let the frame breathe. | Cengizhan (VO) |
+| 7 | 1:55–2:15 | **Screen** (B1, contain → debrief, land on the activity split). | Efe (VO) |
+| 8 | 2:15–2:35 | **Camera, both together.** Close. | Both |
+| 9 | 2:35–2:45 | **Screen, static end card.** Live URL, repo, MIT. | Cengizhan (tail) |
 
-## 3. Voice-over, word for word
+Row 6 is deliberately camera-free: it is the single most important frame in the
+film (the proposal card, untrusted-content shell, case label, Approve) and a
+cutaway to a face would cost the viewer the read.
 
-One voice for the whole video. ~330 words at a calm pace is ~2:40 — do not
-speed-read; cut a sentence instead.
+## 4. The script
 
-> **[0:00]** This is a live security incident, and the thing on the left is an AI
-> agent working it with me. It has just proposed revoking the attacker's
-> sessions. It cannot do that itself — it proposes, I approve, and the page
-> carries it out.
->
-> **[0:14]** CYCASE is a cyber incident-response simulation for people who have
-> never worked an incident. It registers seven WebMCP site tools on
-> `document.modelContext`, so the agent and I share one case, one timeline and
-> the same controls. The shift does not even start until an agent is actually
-> on the line.
->
-> **[0:34]** The first thing the agent does is read the incident — and the page
-> tells it where I am. It knows I have not opened the console yet, so instead of
-> acting into a screen I am not looking at, it asks me to press the button.
->
-> **[0:52]** Now it teaches. It reads the evidence, explains what the message
-> actually proves, and asks me which way to go. I answer in the chat, and the
-> console follows the work: it opens on the evidence the agent just read, and
-> the phase strip moves from triage to investigation.
->
-> **[1:16]** Here is the part that matters. The next move is consequential, so
-> the agent is not allowed to take it. It sends a proposal, and the page renders
-> its sentence as untrusted content *beside the case's own label for that move* —
-> so nothing the model writes can dress one operation up as another. I approve,
-> and the command is recorded as mine. Every call is versioned and idempotent; a
-> stale one is refused with a recovery instruction.
->
-> **[1:46]** We contain the identity and the endpoint, sweep the estate for the
-> same indicators, and close against a verified checklist. The debrief scores the
-> run and names the habits worth keeping.
->
-> **[2:12]** With no agent at all, the same case is fully playable by hand. The
-> agent is a partner, not a dependency.
->
-> **[2:32]** It is open source, MIT, and live at the link below.
+Two blocks. Each person reads their **whole** block on camera, straight through,
+in order, looking at the lens. `[screen: …]` notes are for the editor.
 
-## 4. Who records what
+### Cengizhan's block
 
-Two role-specific scripts, each written against the deployed build and the flow
-as it actually behaves:
+> **[camera]** Hi — I'm Cengizhan. This is CYCASE: a cyber incident-response
+> simulation where an AI agent works a real case beside you. You just watched it
+> happen — an agent reading evidence, proposing a move, and me approving it on
+> the page.
+>
+> **[screen: A2]** It's built on WebMCP — seven site tools, registered right on
+> the page. The shift doesn't even start until an agent actually shows up.
+> Watch: the button's locked until it calls its first tool.
+>
+> **[screen: A5 — no camera cut, keep this short and let the card sit]** Here's
+> that guarantee in action. The agent's own words show up as untrusted content,
+> right beside the case's real label for the move. I approve — and it's
+> recorded as my decision, not the model's.
+>
+> **[camera, with Efe]** No agent? Still a full game — every control's right
+> there, keyboard and all.
+>
+> **[screen: end card, tail]** Thanks for watching.
 
-- **[`video/SHOOT_CENGIZHAN.md`](./video/SHOOT_CENGIZHAN.md)** — A1–A5, everything
-  involving the ChatGPT desktop app.
-- **[`video/SHOOT_EFE.md`](./video/SHOOT_EFE.md)** — B1–B2, the console reaching
-  containment and the no-agent path.
+### Efe's block
+
+> **[camera]** Hey, I'm Efe. The part we're proudest of: the agent can never
+> take a risky action on its own. It proposes — right there on the page,
+> labelled by the case, not by the model — and you approve.
+>
+> **[screen: A3 + A4]** It even knows where you are in the room. If you haven't
+> opened the console yet, it tells you to, instead of guessing. Answer its
+> questions in the chat, and the console follows you there.
+>
+> **[screen: B1]** By the end, the numbers tell the story: eleven actions were
+> mine, thirty-four were the agent's — working together, not one replacing the
+> other. Contained, at a hundred out of a hundred.
+>
+> **[camera, with Cengizhan]** It's open source, it's live, and it's built
+> entirely on WebMCP.
+
+Read this out loud once before recording — total is close to 100 words each,
+which at a calm pace is close to the 45–50 seconds of on-camera-attributed time
+each person gets in the timeline. If a take runs long, cut a clause, not the
+pace.
+
+## 5. Who records what
+
+- **[`video/SHOOT_CENGIZHAN.md`](./video/SHOOT_CENGIZHAN.md)** — his camera
+  block (§4 above) plus screen shots A1–A5.
+- **[`video/SHOOT_EFE.md`](./video/SHOOT_EFE.md)** — his camera block plus
+  screen shots B1–B2.
+- **Row 8 (both together)** needs a joint sitting — see both scripts' final
+  section for how to shoot it once and split it.
 
 A full 39-minute playthrough against the deployed URL is already captured at
 `~/Desktop/cycase-demo/cycase-full-playthrough.mov`. It is the fallback, not the
 cut: it carries two macOS notifications and a mechanical cursor. Both scripts
-say which shots to take fresh.
+say which screen shots to take fresh.
 
-### Summary
+## 6. Camera setup — read this before recording either block
 
-Two capture sets. Both must be recorded **against the deployed HTTPS URL**, not
-localhost — judges will open the deployed site and the video should show the
-same thing.
+Same setup for both of you, so the two halves cut together without a visible
+seam.
 
-### Cengizhan — the agent takes (A1–A5)
+| # | Thing | Detail |
+| --- | --- | --- |
+| 1 | **Frame** | Landscape, eye-level, head and shoulders, a little headroom above. Phone or laptop webcam is fine at 1080p60 or better. |
+| 2 | **Distance** | About an arm's length. Close enough that the face carries the room; not so close it distorts. |
+| 3 | **Light** | Face a window or a lamp — light in front of you, never behind you. No hard shadows across the face. |
+| 4 | **Background** | Plain wall, or a tidy room with nothing distracting behind you. No other screens visible. |
+| 5 | **Audio** | Earbuds mic or a lav mic beats a laptop's built-in mic every time. Test one line first and listen back. |
+| 6 | **Look at the lens**, not at your own preview. That is what reads as eye contact. |
+| 7 | **Room tone** | Five seconds of silence, camera rolling, before you speak — the edit needs it for noise reduction. |
+| 8 | **Takes** | Three full read-throughs minimum. Keep the calmest one, not the fastest. |
+| 9 | **Wardrobe** | Solid colours read better than fine patterns on camera. |
 
-You already have this working: ChatGPT desktop, built-in browser, GPT-5.6 Sol.
+Record your **whole** block in one continuous take each time — do not stop
+between the bracketed sections. Natural pauses between them are fine and
+expected; the edit finds the cut points.
 
-**Setup, before recording**
-1. ChatGPT desktop, Settings → Browser → site tools enabled.
-2. Model **GPT-5.6 Sol or Terra**. Luna has WebMCP disabled and will do nothing.
-3. Open the deployed URL in the app's built-in browser (⌘T, or the side panel's
-   **Browser** row).
-4. Window at a 16:9 shape. Do not resize mid-take.
-5. macOS: hide notifications, hide the menu-bar clutter, empty the chat sidebar.
-6. Have the Learn prompt already on the clipboard — **never film yourself
-   typing it**.
+## 7. What must never be in frame
 
-**A1 — the cold open (record last, when you know the case)**
-Play the case up to the containment proposal, then start recording. Get: the
-agent's proposal in the chat, the console's proposal card, one deliberate click
-on **Approve**, and the numbers moving. ~15 seconds. Take it three times and
-keep the calmest one.
-
-**A2 — the lobby gate**
-Fresh page. Show the gated lobby with the line *"Seven site tools are
-registered. No agent has called one yet."* Click **Copy prompt**, click into the
-chat, paste with ⌘V, send. Stop when the gate opens.
-
-**A3 — the page token**
-Continue: the agent answers that the page is at `enter_simulation` and asks for
-the button. Press **Enter Simulation**. Let the wake and the office play. Stop
-after VERA's report is on screen.
-
-**A4 — playing from the chat**
-Acknowledge the alarm. Let the agent explain the first decision. Answer it **in
-the chat** — short, e.g. `Preserve the message and inspect it.` Stop once the
-console has opened and the phase strip shows Investigate.
-
-**A5 — the guarantee**
-Continue to a consequential move. Frame both halves: the agent's line in the
-chat *and* the proposal card on the page. Click **Approve** slowly enough to see
-it. Hold on the receipt for two seconds.
-
-### Efe — the product takes (B1–B2)
-
-Chrome 149+ with `chrome://flags/#enable-webmcp-testing`, or plain Chrome for
-B2. Same deployed URL. 1440×900, browser chrome hidden if you can.
-
-**B1 — contain to debrief**
-Drive the case to the end however is fastest, then record the *last* stretch:
-the phase pills filling, the containment checklist reaching 5/5, severity
-flipping to **Contained**, and the debrief — score, the three lessons, and
-"Nothing critical was left open." Scroll slowly; no jump cuts inside the shot.
-
-**B2 — no agent, still a game**
-Plain Chrome, **no** WebMCP flag. Show the lobby letting you straight in and one
-decision answered with the console's own buttons. This is the shot that proves
-the accessibility claim, so let the controls be legible.
-
-### Either of you — E1
-
-A static end card: live URL, `github.com/EfeAkkurt/cycase`, "MIT". Ten seconds
-of stills is fine; it will be built in the edit.
-
-## 5. Capture settings
-
-- **1920×1080, 60fps**, H.264. Record the window, not the whole desktop.
-- **No system audio.** Voice-over is recorded separately and laid over.
-- Cursor visible. Move it deliberately — a cursor that darts is unreadable at
-  three minutes.
-- No notifications, no personal email, no other tabs, no Slack, no calendar.
-- Each take: three seconds of stillness at the head and tail for the edit.
-
-## 6. What must not appear
-
-- Anyone's email address, real name in the chat sidebar, or other chats.
+- Anyone's email address, real name in a chat sidebar, or other chats.
 - Any third-party logo beyond ChatGPT's own UI, which is unavoidable and fine.
 - Copyrighted music. The rules exclude it explicitly.
 - `localhost` or `127.0.0.1` in the address bar.
 - Live typing of the prompt, sign-in, or loading screens.
+- Notifications of any kind — Do Not Disturb on, always.
 
-## 7. Claims the voice-over must not make
+## 8. Claims the script must not make
 
 - Do not say the data is real. It is synthetic and the interface says so.
 - Do not say the agent decides anything. It proposes; the engine referees.
 - Do not name a session length. It has never been measured.
 
-## 8. Order of work
+## 9. Order of work
 
-1. **Deploy.** Everything downstream needs the URL. *(blocking)*
-2. **Smoke the deployed build** in the ChatGPT desktop browser once: seven tools
-   in Site tools, one decision, one approval.
-3. **Cengizhan records A2 → A5**, then **A1** last.
-4. **Efe records B1, B2.**
-5. **One voice records the whole VO** to §3, in one sitting, one microphone.
-6. **Assemble in Remotion**: end card, lower thirds naming each guarantee, the
-   timeline in §2. Titles only — no transitions that cost seconds.
-7. **Watch it once at full length.** If it is over 2:59, cut shot 7 first, then
-   trim §3's third paragraph.
-8. **Upload to YouTube, public**, title `CYCASE — incident response you play with an agent`.
+1. **Deploy** — done. Live URL: `cycase-gyq1usuwp-cengizhankoses-projects.vercel.app`.
+2. **Each of you records your camera block** (§4, §6) — do this first; it is the
+   part that needs a clean room and a good take, and it tells the editor exactly
+   how long each screen segment has to fill.
+3. **Record your screen shots** per your own script (A1–A5 or B1–B2).
+4. **Shoot the joint close together** (row 8) — see the final section of either
+   shoot script.
+5. **Send everything to one place** — camera clips and screen clips, one file
+   per shot, named by shot code (`C-cengizhan.mov`, `A2.mov`, `B1.mov`, …).
+6. **Assemble in Remotion**: end card, the timeline in §3, camera cuts against
+   screen b-roll per the bracketed notes in §4.
+7. **Watch it once at full length.** If it is over 2:59, cut a clause from §4
+   first, then trim the B1 tail.
+8. **Upload to YouTube, public**, title
+   `CYCASE — incident response you play with an agent`.
 9. Paste the link into Devpost.
 
-## 9. Remotion, when we get there
+## 10. Remotion, when we get there
 
-Kept deliberately small: a title card, an end card, and lower thirds. The
-screen recordings carry the film; motion design would only cost seconds we do
-not have. Compositions at 1920×1080/60, one `<Sequence>` per shot in §2, audio
-as a single track so the VO timing in §3 is the master clock.
+A title card, an end card, and lower thirds naming each speaker on their first
+appearance. The camera and screen footage carry the film; motion design would
+only cost seconds we do not have. Compositions at 1920×1080/60, one
+`<Sequence>` per row in §3, camera audio as the master track so screen b-roll is
+timed to the voice, not the other way round.
