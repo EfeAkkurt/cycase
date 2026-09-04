@@ -246,7 +246,7 @@ so rather than substituting a stand-in.
 | 6 | Video under 3 min, public on YouTube, with audio | ✅ 2:34, RFlYtoRGxrs |
 | 7 | Description answers the four required points | ✅ §3 above |
 | 8 | Existing-project explanation | ✅ §7 above — verify before sending |
-| 9 | Both team members added and accepted | ⏳ Efe invited, must accept |
+| 9 | Both team members added and accepted | ✅ Efe accepted 4 Sept ~02:00 Istanbul |
 | 10 | Rules agreement ticked, not left as a draft | ✅ submitted |
 
 ## 11. Order of work
