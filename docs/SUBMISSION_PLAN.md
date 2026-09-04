@@ -1,7 +1,9 @@
 # Devpost submission — every field, ready to paste
 
-Deadline **3 September 2026, 1:00 pm PDT** (23:00 Istanbul). Everything below is
-draft copy for the form plus the checklist behind it. Nothing here is submitted.
+Deadline **4 September 2026, 04:00 EDT** (11:00 Istanbul) — Devpost's own clock.
+**Submitted 4 September 2026, 01:45 Istanbul** with the copy below; editable
+until the deadline. Project page:
+https://devpost.com/software/cycase-incident-response-you-play-with-an-agent
 
 Rules require the description to answer four things by name: why the use case
 fits WebMCP, how it improves the experience, what people and agents can now do
@@ -221,8 +223,8 @@ so rather than substituting a stand-in.
 
 | Field | Value |
 | --- | --- |
-| Video demo link | *YouTube URL — see `DEMO_VIDEO.md`* |
-| Live URL | *Vercel production URL* |
+| Video demo link | https://www.youtube.com/watch?v=RFlYtoRGxrs (2:34, public) |
+| Live URL | https://cycase-gyq1usuwp-cengizhankoses-projects.vercel.app |
 | Repository | `https://github.com/EfeAkkurt/cycase` |
 | Submitter type | Team of Individuals |
 | Country of residence | Türkiye, for both team members |
@@ -240,12 +242,12 @@ so rather than substituting a stand-in.
 | 2 | Open-source licence visible in About | ✅ MIT |
 | 3 | WebMCP registration in the repo | ✅ seven tools on `document.modelContext` |
 | 4 | Verified in ChatGPT's in-app browser | ✅ played end to end |
-| 5 | Live URL judges can open | ⏳ deploying |
-| 6 | Video under 3 min, public on YouTube, with audio | ⏳ not recorded |
+| 5 | Live URL judges can open | ✅ Vercel |
+| 6 | Video under 3 min, public on YouTube, with audio | ✅ 2:34, RFlYtoRGxrs |
 | 7 | Description answers the four required points | ✅ §3 above |
 | 8 | Existing-project explanation | ✅ §7 above — verify before sending |
-| 9 | Both team members added and accepted | ⏳ |
-| 10 | Rules agreement ticked, not left as a draft | ⏳ |
+| 9 | Both team members added and accepted | ⏳ Efe invited, must accept |
+| 10 | Rules agreement ticked, not left as a draft | ✅ submitted |
 
 ## 11. Order of work
 
